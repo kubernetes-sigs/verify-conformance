@@ -1,0 +1,6 @@
+external_plugins:
+  cncf-infra/k8s-conformance:
+  - name: verify-conformance-request
+    events:
+      - issue_comment
+      - pull_request

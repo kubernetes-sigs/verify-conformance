@@ -1,4 +1,4 @@
-module cncf.io/infra/verify-conformance-tests
+module cncf.io/infra/verify-conformance-release
 
 go 1.14
 

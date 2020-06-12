@@ -30,7 +30,7 @@ import (
 
 	"k8s.io/test-infra/pkg/flagutil"
 	"k8s.io/test-infra/prow/config/secret"
-	"k8s.io/test-infra/prow/external-plugins/verify-conformance-request/plugin"
+	"cncf.io/infra/verify-conformance-release/plugin"
 	prowflagutil "k8s.io/test-infra/prow/flagutil"
 	"k8s.io/test-infra/prow/github"
 

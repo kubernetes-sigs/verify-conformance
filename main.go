@@ -30,10 +30,9 @@ import (
 
 	"k8s.io/test-infra/pkg/flagutil"
 	"k8s.io/test-infra/prow/config/secret"
-	"k8s.io/test-infra/prow/external-plugins/needs-rebase/plugin"
+	"k8s.io/test-infra/prow/external-plugins/verify-conformance-request/plugin"
 	prowflagutil "k8s.io/test-infra/prow/flagutil"
 	"k8s.io/test-infra/prow/github"
-	"k8s.io/test-infra/prow/labels"
 
 	"k8s.io/test-infra/prow/pluginhelp/externalplugins"
 	"k8s.io/test-infra/prow/plugins"
@@ -83,14 +82,13 @@ func main() {
 		logrus.Fatalf("Invalid options: %v", err)
 	}
 
-	logrus.SetFormatter(&logrus.JSONFormatter{})
-	// TODO: Use global option from the prow config.
+	// logrus.SetFormatter(&logrus.JSONFormatter{})
 	logrus.SetLevel(logrus.InfoLevel)
-	log := logrus.StandardLogger().WithField("plugin", labels.NeedsRebase)
+	log := logrus.StandardLogger().WithField("plugin", "verify-conformance-request")
 
 	secretAgent := &secret.Agent{}
 	if err := secretAgent.Start([]string{o.github.TokenPath, o.webhookSecretFile}); err != nil {
-		logrus.WithError(err).Fatal("Error starting secrets agent.")
+		logrus.WithError(err).Fatal("Error starting test-infra/prow/config/secret agent.")
 	}
 
 	pa := &plugins.ConfigAgent{}
@@ -137,13 +135,11 @@ type Server struct {
 
 // ServeHTTP validates an incoming webhook and puts it into the event channel.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// TODO: Move webhook handling logic out of hook binary so that we don't have to import all
-	// plugins just to validate the webhook.
+	logrus.Info("ServeHTTP : Event received. Validating webhook")
 	eventType, eventGUID, payload, ok, _ := github.ValidateWebhook(w, r, s.tokenGenerator)
 	if !ok {
 		return
 	}
-	fmt.Fprint(w, "Event received. Have a nice day.")
 
 	if err := s.handleEvent(eventType, eventGUID, payload); err != nil {
 		logrus.WithError(err).Error("Error parsing event.")

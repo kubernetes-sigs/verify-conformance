@@ -165,6 +165,8 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 
                 hasReleaseInTitle, releaseVersion, err := HasReleaseInPrTitle(log,ghc,string(pr.Title))
 
+                hasReleaseLabel, err := HasReleaseLabel(log, org, repo, prNumber, ghc, "release-"+releaseVersion)
+
 		prLogger := log.WithFields(logrus.Fields{
 			"org":  org,
 			"repo": repo,
@@ -177,7 +179,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                         githubClient.CreateComment(ghc, org, repo, prNumber, "Please include the release in the title of this Pull Request" )
                 }
 
-                if hasReleaseInTitle {
+                if hasReleaseInTitle && !hasReleaseLabel {
                         logsHaveSpecifiedRelease, err := checkLogsForProvidedRelease(prLogger, filePathNodes, releaseVersion)
 
                         if err != nil {
@@ -205,6 +207,23 @@ func checkLogsForProvidedRelease(prLogger *logrus.Entry, paths []struct{ Path gi
         return releaseFound, nil
 }
 
+func HasReleaseLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, releaseLabel string ) (bool,error) {
+        hasReleaseLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
+
+        if err != nil {
+                prLogger.WithError(err).Error("Failed to find lables")
+        }
+
+        for foundLabel := range labels {
+                hasReleaseLabel := strings.Compare(labels[foundLabel].Name,releaseLabel)
+                if hasReleaseLabel == 0{
+                        break
+                }
+        }
+
+        return hasReleaseLabel, err
+}
 func HasReleaseInPrTitle(log *logrus.Entry, ghc githubClient, prTitle string)  (bool, string, error) {
         verifiable := false
         k8sRelease := ""
@@ -212,7 +231,6 @@ func HasReleaseInPrTitle(log *logrus.Entry, ghc githubClient, prTitle string)  (
                 "PR Title": prTitle,
         })
 	log.Infof("IsVerifiable: title of PR is %q", prTitle)
-
         k8sVerRegExp := regexp.MustCompile(`v[0-9]\.[0-9][0-9]*`)
         titleContainsVersion, err := regexp.MatchString(`v[0-9]\.[0-9][0-9]*`, prTitle)
         if err != nil {

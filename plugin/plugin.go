@@ -161,7 +161,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		org := string(pr.Repository.Owner.Login)
 		repo := string(pr.Repository.Name)
 		prNumber := int(pr.Number)
-		filePathNodes := pr.Files.Nodes
+		sha := string(pr.Commits.Nodes[0].Commit.Oid)
 
                 hasReleaseInTitle, releaseVersion, err := HasReleaseInPrTitle(log,ghc,string(pr.Title))
 
@@ -180,7 +180,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                 }
 
                 if hasReleaseInTitle && !hasReleaseLabel {
-                        logsHaveSpecifiedRelease, err := checkLogsForProvidedRelease(prLogger, filePathNodes, releaseVersion)
+                        logsHaveSpecifiedRelease, err := checkLogsForK8sRelease(prLogger, ghc, org, repo, prNumber, sha, releaseVersion)
 
                         if err != nil {
                                 prLogger.WithError(err).Error("Failed to find a releaseVersion in files")
@@ -189,6 +189,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                         if logsHaveSpecifiedRelease {
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "verifiable")
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "release-"+releaseVersion)
+                                githubClient.CreateComment(ghc, org, repo, prNumber, "Found " + releaseVersion + "in logs" )
                         } else {
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
                                 githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable. We cannot find a reference to " + releaseVersion + "in the logs you supplied with this PR")
@@ -201,11 +202,6 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 	return nil
 }
 
-func checkLogsForProvidedRelease(prLogger *logrus.Entry, paths []struct{ Path githubql.String }, release string) (bool,error){
-        releaseFound := false
-        prLogger.Infof("%q",paths)
-        return releaseFound, nil
-}
 
 func HasReleaseLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, releaseLabel string ) (bool,error) {
         hasReleaseLabel := false
@@ -270,23 +266,20 @@ func takeAction(log *logrus.Entry, ghc githubClient, org, repo string, num int, 
 	return nil
 }
 
-//
-//
-func checkLogsForRelease(log *logrus.Entry, ghc githubClient, org, repo string, number int, sha, k8sRelease string ) (bool,error) {
+// Checks changes associated with the supplied sha to see if the contain a reference to k8sRelease
+// returns true if k8sRelease found , false otherwise
+func checkLogsForK8sRelease(prLogger *logrus.Entry, ghc githubClient, org, repo string, prNumber int, sha, k8sRelease string ) (bool,error) {
 	logsHaveStatedRelease := false
-	changes, err := ghc.GetPullRequestChanges(org, repo, number)
+	changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
 	if err != nil {
 		return logsHaveStatedRelease, err
 	}
 
-	//	gfg, err := genfiles.NewGroup(ghc, org, repo, sha)
 	if err != nil {
 		return logsHaveStatedRelease, err
 	}
-	// v1.16/docker-desktop-for-mac/e2e.log
 	for _, change := range changes {
-		log.Infof("checkLogsForRelease:  %q", change)
-		log.Infof("checkLogsForRelease:  %v", change)
+		prLogger.Infof("checkLogsForRelease:  %v", change.Patch)
 
 	}
 	return logsHaveStatedRelease , nil
@@ -348,11 +341,15 @@ type PullRequest struct {
                 }
 	} `graphql:"files(first:10)"`
 	Title githubql.String
+	Commits struct {
+		Nodes []struct {
+			Commit struct {
+				Oid githubql.String
+			}
+		}
+	} `graphql:"commits(first:5)"`
+}
 
-	Mergeable githubql.MergeableState
-}
-type Commit struct {
-}
 type SearchQuery struct {
 	RateLimit struct {
 		Cost      githubql.Int

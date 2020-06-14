@@ -214,7 +214,7 @@ func HasReleaseLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc 
         for foundLabel := range labels {
                 releaseCheck := strings.Compare(labels[foundLabel].Name,releaseLabel)
                 if releaseCheck == 0 {
-			hasReleaseLabel := true
+			hasReleaseLabel = true
                         break
                 }
         }

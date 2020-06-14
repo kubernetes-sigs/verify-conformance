@@ -208,7 +208,7 @@ func HasReleaseLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc 
 	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
 
         if err != nil {
-                prLogger.WithError(err).Error("Failed to find lables")
+                prLogger.WithError(err).Error("Failed to find labels")
         }
 
         for foundLabel := range labels {
@@ -220,8 +220,9 @@ func HasReleaseLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc 
 
         return hasReleaseLabel, err
 }
+// TODO make this fn more cohesive and fix name
 func HasReleaseInPrTitle(log *logrus.Entry, ghc githubClient, prTitle string)  (bool, string, error) {
-        verifiable := false
+        hasReleaseInTitle := false
         k8sRelease := ""
         log.WithFields(logrus.Fields{
                 "PR Title": prTitle,
@@ -237,9 +238,9 @@ func HasReleaseInPrTitle(log *logrus.Entry, ghc githubClient, prTitle string)  (
                 log.WithFields(logrus.Fields{
                         "Version": k8sRelease,
                 })
-                verifiable = true
+                hasReleaseInTitle = true
         }
-        return verifiable, k8sRelease, nil
+        return hasReleaseInTitle, k8sRelease, nil
 }
 
 // takeAction adds or removes the "preliminary_verified" label based on the current
@@ -275,14 +276,21 @@ func checkLogsForK8sRelease(prLogger *logrus.Entry, ghc githubClient, org, repo 
 		return logsHaveStatedRelease, err
 	}
 
-	if err != nil {
-		return logsHaveStatedRelease, err
-	}
-	for _, change := range changes {
-		prLogger.Infof("checkLogsForRelease:  %v", change.Patch)
+	prLogger.Infof("checkLogsForK8sRelease: %+v", changes)
+
+	for _ , change := range changes {
+		// https://developer.github.com/v3/pulls/#list-pull-requests-files
+		patchContainsVersion, err := regexp.MatchString(`v[0-9]\.[0-9][0-9]*`, change.Patch)
+		if err != nil {
+			return logsHaveStatedRelease, err
+		}
+
+		if (patchContainsVersion){
+			logsHaveStatedRelease =true
+		}
 
 	}
-	return logsHaveStatedRelease , nil
+	return logsHaveStatedRelease , err
 }
 
 func shouldPrune(botName string) func(github.IssueComment) bool {

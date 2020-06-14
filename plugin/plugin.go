@@ -186,10 +186,10 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                                 prLogger.WithError(err).Error("Failed to find a releaseVersion in files")
                         }
 
-                        if logsHaveSpecifiedRelease {
+                        if logsHaveSpecifiedRelease && !hasReleaseLabel {
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "verifiable")
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "release-"+releaseVersion)
-                                githubClient.CreateComment(ghc, org, repo, prNumber, "Found " + releaseVersion + "in logs" )
+                                githubClient.CreateComment(ghc, org, repo, prNumber, "Found " + releaseVersion + " in logs" )
                         } else {
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
                                 githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable. We cannot find a reference to " + releaseVersion + "in the logs you supplied with this PR")
@@ -212,8 +212,9 @@ func HasReleaseLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc 
         }
 
         for foundLabel := range labels {
-                hasReleaseLabel := strings.Compare(labels[foundLabel].Name,releaseLabel)
-                if hasReleaseLabel == 0{
+                releaseCheck := strings.Compare(labels[foundLabel].Name,releaseLabel)
+                if releaseCheck == 0 {
+			hasReleaseLabel := true
                         break
                 }
         }

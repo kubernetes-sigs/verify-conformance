@@ -143,7 +143,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
         //      - we deal with a single org and repo
         //      - we target k8s conformance requests sent to the cncf
 	var queryOpenPRs bytes.Buffer
-	fmt.Fprint(&queryOpenPRs, "archived:false is:pr is:open")
+	fmt.Fprint(&queryOpenPRs, "archived:false is:pr is:open -label:verifiable")
 	for _, org := range orgs {
 		fmt.Fprintf(&queryOpenPRs, " org:\"%s\"", org)
 	}

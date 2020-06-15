@@ -186,23 +186,49 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                                 prLogger.WithError(err).Error("Failed to find a releaseVersion in files")
                         }
 
+                        hasNotVerifiableLabel, err := HasNotVerifiableLabel(log, org, repo, prNumber, ghc)
                         if logsHaveSpecifiedRelease && !hasReleaseLabel {
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "verifiable")
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "release-"+releaseVersion)
                                 githubClient.CreateComment(ghc, org, repo, prNumber, "Found " + releaseVersion + " in logs" )
-                        } else {
-                                githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
-                                githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable. We cannot find a reference to " + releaseVersion + "in the logs you supplied with this PR")
+                                if hasNotVerifiableLabel {
+                                        githubClient.RemoveLabel(ghc, org, repo, prNumber, "not-verifiable")
+                                }
+                        } else { // specifiedRelease not present in logs
+                                if !hasNotVerifiableLabel {
+                                        githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
+                                        githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable. We cannot find a reference to " + releaseVersion + " in the logs you supplied with this PR")
+                                }
                         }
-                } else {
+                } else if !hasReleaseLabel {
                         githubClient.AddLabel(ghc, org, repo, prNumber, "not verifiable")
                         githubClient.CreateComment(ghc, org, repo, prNumber, "This conformance request is not yet verifiable. Please ensure that PR Title refernces the Kubernetes Release and that the supplied logs refer to the specified Release")
+		} else {
+                       break
 		}
         }
 	return nil
 }
 
+// TODO Consolodate this and the next function to cerate a map of labels
+func HasNotVerifiableLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient) (bool,error) {
+        hasNotVerifiableLabel := false
+	labels, err := ghc.GetIssueLabels(org, repo, prNumber)
 
+        if err != nil {
+                prLogger.WithError(err).Error("Failed to find labels")
+        }
+
+        for foundLabel := range labels {
+                notVerifiableCheck := strings.Compare(labels[foundLabel].Name,"not-verifiable")
+                if notVerifiableCheck == 0 {
+			hasNotVerifiableLabel = true
+                        break
+                }
+        }
+
+        return hasNotVerifiableLabel, err
+}
 func HasReleaseLabel(prLogger *logrus.Entry, org,repo string, prNumber int, ghc githubClient, releaseLabel string ) (bool,error) {
         hasReleaseLabel := false
 	labels, err := ghc.GetIssueLabels(org, repo, prNumber)

@@ -32,15 +32,19 @@ import (
 	"k8s.io/test-infra/prow/pluginhelp"
 	"k8s.io/test-infra/prow/plugins"
 	"path"
+	"net/http"
+	"io/ioutil"
+	"github.com/golang-collections/collections/set"
 )
 
 const (
 	PluginName     = "verify-conformance-request"
 	needsVersionReview = "Please ensure that the logs provided correspond to the version referenced in the title of this PR."
-	verifyLabel    = "Verified version"
+	verifyLabel    = "release consistent"
 )
 
 var sleep = time.Sleep
+var requiredProductFieldsSet = set.New("vendor", "name", "version", "website_url", "repo_url", "documentation_url", "product_logo_url", "type", "description")
 var requiredProductFields = map[string]string {
 	"vendor" : "Name of the legal entity that is certifying. This entity must have a signed participation form on file with the CNCF",
 	"name" : "Name of the product being certified.",
@@ -317,8 +321,7 @@ func checkChangesHaveStatedK8sRelease(prLogger *logrus.Entry, ghc githubClient, 
 	productYamlCorrect := false
 	foldersCorrect := false
 
-	missingProductFields :=[]string {}
-
+	missingProductFields := set.New()
 	changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
 
 	if err != nil {
@@ -330,14 +333,14 @@ func checkChangesHaveStatedK8sRelease(prLogger *logrus.Entry, ghc githubClient, 
 	// checks that we need to do
         var supportingFiles = make ( map[string] github.PullRequestChange  )
 	for _ , change := range changes {
-		prLogger.Infof("checkChangesHaveStatedK8sRelease: change %+v", change)
 		// https://developer.github.com/v3/pulls/#list-pull-requests-files
 		supportingFiles[path.Base(change.Filename)] = change
+		//		prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
 	}
 
 	// Do all our checks
 	e2eLogHasRelease = checkPatchContainsRelease(prLogger,supportingFiles["e2e.log"], k8sRelease)
-	productYamlCorrect, missingProductFields = checkProductYAMLHasRequiredFields(supportingFiles["Product.YAML"])
+	productYamlCorrect = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
 	foldersCorrect = checkFilesAreInCorrectFolders(supportingFiles, k8sRelease)
 
 	if ( e2eLogHasRelease && productYamlCorrect && foldersCorrect) {
@@ -351,7 +354,7 @@ func checkChangesHaveStatedK8sRelease(prLogger *logrus.Entry, ghc githubClient, 
 		}
 
 		if !productYamlCorrect {
-			fmt.Fprintf(&errMsg, "Product.YAML is missing the following required fieldsi %v",missingProductFields)
+			fmt.Fprintf(&errMsg, "Product.YAML is missing the following required fields %v", missingProductFields)
 		}
 
 		if !foldersCorrect {
@@ -360,8 +363,6 @@ func checkChangesHaveStatedK8sRelease(prLogger *logrus.Entry, ghc githubClient, 
 
 		err = fmt.Errorf(errMsg.String())
 	}
-	// strings.Contains(change.Filename, k8sRelease)
-	// strings.Contains(change.Patch, k8sRelease)
 
 	return changesHaveStatedRelease, err
 }
@@ -383,23 +384,45 @@ func checkFilesAreInCorrectFolders(changes map[string] github.PullRequestChange,
 
 	return filesAreInCorrectReleaseFolders
 }
-func checkProductYAMLHasRequiredFields(productYaml github.PullRequestChange)(bool, []string ){
+func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.PullRequestChange)(bool){
 	allRequiredFieldsPresent := false
+	productFields := set.New()
 	// ref https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml
-	missingFields  := make([]string, len(requiredProductFields))
-	for field, _ := range requiredProductFields {
-		for _ , line := range strings.Split(productYaml.Patch, "\n") {
-			if strings.HasPrefix(line, field) {
-				break // found a requiredField
-			}
+
+	// TODO return a list of the missing fields
+	// missingFields  := make([]string, len(requiredProductFields))
+	log.Infof("cPYHRf: PY CHANGE %+v\n",productYaml)
+
+	// TODO extract as fn
+	fileUrl := strings.Replace(productYaml.BlobURL, "github.com", "raw.githubusercontent.com", 1)
+	fileUrl = strings.Replace(fileUrl, "/blob", "", 1)
+
+	resp, err := http.Get(fileUrl)
+	if err != nil {
+		log.Errorf("cPYHRf : %+v",err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+	// Make a set that contains all the key fields in the Product YAML file
+	for _, line := range strings.Split(string(body), "\n") {
+		// extract the key field regEx start of line to first occurance of :
+		key := strings.Split(line,":")
+		// Add key to fieldSet
+		if len(key[0]) > 0 {
+			log.Infof("%s", key[0])
+			productFields.Insert(key[0])
 		}
-		// field is missing
-		missingFields = append(missingFields,field)
 	}
-	if len(missingFields) > 0 {
-		allRequiredFieldsPresent = false
+	// Difference the requiredFieldsSet against productFields found here
+	difference := requiredProductFieldsSet.Difference(productFields)
+
+	if difference.Len() == 0 {
+		allRequiredFieldsPresent = true
+	} else {
+		log.Infof("THESE FIELDS ARE MISSING! %v", difference)
 	}
-	return allRequiredFieldsPresent, missingFields
+	return allRequiredFieldsPresent
 }
 
 func shouldPrune(botName string) func(github.IssueComment) bool {

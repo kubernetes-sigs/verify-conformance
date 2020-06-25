@@ -342,6 +342,7 @@ func checkChangesHaveStatedK8sRelease(prLogger *logrus.Entry, ghc githubClient, 
 	e2eLogHasRelease = checkPatchContainsRelease(prLogger,supportingFiles["e2e.log"], k8sRelease)
 	productYamlCorrect = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
 	foldersCorrect = checkFilesAreInCorrectFolders(supportingFiles, k8sRelease)
+	e2eLogHasRelease = checkE2eLogHasRelease(prLogger,supportingFiles["e2e.log"], k8sRelease)
 
 	if ( e2eLogHasRelease && productYamlCorrect && foldersCorrect) {
 		changesHaveStatedRelease = true
@@ -384,6 +385,41 @@ func checkFilesAreInCorrectFolders(changes map[string] github.PullRequestChange,
 
 	return filesAreInCorrectReleaseFolders
 }
+
+// takes a patchUrl from a githubClient.PullRequestChange and transforms it
+// to produce the url that delivers the raw file associated with the patch.
+// Tested for small files.
+func patchUrlToFileUrl(patchUrl string) (string){
+	fileUrl := strings.Replace(patchUrl, "github.com", "raw.githubusercontent.com", 1)
+	fileUrl = strings.Replace(fileUrl, "/blob", "", 1)
+        return fileUrl
+}
+// Retrieves e2eLogfile and checks that it contains k8sRelease
+func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange, k8sRelease string) (bool){
+        e2eLogHasStatedRelease := false
+
+        fileUrl := patchUrlToFileUrl(e2eChange.BlobURL)
+	resp, err := http.Get(fileUrl)
+	if err != nil {
+		log.Errorf("cELHR : %+v",err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+
+	// Make a set that contains all the key fields in the Product YAML file
+        // TODO Check to see if string(body) performant
+	for _, line := range strings.Split(string(body), "\n") {
+                if strings.Contains(line, k8sRelease){
+                        log.Infof("cELHR found stated release!! %s",line)
+                        e2eLogHasStatedRelease = true
+                        break
+                }
+        }
+        return e2eLogHasStatedRelease
+
+}
+
 func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.PullRequestChange)(bool){
 	allRequiredFieldsPresent := false
 	productFields := set.New()
@@ -393,10 +429,7 @@ func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.Pul
 	// missingFields  := make([]string, len(requiredProductFields))
 	log.Infof("cPYHRf: PY CHANGE %+v\n",productYaml)
 
-	// TODO extract as fn
-	fileUrl := strings.Replace(productYaml.BlobURL, "github.com", "raw.githubusercontent.com", 1)
-	fileUrl = strings.Replace(fileUrl, "/blob", "", 1)
-
+        fileUrl := patchUrlToFileUrl(productYaml.BlobURL)
 	resp, err := http.Get(fileUrl)
 	if err != nil {
 		log.Errorf("cPYHRf : %+v",err)

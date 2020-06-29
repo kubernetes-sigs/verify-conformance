@@ -436,6 +436,9 @@ func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.Pul
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Errorf("cPYHRf : %+v",err)
+	}
 
 	// Make a set that contains all the key fields in the Product YAML file
 	for _, line := range strings.Split(string(body), "\n") {

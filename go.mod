@@ -14,6 +14,7 @@ replace (
 )
 
 require (
+	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3
 	github.com/shurcooL/githubv4 v0.0.0-20200414012201-bbc966b061dd
 	github.com/sirupsen/logrus v1.6.0
 	k8s.io/test-infra v0.0.0-20200611174856-d80abdbad3dc

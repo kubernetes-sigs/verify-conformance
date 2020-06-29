@@ -1,0 +1,17 @@
+* verify-conformance-release
+
+The verify-conformance-release carries out the following checks
+
+It checks that the
+1. title of the PR contain a Kubernetes release
+2. the paths to the files containing evidence of conformance contain the release quoted in the title
+3. the commit pathces contain the release quoted in the title of the
+
+* Running the plugin locally
+
+The plugin can be run locally as follows, when run locally the plugin interacts with GitHub but by default does not make any changes
+if you want to apply changes to the PR inspected then you can pass in the flag, dry-run=false
+
+#+BEGIN_SRC shell
+~/prow-config/prow/external-plugins/verify-conformance-release $ ./verify-conformance-release --hmac-secret-file=/home/ii/.secret-hook --github-token-path=/home/ii/.secret-oauth --plugin-config=./vcr.yaml
+#+END_SRC

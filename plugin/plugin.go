@@ -204,7 +204,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                         }
 
                         hasNotVerifiableLabel, err := HasNotVerifiableLabel(log, org, repo, prNumber, ghc)
-                        if logsHaveSpecifiedRelease && !hasReleaseLabel {
+			if changesHaveSpecifiedRelease && !hasReleaseLabel {
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "verifiable")
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "release-"+releaseVersion)
                                 githubClient.CreateComment(ghc, org, repo, prNumber, "Found " + releaseVersion + " in logs" )
@@ -339,7 +339,7 @@ func checkChangesHaveStatedK8sRelease(prLogger *logrus.Entry, ghc githubClient, 
 	}
 
 	// Do all our checks
-	e2eLogHasRelease = checkPatchContainsRelease(prLogger,supportingFiles["e2e.log"], k8sRelease)
+	// e2eLogHasRelease = checkPatchContainsRelease(prLogger,supportingFiles["e2e.log"], k8sRelease)
 	productYamlCorrect = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
 	foldersCorrect = checkFilesAreInCorrectFolders(supportingFiles, k8sRelease)
 	e2eLogHasRelease = checkE2eLogHasRelease(prLogger,supportingFiles["e2e.log"], k8sRelease)
@@ -388,7 +388,13 @@ func checkFilesAreInCorrectFolders(changes map[string] github.PullRequestChange,
 
 // takes a patchUrl from a githubClient.PullRequestChange and transforms it
 // to produce the url that delivers the raw file associated with the patch.
-// Tested for small files.
+// Tested for small files
+
+// Berno note, looking at error on finding out why logsHaveSpecifiedRelease on line 207 is not being used.
+// I need to see what we use to report that we found evidence of the k8s version in the logs..
+// 10:55 Tue, I need to help rory figure out a video recorder for linux.
+
+
 func patchUrlToFileUrl(patchUrl string) (string){
 	fileUrl := strings.Replace(patchUrl, "github.com", "raw.githubusercontent.com", 1)
 	fileUrl = strings.Replace(fileUrl, "/blob", "", 1)
@@ -478,6 +484,7 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) 
 	var remaining int
 	for {
 		sq := SearchQuery{}
+		log.Infof("query \"%s\" ", q)
 		if err := ghc.Query(ctx, &sq, vars); err != nil {
 			return nil, err
 		}

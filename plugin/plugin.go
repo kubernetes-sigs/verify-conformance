@@ -160,7 +160,8 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
         //      - we deal with a single org and repo
         //      - we target k8s conformance requests sent to the cncf
 	var queryOpenPRs bytes.Buffer
-	fmt.Fprint(&queryOpenPRs, "archived:false is:pr is:open -label:verifiable")
+	//	fmt.Fprint(&queryOpenPRs, "archived:false is:pr is:open -label:verifiable")
+	fmt.Fprint(&queryOpenPRs, "archived:false is:pr is:open ")
 	for _, org := range orgs {
 		fmt.Fprintf(&queryOpenPRs, " org:\"%s\"", org)
 	}
@@ -207,7 +208,9 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 
 			log.Infof("cHSR returns %v", changesHaveSpecifiedRelease)
 			if changesHaveSpecifiedRelease && !hasReleaseLabel {
-                                githubClient.AddLabel(ghc, org, repo, prNumber, "verifiable")
+				//   githubClient.AddLabel(ghc, org, repo, prNumber, "verifiable")
+                                //githubClient.AddLabel(ghc, org, repo, prNumber, "release-"+releaseVersion)
+                                githubClient.AddLabel(ghc, org, repo, prNumber, "release-documents-checked")
                                 githubClient.AddLabel(ghc, org, repo, prNumber, "release-"+releaseVersion)
                                 githubClient.CreateComment(ghc, org, repo, prNumber, "Found " + releaseVersion + " in logs" )
                                 if hasNotVerifiableLabel {
@@ -215,8 +218,8 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                                 }
                         } else { // specifiedRelease not present in logs
                                 if !hasNotVerifiableLabel {
-                                        githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
-					//githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable.")
+                                        // githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
+					// githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable.")
 
 					// TODO move changesHaveSpecifiedRelease back into handleall
 					// I need to report on individual failures to apply the correct lable
@@ -244,24 +247,33 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 
 					if !productYamlCorrect {
 						prLogger.Infof("pYC in HANDLEALL productYamlCorrect returned %v\n",productYamlCorrect)
-						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your product.yaml file have all the fields listed in https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml .")
+						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your product file ( PRODUCT.yaml ) is named correctly and have all the fields listed in  [How to submit conformance results](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml) .")
+						if !hasNotVerifiableLabel {
+							githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
+						}
 					}
 					if !e2eLogHasRelease {
 						prLogger.Infof("eLHR in HANDLEALL e2eLogHasRelease returned %v\n",e2eLogHasRelease)
 						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your e2e logs reference the release you are submitting for")
+						if !hasNotVerifiableLabel {
+							githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
+						}
 					}
 					if !foldersCorrect{
 						prLogger.Infof("fC in HANDLEALL foldersCorrect returned %v\n",foldersCorrect)
 						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your supporting files are in the correct folder.")
+						if !hasNotVerifiableLabel {
+							githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
+						}
 					}
                                 }
                         }
-                } else if !hasNotVerifiableLabel {
+                } else if !hasNotVerifiableLabel && !hasReleaseLabel {
                         githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
                         githubClient.CreateComment(ghc, org, repo, prNumber, "This conformance request is not yet verifiable. Please ensure that PR Title refernces the Kubernetes Release and that the supplied logs refer to the specified Release")
-		} else {
-                       break
-		}
+		} //else {
+		//   break
+		//	}
         }
 	return nil
 }
@@ -473,38 +485,47 @@ func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.Pul
 	productFields := set.New()
 	// ref https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml
 
+	if productYaml.BlobURL != "" {
 	// TODO return a list of the missing fields
-	// missingFields  := make([]string, len(requiredProductFields))
-	log.Infof("cPYHRf: PY CHANGE %+v\n",productYaml)
+		// missingFields  := make([]string, len(requiredProductFields))
+		log.Infof("cPYHRf: PY CHANGE %+v\n",productYaml)
 
-        fileUrl := patchUrlToFileUrl(productYaml.BlobURL)
-	resp, err := http.Get(fileUrl)
-	if err != nil {
-		log.Errorf("cPYHRf : %+v",err)
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Errorf("cPYHRf : %+v",err)
-	}
+		fileUrl := patchUrlToFileUrl(productYaml.BlobURL)
 
-	// Make a set that contains all the key fields in the Product YAML file
-	for _, line := range strings.Split(string(body), "\n") {
-		// extract the key field regEx start of line to first occurance of :
-		key := strings.Split(line,":")
-		// Add key to fieldSet
-		if len(key[0]) > 0 {
-			log.Infof("%s", key[0])
-			productFields.Insert(key[0])
+		log.Infof("cPYHRf: PY PATH  %+v\n",fileUrl)
+
+		resp, err := http.Get(fileUrl)
+		if resp.StatusCode > 199 && resp.StatusCode < 300 {
+			// TODO check body for 404
+			if err != nil {
+				log.Errorf("Error retrieving conformance tests metadata from : %s", fileUrl)
+				log.Errorf("HTTP Reponse was: %+v", resp)
+				log.Errorf("getRequiredTests : %+v", err)
+			}
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Errorf("cPYHRf : %+v",err)
+			}
+			// Make a set that contains all the key fields in the Product YAML file
+			for _, line := range strings.Split(string(body), "\n") {
+				// extract the key field regEx start of line to first occurance of :
+				key := strings.Split(line,":")
+				// Add key to fieldSet
+				if len(key[0]) > 0 {
+					log.Infof("%s", key[0])
+					productFields.Insert(key[0])
+				}
+			}
+			// Difference the requiredFieldsSet against productFields found here
+			difference := requiredProductFieldsSet.Difference(productFields)
+
+			if difference.Len() == 0 {
+				allRequiredFieldsPresent = true
+			} else {
+				log.Infof("THESE FIELDS ARE MISSING! %v", difference)
+			}
 		}
-	}
-	// Difference the requiredFieldsSet against productFields found here
-	difference := requiredProductFieldsSet.Difference(productFields)
-
-	if difference.Len() == 0 {
-		allRequiredFieldsPresent = true
-	} else {
-		log.Infof("THESE FIELDS ARE MISSING! %v", difference)
 	}
 	return allRequiredFieldsPresent
 }

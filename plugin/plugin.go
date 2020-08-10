@@ -248,7 +248,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 					// This is why I repeat the code above, I need to be able to write individual lables based on failure reason
 
 					if !productYamlCorrect {
-						var prodYamlDiffString = fmt.Sprintf("%q", productYamlDiff)
+						var prodYamlDiffString = fmt.Sprintf("%v[1]", productYamlDiff)
 						prLogger.Infof("pYC in HANDLEALL productYamlCorrect returned %v\n",productYamlCorrect)
 
 						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your product file ( PRODUCT.yaml ) is named correctly and have all the fields listed in  [How to submit conformance results](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml) . Please make sure you included the following fields:"+prodYamlDiffString)

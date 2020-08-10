@@ -249,10 +249,10 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 
 					if !productYamlCorrect {
 						var prodYamlDiffString = fmt.Sprintf("%v", productYamlDiff)
-						var gitCommentProductYaml = fmt.Sprintf("You are missing the following fields %v .", prodYamlDiffString)
 						prLogger.Infof("pYC in HANDLEALL productYamlCorrect returned %v\n",productYamlCorrect)
+
 						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your product file ( PRODUCT.yaml ) is named correctly and have all the fields listed in  [How to submit conformance results](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml) .")
-						githubClient.CreateComment(ghc, org, repo, prNumber, gitCommentProductYaml)
+						githubClient.AddLabel(ghc, org, repo, prNumber, "You are missing the following fields"+prodYamlDiffString)
 						if !hasNotVerifiableLabel {
 							githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
 						}

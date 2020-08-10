@@ -227,6 +227,8 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 					e2eLogHasRelease := false
 					productYamlCorrect := false
 					foldersCorrect := false
+					productYamlDiff := set.New()
+
 
 					changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
 					if err != nil {
@@ -239,15 +241,18 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 						//		prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
 					}
 
-					productYamlCorrect = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
+					productYamlCorrect, productYamlDiff = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
 					foldersCorrect = checkFilesAreInCorrectFolders(prLogger,supportingFiles, releaseVersion)
 					e2eLogHasRelease = checkE2eLogHasRelease(prLogger,supportingFiles["e2e.log"], releaseVersion)
 
 					// This is why I repeat the code above, I need to be able to write individual lables based on failure reason
 
 					if !productYamlCorrect {
+						var prodYamlDiffString = fmt.Sprintf("%v", productYamlDiff)
+						var gitCommentProductYaml = fmt.Sprintf("You are missing the following fields %v .", prodYamlDiffString)
 						prLogger.Infof("pYC in HANDLEALL productYamlCorrect returned %v\n",productYamlCorrect)
 						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your product file ( PRODUCT.yaml ) is named correctly and have all the fields listed in  [How to submit conformance results](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml) .")
+						githubClient.CreateComment(ghc, org, repo, prNumber, gitCommentProductYaml)
 						if !hasNotVerifiableLabel {
 							githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
 						}
@@ -371,6 +376,7 @@ func checkChangesHaveStatedK8sRelease(prLogger *logrus.Entry, ghc githubClient, 
 	e2eLogHasRelease := false
 	productYamlCorrect := false
 	foldersCorrect := false
+	productYamlDiff := set.New()
 
 	missingProductFields := set.New()
 	changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
@@ -392,10 +398,13 @@ func checkChangesHaveStatedK8sRelease(prLogger *logrus.Entry, ghc githubClient, 
 
 	// Do all our checks
 	// e2eLogHasRelease = checkPatchContainsRelease(prLogger,supportingFiles["e2e.log"], k8sRelease)
-	productYamlCorrect = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
+	var prodYamlDiffString = fmt.Sprintf("%v", productYamlDiff)
+	var gitCommentProductYaml = fmt.Sprintf("You are missing the following fields %v .", prodYamlDiffString)
+	productYamlCorrect, productYamlDiff = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
 	foldersCorrect = checkFilesAreInCorrectFolders(prLogger,supportingFiles, k8sRelease)
 	e2eLogHasRelease = checkE2eLogHasRelease(prLogger,supportingFiles["e2e.log"], k8sRelease)
 
+	prLogger.Infof("pYC productYamlCorrect returned %v\n",gitCommentProductYaml)
 	prLogger.Infof("pYC productYamlCorrect returned %v\n",productYamlCorrect)
 	prLogger.Infof("fC foldersCorrect returned %v\n",foldersCorrect)
 	prLogger.Infof("eLHR e2eLogHasRelease %v\n",e2eLogHasRelease)
@@ -480,10 +489,11 @@ func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange
 
 }
 
-func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.PullRequestChange)(bool){
+func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.PullRequestChange)(bool, *set.Set){
 	allRequiredFieldsPresent := false
 	productFields := set.New()
 	// ref https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml
+        difference := set.New()
 
 	if productYaml.BlobURL != "" {
 	// TODO return a list of the missing fields
@@ -518,7 +528,7 @@ func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.Pul
 				}
 			}
 			// Difference the requiredFieldsSet against productFields found here
-			difference := requiredProductFieldsSet.Difference(productFields)
+			difference = requiredProductFieldsSet.Difference(productFields)
 
 			if difference.Len() == 0 {
 				allRequiredFieldsPresent = true
@@ -527,7 +537,8 @@ func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.Pul
 			}
 		}
 	}
-	return allRequiredFieldsPresent
+	return allRequiredFieldsPresent, difference
+
 }
 
 func shouldPrune(botName string) func(github.IssueComment) bool {

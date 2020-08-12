@@ -248,8 +248,12 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 					// This is why I repeat the code above, I need to be able to write individual lables based on failure reason
 
 					if !productYamlCorrect {
-						var prodYamlDiffString = fmt.Sprintf("%v[1]", productYamlDiff)
+						var prodYamlDiffString = fmt.Sprintf("%v", productYamlDiff)
+						//var prodYamlDiffString, _ = fmt.Println(productYamlDiff)
 						prLogger.Infof("pYC in HANDLEALL productYamlCorrect returned %v\n",productYamlCorrect)
+						prLogger.Infof("pYDS in HANDLEALL prodYamlDiffString returned %v\n",prodYamlDiffString)
+						prLogger.Infof("pYDS in HANDLEALL prodYamlDiffString returned %v\n",productYamlDiff)
+						//INFO[0018] pYDS in HANDLEALL prodYamlDiffString returned &{map[name:{}]}  plugin=verify-conformance-request pr=15 statedRelease=v1.18 title="Conformance results for v1│.18 name_missing_from_productYaml"
 
 						githubClient.CreateComment(ghc, org, repo, prNumber, "This request is not yet verifiable, please confirm that your product file ( PRODUCT.yaml ) is named correctly and have all the fields listed in  [How to submit conformance results](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml) . Please make sure you included the following fields:"+prodYamlDiffString)
 						//	githubClient.CreateComment(ghc, org, repo, prNumber, "You are missing the following fields"+prodYamlDiffString)
@@ -529,6 +533,7 @@ func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.Pul
 			}
 			// Difference the requiredFieldsSet against productFields found here
 			difference = requiredProductFieldsSet.Difference(productFields)
+   			//difference,_ = fmt.Println(Difference(requiredProductFieldsSet, productFields))
 
 			if difference.Len() == 0 {
 				allRequiredFieldsPresent = true

@@ -46,17 +46,18 @@ const (
 var sleep = time.Sleep
 //var requiredProductFieldsSet = set.New("vendor", "name", "version", "website_url", "repo_url", "documentation_url", "product_logo_url", "type", "description")
 var requiredProductFieldsSet = set.New("vendor", "name", "version", "website_url", "documentation_url", "product_logo_url", "type", "description")
-var requiredProductFields = map[string]string {
-	"vendor" : "Name of the legal entity that is certifying. This entity must have a signed participation form on file with the CNCF",
-	"name" : "Name of the product being certified.",
-	"version" : "The version of the product being certified (not the version of Kubernetes it runs).",
-	"website_url" : "URL to the product information website",
+var requiredProductFields = []string{"vendor", "name", "version", "website_url", "documentation_url", "product_logo_url", "type", "description"}
+//var requiredProductFields = map[string]string {
+//	"vendor" : "Name of the legal entity that is certifying. This entity must have a signed participation form on file with the CNCF",
+//	"name" : "Name of the product being certified.",
+//	"version" : "The version of the product being certified (not the version of Kubernetes it runs).",
+//	"website_url" : "URL to the product information website",
 	//"repo_url" : "If your product is open source, this field is necessary to point to the primary GitHub repo containing the source. It's OK if this is a mirror. OPTIONAL",
-	"documentation_url" : "URL to the product documentation",
-	"product_logo_url" : "URL to the product's logo, (must be in SVG, AI or EPS format -- not a PNG -- and include the product name). OPTIONAL. If not supplied, we'll use your company logo. Please see logo guidelines",
-	"type" : "Is your product a distribution, hosted platform, or installer (see definitions)",
-	"description" :	"One sentence description of your offering",
-}
+//	"documentation_url" : "URL to the product documentation",
+//	"product_logo_url" : "URL to the product's logo, (must be in SVG, AI or EPS format -- not a PNG -- and include the product name). OPTIONAL. If not supplied, we'll use your company logo. Please see logo guidelines",
+//	"type" : "Is your product a distribution, hosted platform, or installer (see definitions)",
+//	"description" :	"One sentence description of your offering",
+//}
 
 type githubClient interface {
 	GetIssueLabels(org, repo string, number int) ([]github.Label, error)
@@ -227,7 +228,8 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 					e2eLogHasRelease := false
 					productYamlCorrect := false
 					foldersCorrect := false
-					productYamlDiff := set.New()
+					//productYamlDiff := set.New()
+					var productYamlDiff string
 
 
 					changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
@@ -380,7 +382,8 @@ func checkChangesHaveStatedK8sRelease(prLogger *logrus.Entry, ghc githubClient, 
 	e2eLogHasRelease := false
 	productYamlCorrect := false
 	foldersCorrect := false
-	productYamlDiff := set.New()
+	//productYamlDiff := set.New()
+	var productYamlDiff string
 
 	missingProductFields := set.New()
 	changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
@@ -492,13 +495,27 @@ func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange
         return e2eLogHasStatedRelease
 
 }
+func Difference (requiredProductFields, productFields []string) (diff []string) {
+	diffMap := make(map[string]bool)
+	for _, item := range productFields {
+		diffMap[item] = true
+	}
 
-func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.PullRequestChange)(bool, *set.Set){
+	for _, item := range requiredProductFields {
+		if _, ok := diffMap[item]; !ok {
+			diff = append(diff, item)
+		}
+	}
+	return
+}
+
+func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.PullRequestChange)(bool, string){
 	allRequiredFieldsPresent := false
-	productFields := set.New()
+	//productFields := set.New()
 	// ref https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml
-        difference := set.New()
-
+        //difference := set.New()
+	var output string
+	var productFields []string
 	if productYaml.BlobURL != "" {
 	// TODO return a list of the missing fields
 		// missingFields  := make([]string, len(requiredProductFields))
@@ -524,25 +541,30 @@ func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.Pul
 			// Make a set that contains all the key fields in the Product YAML file
 			for _, line := range strings.Split(string(body), "\n") {
 				// extract the key field regEx start of line to first occurance of :
-				key := strings.Split(line,":")
+				keyVal := strings.Split(line,":")
+				firstVal := keyVal[0]
 				// Add key to fieldSet
-				if len(key[0]) > 0 {
-					log.Infof("%s", key[0])
-					productFields.Insert(key[0])
+				if len(keyVal[0]) > 0 {
+					//log.Infof("%s", key[0])
+					productFields = append(productFields, firstVal)
 				}
 			}
 			// Difference the requiredFieldsSet against productFields found here
-			difference = requiredProductFieldsSet.Difference(productFields)
+			//difference = requiredProductFieldsSet.Difference(productFields)
    			//difference,_ = fmt.Println(Difference(requiredProductFieldsSet, productFields))
+			diffOutput := Difference(requiredProductFields, productFields)
+			for _, result := range diffOutput {
+				output = fmt.Sprintf("%v\n- %v", output, result)
+			}
 
-			if difference.Len() == 0 {
+			if len(diffOutput) == 0 {
 				allRequiredFieldsPresent = true
 			} else {
-				log.Infof("THESE FIELDS ARE MISSING! %v", difference)
+				log.Infof("THESE FIELDS ARE MISSING! %v", diffOutput)
 			}
 		}
 	}
-	return allRequiredFieldsPresent, difference
+	return allRequiredFieldsPresent, output
 
 }
 

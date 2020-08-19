@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	PluginName     = "verify-conformance-request"
+	PluginName     = "verify-conformance-release"
 	needsVersionReview = "Please ensure that the logs provided correspond to the version referenced in the title of this PR."
 	verifyLabel    = "release consistent"
 )
@@ -185,16 +185,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                         "statedRelease": releaseVersion,
 		})
 
-		changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
 		var supportingFiles = make ( map[string] github.PullRequestChange  )
-		if err != nil {
-			prLogger.WithError(err)
-		}
-		for _ , change := range changes {
-			// https://developer.github.com/v3/pulls/#list-pull-requests-files
-			supportingFiles[path.Base(change.Filename)] = change
-			//		prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
-		}
 
 		productYamlCorrect, productYamlDiff = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
 		foldersCorrect = checkFilesAreInCorrectFolders(prLogger,supportingFiles, releaseVersion)
@@ -401,7 +392,6 @@ func patchUrlToFileUrl(patchUrl string) (string){
 // Retrieves e2eLogfile and checks that it contains k8sRelease
 func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange, k8sRelease string) (bool){
         e2eLogHasStatedRelease := false
-
 
         fileUrl := patchUrlToFileUrl(e2eChange.BlobURL)
 	resp, err := http.Get(fileUrl)

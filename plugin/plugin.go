@@ -185,7 +185,17 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                         "statedRelease": releaseVersion,
 		})
 
-		var supportingFiles = make ( map[string] github.PullRequestChange  )
+		var supportingFiles = make (map[string] github.PullRequestChange)
+		changes , err := ghc.GetPullRequestChanges(org, repo, prNumber)
+		if err != nil {
+			prLogger.WithError(err)
+			prLogger.Infof("cGPRC: getting pr changes failed %+v", changes)
+		}
+		for _ , change := range changes {
+			// https://developer.github.com/v3/pulls/#list-pull-requests-files
+			supportingFiles[path.Base(change.Filename)] = change
+			//prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
+		}
 
 		productYamlCorrect, productYamlDiff = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
 		foldersCorrect = checkFilesAreInCorrectFolders(prLogger,supportingFiles, releaseVersion)
@@ -224,14 +234,15 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 					// the following code is a repeat of the same code we declared in changesHaveSpecifiedRelease
 
 
-					changes, err := ghc.GetPullRequestChanges(org, repo, prNumber)
+					changes , err := ghc.GetPullRequestChanges(org, repo, prNumber)
 					if err != nil {
 						prLogger.WithError(err)
+						prLogger.Infof("cGPRC: getting pr changes failed %+v", changes)
 					}
 					for _ , change := range changes {
 						// https://developer.github.com/v3/pulls/#list-pull-requests-files
 						supportingFiles[path.Base(change.Filename)] = change
-						//		prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
+						//prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
 					}
 
 
@@ -394,6 +405,7 @@ func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange
         e2eLogHasStatedRelease := false
 
         fileUrl := patchUrlToFileUrl(e2eChange.BlobURL)
+	//log.Errorf("cELHR : %+v",fileUrl)
 	resp, err := http.Get(fileUrl)
 	if err != nil {
 		log.Errorf("cELHR : %+v",err)

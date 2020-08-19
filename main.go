@@ -84,7 +84,7 @@ func main() {
 
 	// logrus.SetFormatter(&logrus.JSONFormatter{})
 	logrus.SetLevel(logrus.InfoLevel)
-	log := logrus.StandardLogger().WithField("plugin", "verify-conformance-request")
+	log := logrus.StandardLogger().WithField("plugin", "verify-conformance-release")
 
 	secretAgent := &secret.Agent{}
 	if err := secretAgent.Start([]string{o.github.TokenPath, o.webhookSecretFile}); err != nil {

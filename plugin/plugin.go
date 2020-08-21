@@ -196,16 +196,16 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 			supportingFiles[path.Base(change.Filename)] = change
 			//prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
 		}
+		if hasReleaseInTitle {
+			productYamlCorrect, productYamlDiff = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
+			foldersCorrect = checkFilesAreInCorrectFolders(prLogger,supportingFiles, releaseVersion)
+			e2eLogHasRelease = checkE2eLogHasRelease(prLogger,supportingFiles["e2e.log"], releaseVersion)
 
-		productYamlCorrect, productYamlDiff = checkProductYAMLHasRequiredFields(prLogger,supportingFiles["PRODUCT.yaml"])
-		foldersCorrect = checkFilesAreInCorrectFolders(prLogger,supportingFiles, releaseVersion)
-		e2eLogHasRelease = checkE2eLogHasRelease(prLogger,supportingFiles["e2e.log"], releaseVersion)
-
-                if err != nil {
-                        prLogger.WithError(err).Error("Failed to find a release in title")
-                        githubClient.CreateComment(ghc, org, repo, prNumber, "Please include the release in the title of this Pull Request" )
-                }
-
+			if err != nil {
+				prLogger.WithError(err).Error("Failed to find a release in title")
+				githubClient.CreateComment(ghc, org, repo, prNumber, "Please include the release in the title of this Pull Request" )
+			}
+		}
 		hasNotVerifiableLabel, err := HasNotVerifiableLabel(log, org, repo, prNumber, ghc)
                 if hasReleaseInTitle && !hasReleaseLabel {
 			//                        changesHaveSpecifiedRelease, err := checkChangesHaveStatedK8sRelease(prLogger, ghc, org, repo, prNumber, sha, releaseVersion)

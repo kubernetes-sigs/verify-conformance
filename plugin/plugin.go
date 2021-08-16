@@ -280,7 +280,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
                         }
                 } else if !hasNotVerifiableLabel && !hasReleaseLabel {
                         githubClient.AddLabel(ghc, org, repo, prNumber, "not-verifiable")
-                        githubClient.CreateComment(ghc, org, repo, prNumber, "This conformance request is not yet verifiable. Please ensure that PR Title refernces the Kubernetes Release and that the supplied logs refer to the specified Release")
+                        githubClient.CreateComment(ghc, org, repo, prNumber, "This conformance request is not yet verifiable. Please ensure that PR Title references the Kubernetes Release and that the supplied logs refer to the specified Release")
 		} //else {
 		//   break
 		//	}

@@ -5,7 +5,7 @@ The verify-conformance-release carries out the following checks
 It checks that the
 1. title of the PR contain a Kubernetes release
 2. the paths to the files containing evidence of conformance contain the release quoted in the title
-3. the commit pathces contain the release quoted in the title of the
+3. the commit patches contain the release quoted in the title of the
 
 * Running the plugin locally
 

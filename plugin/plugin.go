@@ -229,9 +229,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 			e2eLogHasRelease, err = checkE2eLogHasRelease(prLogger, supportingFiles["e2e.log"], releaseVersion)
 			if err != nil {
 				prLogger.WithError(err).Error("Failed to fetch file")
-			}
-			
-			if !e2eLogHasRelease && err == nil {
+			} else if !e2eLogHasRelease {
 				prLogger.WithError(err).Error("Failed to find a release in title")
 				githubClient.CreateComment(ghc, org, repo, prNumber, "Please include the release in the title of this Pull Request")
 			}
@@ -443,6 +441,10 @@ func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Errorf("cELHR : %+v", err)
+		return false, fmt.Errorf("failed to read body from file", err)
+	}
 
 	// Make a slice that contains all the key fields in the Product YAML file
 	// TODO Check to see if string(body) performant

@@ -217,7 +217,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 			content, err := fetchFileFromURI(supportingFiles[fileName].BlobURL)
 			if err != nil || content == "" {
 				prLogger.WithError(err).Error(fmt.Sprintf("failed to fetch '%v' from PR '%v'", supportingFiles[fileName].BlobURL, prNumber))
-				githubClient.CreateComment(ghc, org, repo, prNumber, fmt.Sprintf("Please include the '%v' file in this Pull Request"))
+				githubClient.CreateComment(ghc, org, repo, prNumber, fmt.Sprintf("Please include the '%v' file in this Pull Request", fileName))
 				continue requiredFiles
 			}
 			// filesIncluded[fileName] = true

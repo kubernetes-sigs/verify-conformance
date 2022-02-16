@@ -44,7 +44,7 @@ const (
 
 var sleep = time.Sleep
 var requiredProductFields = []string{"vendor", "name", "version", "website_url", "documentation_url", "type", "description"}
-var requiredProductSubmissionFileNames = []string{"README.md", "e2e.log", "junit_01.xml"}
+var requiredProductSubmissionFileNames = []string{"README.md", "PRODUCT.yaml", "e2e.log", "junit_01.xml"}
 
 func fetchFileFromURI(uri string) (content string, err error) {
 	resp, err := http.Get(uri)
@@ -214,11 +214,29 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		// filesIncluded map[string]bool
 	requiredFiles:
 		for _, fileName := range requiredProductSubmissionFileNames {
+			missingFileLabelName := "missing-file-" + fileName 
+			issueLabels, err := githubClient.GetIssueLabels(ghc, org, repo, prNumber)
+			if err != nil {
+				prLogger.WithError(err).Error("failed to list labels on issue")
+			}
+			hasMissingFileLabel := false
+			for _, label := range issueLabels {
+				if label.Name == missingFileLabelName {
+					hasMissingFileLabel = true
+				}
+			}
 			content, err := fetchFileFromURI(supportingFiles[fileName].BlobURL)
-			if err != nil || content == "" {
+			if (err != nil || content == "") && hasMissingFileLabel == false {
 				prLogger.WithError(err).Error(fmt.Sprintf("failed to fetch '%v' from PR '%v'", supportingFiles[fileName].BlobURL, prNumber))
-				githubClient.CreateComment(ghc, org, repo, prNumber, fmt.Sprintf("Please include the '%v' file in this Pull Request", fileName))
+				githubClient.CreateComment(ghc, org, repo, prNumber, fmt.Sprintf("Please include the '%v' file in this Pull Request (check for case-sensitivity)", fileName))
+				if err := githubClient.AddLabel(ghc, org, repo, prNumber, missingFileLabelName); err != nil {
+					prLogger.WithError(err).Error("failed to add label")
+				}
 				continue requiredFiles
+			} else if content != "" && hasMissingFileLabel == true {
+				if err := githubClient.RemoveLabel(ghc, org, repo, prNumber, missingFileLabelName); err != nil {
+					prLogger.WithError(err).Error("failed to remove label")
+				}
 			}
 			// filesIncluded[fileName] = true
 			filesIncludedCount += 1

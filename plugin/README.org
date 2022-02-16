@@ -13,5 +13,5 @@ The plugin can be run locally as follows, when run locally the plugin interacts 
 if you want to apply changes to the PR inspected then you can pass in the flag, dry-run=false
 
 #+BEGIN_SRC shell
-~/prow-config/prow/external-plugins/verify-conformance-release $ ./verify-conformance-release --hmac-secret-file=/home/ii/.secret-hook --github-token-path=/home/ii/.secret-oauth --plugin-config=./vcr.yaml
+./verify-conformance-release --hmac-secret-file=/home/ii/.secret-hook --github-token-path=/home/ii/.secret-oauth --plugin-config=./vcr.yaml
 #+END_SRC

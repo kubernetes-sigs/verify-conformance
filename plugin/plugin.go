@@ -44,6 +44,20 @@ const (
 
 var sleep = time.Sleep
 var requiredProductFields = []string{"vendor", "name", "version", "website_url", "documentation_url", "type", "description"}
+var requiredProductSubmissionFileNames = []string{"README.md", "e2e.log", "junit_01.xml"}
+
+func fetchFileFromURI(uri string) (content string, err error) {
+	resp, err := http.Get(uri)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
 
 type githubClient interface {
 	GetIssueLabels(org, repo string, number int) ([]github.Label, error)
@@ -196,18 +210,34 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 			supportingFiles[path.Base(change.Filename)] = change
 			//prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
 		}
-		if hasReleaseInTitle {
+		filesIncludedCount := 0
+		// filesIncluded map[string]bool
+	requiredFiles:
+		for _, fileName := range requiredProductSubmissionFileNames {
+			content, err := fetchFileFromURI(supportingFiles[fileName].BlobURL)
+			if err != nil || content == "" {
+				prLogger.WithError(err).Error(fmt.Sprintf("failed to fetch '%v' from PR '%v'", supportingFiles[fileName].BlobURL, prNumber))
+				githubClient.CreateComment(ghc, org, repo, prNumber, fmt.Sprintf("Please include the '%v' file in this Pull Request"))
+				continue requiredFiles
+			}
+			// filesIncluded[fileName] = true
+			filesIncludedCount += 1
+		}
+		if hasReleaseInTitle && len(requiredProductSubmissionFileNames) >= filesIncludedCount {
 			productYamlCorrect, productYamlDiff = checkProductYAMLHasRequiredFields(prLogger, supportingFiles["PRODUCT.yaml"])
 			foldersCorrect = checkFilesAreInCorrectFolders(prLogger, supportingFiles, releaseVersion)
-			e2eLogHasRelease = checkE2eLogHasRelease(prLogger, supportingFiles["e2e.log"], releaseVersion)
-
+			e2eLogHasRelease, err = checkE2eLogHasRelease(prLogger, supportingFiles["e2e.log"], releaseVersion)
 			if err != nil {
+				prLogger.WithError(err).Error("Failed to fetch file")
+			}
+			
+			if !e2eLogHasRelease && err == nil {
 				prLogger.WithError(err).Error("Failed to find a release in title")
 				githubClient.CreateComment(ghc, org, repo, prNumber, "Please include the release in the title of this Pull Request")
 			}
 		}
 		hasNotVerifiableLabel, err := HasNotVerifiableLabel(log, org, repo, prNumber, ghc)
-		if hasReleaseInTitle && !hasReleaseLabel {
+		if hasReleaseInTitle && !hasReleaseLabel && len(requiredProductSubmissionFileNames) >= filesIncludedCount {
 			//                        changesHaveSpecifiedRelease, err := checkChangesHaveStatedK8sRelease(prLogger, ghc, org, repo, prNumber, sha, releaseVersion)
 
 			if err != nil {
@@ -401,7 +431,7 @@ func patchUrlToFileUrl(patchUrl string) string {
 }
 
 // Retrieves e2eLogfile and checks that it contains k8sRelease
-func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange, k8sRelease string) bool {
+func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange, k8sRelease string) (result bool, err error) {
 	e2eLogHasStatedRelease := false
 
 	fileUrl := patchUrlToFileUrl(e2eChange.BlobURL)
@@ -409,6 +439,7 @@ func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange
 	resp, err := http.Get(fileUrl)
 	if err != nil {
 		log.Errorf("cELHR : %+v", err)
+		return false, fmt.Errorf("failed to fetch file", err)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -422,7 +453,7 @@ func checkE2eLogHasRelease(log *logrus.Entry, e2eChange github.PullRequestChange
 			break
 		}
 	}
-	return e2eLogHasStatedRelease
+	return e2eLogHasStatedRelease, nil
 
 }
 func Difference(requiredProductFields, productFields []string) (diff []string) {

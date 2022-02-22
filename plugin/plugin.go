@@ -165,7 +165,6 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 	//	fmt.Fprint(&queryOpenPRs, "archived:false is:pr is:open -label:verifiable")
 	fmt.Fprint(&queryOpenPRs, "archived:false is:pr is:open ")
 	for _, repo := range repos {
-		fmt.Fprintf(&queryOpenPRs, " repo:\"%s\"", repo)
 		slashSplit := strings.Split(repo, "/")
 		if n := len(slashSplit); n != 2 {
 			log.WithField("repo", repo).Warn("Found repo that was not in org/repo format, ignoring...")
@@ -173,6 +172,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		}
 		org := slashSplit[0]
 		orgs = append(orgs, org)
+		fmt.Fprintf(&queryOpenPRs, " repo:\"%s\"", repo)
 	}
 	for _, org := range orgs {
 		fmt.Fprintf(&queryOpenPRs, " org:\"%s\"", org)
@@ -194,6 +194,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		prNumber := int(pr.Number)
 		//sha := string(pr.Commits.Nodes[0].Commit.Oid)
 
+		githubClient.AddLabel(ghc, org, repo, prNumber, "caleb-was-here-and-is-sorry-if-you-see-this")
 		hasReleaseInTitle, releaseVersion, err := HasReleaseInPrTitle(log, ghc, string(pr.Title))
 
 		hasReleaseLabel, err := HasReleaseLabel(log, org, repo, prNumber, ghc, "release-"+releaseVersion)
@@ -649,12 +650,33 @@ type PRContext struct {
 }
 
 func (p *PRContext) fileFolderStructureMustMatchRegex(match string) error {
+	pattern := regexp.MustCompile(match)
+
+	for _, change := range p.supportingFiles {
+		allIndexes := pattern.FindAllSubmatchIndex([]byte(change.Filename), -1)
+		for _, loc := range allIndexes {
+			// fmt.Println(string(content[loc[0]:loc[1]]))
+			baseFolder := string(change.Filename[loc[2]:loc[3]])
+			distroName := string(change.Filename[loc[4]:loc[5]])
+
+			// TODO make label and comment if not passing
+			if baseFolder == "" {
+				return fmt.Errorf("error: base folder of product submission PR doesn't begin with a Kubernetes release version")
+			} else if distroName == "" {
+				return fmt.Errorf("error: unable to find the name of the product in the folder structure of product submission")
+			}
+			// TODO remove comment if passing
+		}
+	}
+	return nil
+}
+
+func (p *PRContext) itContainsTheRequiredFiles() error {
 	return nil
 }
 
 func InitializeTestSuite(ctx *godog.TestSuiteContext) {
-	ctx.BeforeSuite(func() {
-	})
+	ctx.BeforeSuite(func() {})
 }
 
 func InitializeScenario(p *PRContext) func(*godog.ScenarioContext) {
@@ -664,5 +686,6 @@ func InitializeScenario(p *PRContext) func(*godog.ScenarioContext) {
 		})
 
 		ctx.Step(`^file folder structure must match "(.*)"$`, p.fileFolderStructureMustMatchRegex)
+		ctx.Step(`^it contains the required files$`, p.itContainsTheRequiredFiles)
 	}
 }

@@ -14,15 +14,15 @@ Feature: Verify Conformance Product Submission
   Scenario: Files must exist in correct folders
     Given a conformance product submission PR
     When a PR is submitted
-    Then file folder structure must match regex "(v1.[0-9]{2})/(.*)"
+    Then file folder structure must match regex "(v1.[0-9]{2})/(.*)/.*"
     # $1 is the release version of Kubernetes
     # $2 is the product name
 
   Scenario: Check for required files
     Given a conformance product submission PR
     When the PR is submitted
-    Then it contain the required files
-    And each <file> must not be empty when required via it's BlobURL
+    And it contains the required files
+    Then each <file> must not be empty when required via it's BlobURL
 
     Examples:
       | file         |

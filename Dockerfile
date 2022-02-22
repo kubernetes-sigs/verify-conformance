@@ -1,5 +1,7 @@
 FROM golang:1.17.7-alpine3.15 AS build
 WORKDIR /app
+COPY go.* /app/
+RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH="" go build \
   -a \

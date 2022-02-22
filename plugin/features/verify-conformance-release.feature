@@ -1,14 +1,5 @@
-* verify-conformance-release
+# Behaviour
 
-The verify-conformance-release carries out the following checks
-
-It checks that the
-1. title of the PR contain a Kubernetes release
-2. the paths to the files containing evidence of conformance contain the release quoted in the title
-3. the commit patches contain the release quoted in the title of the
-
-** Behaviour
-#+begin_src feature :tangle ./features/verify-conformance-release.feature
 Feature: Verify Conformance Product Submission
 
   Scenario: Files must exist in correct folders
@@ -64,13 +55,3 @@ Feature: Verify Conformance Product Submission
     Then search for line that matches "e2e test version: (v1.[0-9]{2}(.[0-9]{2})?)"
     # $1 is the release version of Kubernetes
     # $2 is the (optional) point release version of Kubernetes
-#+end_src
-
-* Running the plugin locally
-
-The plugin can be run locally as follows, when run locally the plugin interacts with GitHub but by default does not make any changes
-if you want to apply changes to the PR inspected then you can pass in the flag, dry-run=false
-
-#+BEGIN_SRC shell
-./verify-conformance-release --hmac-secret-file=/home/ii/.secret-hook --github-token-path=/home/ii/.secret-oauth --plugin-config=./vcr.yaml
-#+END_SRC

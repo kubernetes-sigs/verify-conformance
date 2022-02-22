@@ -1,5 +1,5 @@
 /*
-Copyright 2020 CNCF TODO Check how this code should be licensed
+Copyright 2020-2022 CNCF TODO Check how this code should be licensed
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,20 +20,20 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"path"
 	"regexp"
 	"strings"
 	"time"
 
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
-
-	"io/ioutil"
+	"github.com/cucumber/godog"
 	"k8s.io/test-infra/prow/config"
 	"k8s.io/test-infra/prow/github"
 	"k8s.io/test-infra/prow/pluginhelp"
 	"k8s.io/test-infra/prow/plugins"
-	"net/http"
-	"path"
 )
 
 const (
@@ -62,11 +62,11 @@ func fetchFileFromURI(uri string) (content string, err error) {
 type githubClient interface {
 	GetIssueLabels(org, repo string, number int) ([]github.Label, error)
 	CreateComment(org, repo string, number int, comment string) error
-	BotName() (string, error)
+	BotUser() (*github.UserData, error)
 	AddLabel(org, repo string, number int, label string) error
 	RemoveLabel(org, repo string, number int, label string) error
 	DeleteStaleComments(org, repo string, number int, comments []github.IssueComment, isStale func(github.IssueComment) bool) error
-	Query(context.Context, interface{}, map[string]interface{}) error
+	QueryWithGitHubAppsSupport(context.Context, interface{}, map[string]interface{}, string) error
 	GetPullRequest(org, repo string, number int) (*github.PullRequest, error)
 	GetPullRequestChanges(org, repo string, number int) ([]github.PullRequestChange, error)
 }
@@ -169,10 +169,13 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 	for _, repo := range repos {
 		fmt.Fprintf(&queryOpenPRs, " repo:\"%s\"", repo)
 	}
-	prs, err := search(context.Background(), log, ghc, queryOpenPRs.String())
-
-	if err != nil {
-		return err
+	prs := []PullRequest{}
+	for _, org := range orgs {
+		prSearch, err := search(context.Background(), log, ghc, queryOpenPRs.String(), org)
+		if err != nil {
+			return err
+		}
+		prs = append(prs, prSearch...)
 	}
 	log.Infof("Considering %d PRs.", len(prs))
 
@@ -408,11 +411,11 @@ func takeAction(log *logrus.Entry, ghc githubClient, org, repo string, num int, 
 		if err := ghc.RemoveLabel(org, repo, num, "Version Mismatch"); err != nil {
 			log.WithError(err).Errorf("Failed to remove %q label.", "")
 		}
-		botName, err := ghc.BotName()
+		botUser, err := ghc.BotUser()
 		if err != nil {
 			return err
 		}
-		return ghc.DeleteStaleComments(org, repo, num, nil, shouldPrune(botName))
+		return ghc.DeleteStaleComments(org, repo, num, nil, shouldPrune(botUser.Name))
 	}
 	return nil
 }
@@ -519,7 +522,7 @@ func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.Pul
 			}
 			// Make a slice that contains all the key fields in the Product YAML file
 			for _, line := range strings.Split(string(body), "\n") {
-				// extract the key field regEx start of line to first occurence of :
+				// extract the key field regEx start of line to first occurrence of :
 				keyVal := strings.Split(line, ":")
 				firstVal := keyVal[0]
 				// Add key to fieldSlice
@@ -553,7 +556,7 @@ func shouldPrune(botName string) func(github.IssueComment) bool {
 }
 
 // Executes the search query contained in q using the GitHub client ghc
-func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) ([]PullRequest, error) {
+func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string, org string) ([]PullRequest, error) {
 	var ret []PullRequest
 	vars := map[string]interface{}{
 		"query":        githubql.String(q),
@@ -564,7 +567,7 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string) 
 	for {
 		sq := SearchQuery{}
 		log.Infof("query \"%s\" ", q)
-		if err := ghc.Query(ctx, &sq, vars); err != nil {
+		if err := ghc.QueryWithGitHubAppsSupport(ctx, &sq, vars, org); err != nil {
 			return nil, err
 		}
 		totalCost += int(sq.RateLimit.Cost)
@@ -626,4 +629,31 @@ type SearchQuery struct {
 			PullRequest PullRequest `graphql:"... on PullRequest"`
 		}
 	} `graphql:"search(type: ISSUE, first: 100, after: $searchCursor, query: $query)"`
+}
+
+type PRContext struct {
+	ghc githubClient
+	org             string
+	repo             string
+	prNumber string
+	supportingFiles map[string]github.PullRequestChange
+}
+
+func (p *PRContext) fileFolderStructureMustMatchRegex(match string) error {
+	return nil
+}
+
+func InitializeTestSuite(ctx *godog.TestSuiteContext) {
+	ctx.BeforeSuite(func() {
+	})
+}
+
+func InitializeScenario (p *PRContext) func (*godog.ScenarioContext) {
+	return func(ctx *godog.ScenarioContext) {
+		ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
+			return ctx, nil
+		})
+
+		ctx.Step(`^file folder structure must match "(.*)"$`, p.fileFolderStructureMustMatchRegex)
+	}
 }

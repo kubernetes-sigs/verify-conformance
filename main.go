@@ -1,5 +1,5 @@
 /*
-Copyright 2020 CNCF # TODO Check that this is correct
+Copyright 2020-2022 CNCF # TODO Check that this is correct
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,15 +25,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"k8s.io/test-infra/prow/interrupts"
+	"cncf.io/infra/verify-conformance-release/plugin"
 
+	"github.com/sirupsen/logrus"
 	"k8s.io/test-infra/pkg/flagutil"
 	"k8s.io/test-infra/prow/config/secret"
-	"cncf.io/infra/verify-conformance-release/plugin"
 	prowflagutil "k8s.io/test-infra/prow/flagutil"
 	"k8s.io/test-infra/prow/github"
-
+	"k8s.io/test-infra/prow/interrupts"
 	"k8s.io/test-infra/prow/pluginhelp/externalplugins"
 	"k8s.io/test-infra/prow/plugins"
 )
@@ -86,24 +85,23 @@ func main() {
 	logrus.SetLevel(logrus.InfoLevel)
 	log := logrus.StandardLogger().WithField("plugin", "verify-conformance-release")
 
-	secretAgent := &secret.Agent{}
-	if err := secretAgent.Start([]string{o.github.TokenPath, o.webhookSecretFile}); err != nil {
+	if err := secret.Add(o.github.TokenPath, o.webhookSecretFile); err != nil {
 		logrus.WithError(err).Fatal("Error starting test-infra/prow/config/secret agent.")
 	}
 
 	pa := &plugins.ConfigAgent{}
-	if err := pa.Start(o.pluginConfig, false); err != nil {
+	if err := pa.Start(o.pluginConfig, []string{}, "", true, false); err != nil {
 		log.WithError(err).Fatalf("Error loading plugin config from %q.", o.pluginConfig)
 	}
 
-	githubClient, err := o.github.GitHubClient(secretAgent, o.dryRun)
+	githubClient, err := o.github.GitHubClient(o.dryRun)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting GitHub client.")
 	}
 	githubClient.Throttle(360, 360)
 
 	server := &Server{
-		tokenGenerator: secretAgent.GetTokenGenerator(o.webhookSecretFile),
+		tokenGenerator: secret.GetTokenGenerator(o.webhookSecretFile),
 		ghc:            githubClient,
 		log:            log,
 	}

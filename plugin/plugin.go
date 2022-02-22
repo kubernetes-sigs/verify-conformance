@@ -27,9 +27,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cucumber/godog"
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
-	"github.com/cucumber/godog"
 	"k8s.io/test-infra/prow/config"
 	"k8s.io/test-infra/prow/github"
 	"k8s.io/test-infra/prow/pluginhelp"
@@ -62,10 +62,10 @@ func fetchFileFromURI(uri string) (content string, err error) {
 type githubClient interface {
 	GetIssueLabels(org, repo string, number int) ([]github.Label, error)
 	CreateComment(org, repo string, number int, comment string) error
-	BotUser() (*github.UserData, error)
+	BotUserChecker() (func(candidate string) bool, error)
 	AddLabel(org, repo string, number int, label string) error
 	RemoveLabel(org, repo string, number int, label string) error
-	DeleteStaleComments(org, repo string, number int, comments []github.IssueComment, isStale func(github.IssueComment) bool) error
+	DeleteStaleCommentsWithContext(ctx context.Context, org, repo string, number int, comments []github.IssueComment, isStale func(github.IssueComment) bool) error
 	QueryWithGitHubAppsSupport(context.Context, interface{}, map[string]interface{}, string) error
 	GetPullRequest(org, repo string, number int) (*github.PullRequest, error)
 	GetPullRequestChanges(org, repo string, number int) ([]github.PullRequestChange, error)
@@ -150,6 +150,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 	log.Infof("%v : HandleAll : Checking all PRs for handling", PluginName)
 
 	orgs, repos := config.EnabledReposForExternalPlugin(PluginName) // TODO : Overkill see below
+	log.Infof("orgs: %#v, repos: %#v", orgs, repos)
 
 	if len(orgs) == 0 && len(repos) == 0 {
 		log.Warnf("HandleAll : No repos have been configured for the %s plugin", PluginName)
@@ -163,12 +164,20 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 	var queryOpenPRs bytes.Buffer
 	//	fmt.Fprint(&queryOpenPRs, "archived:false is:pr is:open -label:verifiable")
 	fmt.Fprint(&queryOpenPRs, "archived:false is:pr is:open ")
+	for _, repo := range repos {
+		fmt.Fprintf(&queryOpenPRs, " repo:\"%s\"", repo)
+		slashSplit := strings.Split(repo, "/")
+		if n := len(slashSplit); n != 2 {
+			log.WithField("repo", repo).Warn("Found repo that was not in org/repo format, ignoring...")
+			continue
+		}
+		org := slashSplit[0]
+		orgs = append(orgs, org)
+	}
 	for _, org := range orgs {
 		fmt.Fprintf(&queryOpenPRs, " org:\"%s\"", org)
 	}
-	for _, repo := range repos {
-		fmt.Fprintf(&queryOpenPRs, " repo:\"%s\"", repo)
-	}
+
 	prs := []PullRequest{}
 	for _, org := range orgs {
 		prSearch, err := search(context.Background(), log, ghc, queryOpenPRs.String(), org)
@@ -217,7 +226,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		// filesIncluded map[string]bool
 	requiredFiles:
 		for _, fileName := range requiredProductSubmissionFileNames {
-			missingFileLabelName := "missing-file-" + fileName 
+			missingFileLabelName := "missing-file-" + fileName
 			issueLabels, err := githubClient.GetIssueLabels(ghc, org, repo, prNumber)
 			if err != nil {
 				prLogger.WithError(err).Error("failed to list labels on issue")
@@ -411,11 +420,11 @@ func takeAction(log *logrus.Entry, ghc githubClient, org, repo string, num int, 
 		if err := ghc.RemoveLabel(org, repo, num, "Version Mismatch"); err != nil {
 			log.WithError(err).Errorf("Failed to remove %q label.", "")
 		}
-		botUser, err := ghc.BotUser()
+		botUserChecker, err := ghc.BotUserChecker()
 		if err != nil {
 			return err
 		}
-		return ghc.DeleteStaleComments(org, repo, num, nil, shouldPrune(botUser.Name))
+		return ghc.DeleteStaleCommentsWithContext(context.TODO(), org, repo, num, nil, shouldPrune(botUserChecker))
 	}
 	return nil
 }
@@ -548,9 +557,9 @@ func checkProductYAMLHasRequiredFields(log *logrus.Entry, productYaml github.Pul
 
 }
 
-func shouldPrune(botName string) func(github.IssueComment) bool {
+func shouldPrune(isBot func(string) bool) func(github.IssueComment) bool {
 	return func(ic github.IssueComment) bool {
-		return github.NormLogin(botName) == github.NormLogin(ic.User.Login) &&
+		return isBot(ic.User.Login) &&
 			strings.Contains(ic.Body, needsVersionReview)
 	}
 }
@@ -632,10 +641,10 @@ type SearchQuery struct {
 }
 
 type PRContext struct {
-	ghc githubClient
+	ghc             githubClient
 	org             string
-	repo             string
-	prNumber string
+	repo            string
+	prNumber        string
 	supportingFiles map[string]github.PullRequestChange
 }
 
@@ -648,7 +657,7 @@ func InitializeTestSuite(ctx *godog.TestSuiteContext) {
 	})
 }
 
-func InitializeScenario (p *PRContext) func (*godog.ScenarioContext) {
+func InitializeScenario(p *PRContext) func(*godog.ScenarioContext) {
 	return func(ctx *godog.ScenarioContext) {
 		ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 			return ctx, nil

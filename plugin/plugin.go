@@ -34,6 +34,7 @@ import (
 	"k8s.io/test-infra/prow/github"
 	"k8s.io/test-infra/prow/pluginhelp"
 	"k8s.io/test-infra/prow/plugins"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -46,17 +47,17 @@ var sleep = time.Sleep
 var requiredProductFields = []string{"vendor", "name", "version", "website_url", "documentation_url", "type", "description"}
 var requiredProductSubmissionFileNames = []string{"README.md", "PRODUCT.yaml", "e2e.log", "junit_01.xml"}
 
-func fetchFileFromURI(uri string) (content string, err error) {
-	resp, err := http.Get(uri)
+func fetchFileFromURI(uri string) (content string, resp *http.Response, err error) {
+	resp, err = http.Get(uri)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return string(body), nil
+	return string(body), resp, nil
 }
 
 type githubClient interface {
@@ -238,7 +239,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 					hasMissingFileLabel = true
 				}
 			}
-			content, err := fetchFileFromURI(supportingFiles[fileName].BlobURL)
+			content, _, err := fetchFileFromURI(supportingFiles[fileName].BlobURL)
 			if (err != nil || content == "") && hasMissingFileLabel == false {
 				prLogger.WithError(err).Error(fmt.Sprintf("failed to fetch '%v' from PR '%v'", supportingFiles[fileName].BlobURL, prNumber))
 				githubClient.CreateComment(ghc, org, repo, prNumber, fmt.Sprintf("Please include the '%v' file in this Pull Request (check for case-sensitivity)", fileName))
@@ -643,10 +644,19 @@ type SearchQuery struct {
 
 type PRContext struct {
 	ghc             githubClient
+	prLogger        *logrus.Entry
 	org             string
 	repo            string
-	prNumber        string
+	prNumber        int
+	prTitle         string
+	pr              PullRequest
 	supportingFiles map[string]github.PullRequestChange
+}
+
+func (p *PRContext) aConformanceProductSubmissionPR() func() error {
+	return func() error {
+		return nil
+	}
 }
 
 func (p *PRContext) fileFolderStructureMustMatchRegex(match string) error {
@@ -660,19 +670,193 @@ func (p *PRContext) fileFolderStructureMustMatchRegex(match string) error {
 			distroName := string(change.Filename[loc[4]:loc[5]])
 
 			// TODO make label and comment if not passing
-			if baseFolder == "" {
-				return fmt.Errorf("error: base folder of product submission PR doesn't begin with a Kubernetes release version")
-			} else if distroName == "" {
-				return fmt.Errorf("error: unable to find the name of the product in the folder structure of product submission")
+			if baseFolder == "" || distroName == "" {
+				return fmt.Errorf("The content structure of your product submission PR must match '%v' (KubernetesVersion/ProductName), e.g: v1.23/averycooldistro", match)
 			}
-			// TODO remove comment if passing
 		}
 	}
 	return nil
 }
 
-func (p *PRContext) itContainsTheRequiredFiles() error {
-	return nil
+func (p *PRContext) theRequiredFile(ctx *godog.ScenarioContext) func() error {
+	return func() error {
+		filesMissing := []string{}
+		// issueLabels, err := githubClient.GetIssueLabels(p.ghc, p.org, p.repo, p.prNumber)
+		// if err != nil {
+		// 	return err
+		// }
+		for _, fileName := range ctx.Examples {
+			found := false
+			for _, change := range p.supportingFiles {
+				if fileName == path.Base(change.Filename) {
+					found = true
+				}
+			}
+			// missingFileLabelName := "missing-file-" + fileName
+			// hasMissingFileLabel := false
+			// for _, label := range issueLabels {
+			// 	if label.Name == missingFileLabelName {
+			// 		hasMissingFileLabel = true
+			// 	}
+			// }
+			if found == false {
+				// if err := githubClient.AddLabel(p.ghc, p.org, p.repo, p.prNumber, missingFileLabelName); err != nil {
+				// 	p.prLogger.WithError(err).Error("failed to add label")
+				// }
+				filesMissing = append(filesMissing, fileName)
+			} else {
+				// if err := githubClient.RemoveLabel(p.ghc, p.org, p.repo, p.prNumber, missingFileLabelName); err != nil {
+				// 	p.prLogger.WithError(err).Error("failed to remove label")
+				// }
+			}
+		}
+		if len(filesMissing) > 0 {
+			return fmt.Errorf("Please include the following files in this Pull Request (check for case-sensitivity): %v", strings.Join(filesMissing, "\n- "))
+		}
+		return nil
+	}
+}
+
+func (p *PRContext) eachFileMustNotBeEmpty(ctx *godog.ScenarioContext) func() error {
+	return func() error {
+		for _, file := range ctx.Examples {
+			content, _, err := fetchFileFromURI(p.supportingFiles[file.Filename].BlobURL)
+			if err != nil {
+				return fmt.Errorf("Error: failed to request file content of '%v'", file.Filename)
+			} else if content == "" {
+				return fmt.Errorf("Error: file content of '%v' is empty", file.Filename)
+			}
+		}
+		return nil
+	}
+}
+
+func (p *PRContext) aFile(ctx *godog.ScenarioContext) func(string) error {
+	return func(fileName string) error {
+		found := false
+		for _, change := range p.supportingFiles {
+			if fileName == path.Base(change.Filename) {
+				found = true
+			}
+		}
+		if found != true {
+			return fmt.Errorf("Please include a '%v' in your product submission", fileName)
+		}
+		return nil
+	}
+}
+
+func (p *PRContext) theYamlMustContainTheRequiredAndNonEmptyField(ctx *godog.ScenarioContext) func(string) error {
+	return func(field string) error {
+		fileName := "PRODUCT.yaml"
+		content, _, err := fetchFileFromURI(patchUrlToFileUrl(p.supportingFiles[fileName].BlobURL))
+		if err != nil {
+			return fmt.Errorf("Error: failed to request file content of '%v'", fileName)
+		} else if content == "" {
+			return fmt.Errorf("Error: file content of '%v' is empty", fileName)
+		}
+		var parsedContent map[string]*interface{}
+		err = yaml.Unmarshal([]byte(content), &parsedContent)
+		if err != nil {
+			return fmt.Errorf("Unable to read '%v'", fileName)
+		}
+		missingKeys := []string{}
+		for _, fieldName := range ctx.Examples {
+			if parsedContent[fieldName] == nil {
+				missingKeys = append(missingKeys, fieldName)
+			}
+		}
+		if len(missingKeys) > 0 {
+			return fmt.Errorf("Please ensure that the following fields are filled in for the file '%v': %v", fileName, strings.Join(missingKeys, "\n- "))
+		}
+		return nil
+	}
+}
+
+func (p *PRContext) ifTypeIsURLTheContentOfTheURLInTheFieldsValueMustMatchItsDataType(ctx *godog.ScenarioContext) func(string, string, string) error {
+	return func(field, contentType, dataType string) error {
+		if contentType != "url" {
+			return nil
+		}
+		fileName := "PRODUCT.yaml"
+		dataTypes := strings.Split(dataType, " ")
+		content, _, err := fetchFileFromURI(patchUrlToFileUrl(p.supportingFiles[fileName].BlobURL))
+		if err != nil {
+			return fmt.Errorf("Error: failed to request file content of '%v'", fileName)
+		} else if content == "" {
+			return fmt.Errorf("Error: file content of '%v' is empty", fileName)
+		}
+		var parsedContent map[string]string
+		err = yaml.Unmarshal([]byte(content), &parsedContent)
+		if err != nil {
+			return fmt.Errorf("Unable to read '%v'", fileName)
+		}
+		content, resp, err := fetchFileFromURI(parsedContent[field])
+		if err != nil {
+			return fmt.Errorf("Error: failed to request file content of '%v'", fileName)
+		} else if content == "" {
+			return fmt.Errorf("Error: file content of '%v' is empty", fileName)
+		}
+		if content == "" {
+			return fmt.Errorf("Unable to resolve '%v', from '%v'", field, fileName)
+		}
+		matchesOneDataType := false
+		for _, dataType := range dataTypes {
+			if resp.Header.Get("Content-Type") == dataType {
+				matchesOneDataType = true
+			}
+		}
+		if matchesOneDataType != true {
+			// TODO add documentation link
+			return fmt.Errorf("Unable to use field '%v' in '%v', as it does not meet the requirements for file type. Please see the documentation ", field, fileName)
+		}
+		return nil
+	}
+}
+
+func (p *PRContext) theTitleOfThePR(ctx *godog.ScenarioContext) func() error {
+	return func() error {
+		if p.pr.Title == "" {
+			return fmt.Errorf("Unable to use product submission PR, as it appears to not have a title")
+		}
+		p.prTitle = string(p.pr.Title)
+		return nil
+	}
+}
+
+func (p *PRContext) theTitleOfThePRMustMatch(ctx *godog.ScenarioContext) func(string) error {
+	return func(match string) error {
+		pattern := regexp.MustCompile(match)
+		if pattern.MatchString(p.prTitle) != true {
+			return fmt.Errorf("Unable to use product submission PR, as the title doesn't appear to match what's required")
+		}
+		return nil
+	}
+}
+
+func (p *PRContext) aLineOfTheFileMustMatch(ctx *godog.ScenarioContext) func(string, string) error {
+	return func(fileName, match string) error {
+		pattern := regexp.MustCompile(match)
+		content, _, err := fetchFileFromURI(patchUrlToFileUrl(p.supportingFiles[fileName].BlobURL))
+		if err != nil {
+			return fmt.Errorf("Error: failed to request file content of '%v'", fileName)
+		} else if content == "" {
+			return fmt.Errorf("Error: file content of '%v' is empty", fileName)
+		}
+		lines := strings.Split(content, "\n")
+		foundMatchingLine := false
+	lineLoop:
+		for _, line := range lines {
+			foundMatchingLine = pattern.MatchString(line)
+			if foundMatchingLine == true {
+				break lineLoop
+			}
+		}
+		if foundMatchingLine == false {
+			return fmt.Errorf("Unable to use file '%v' in product submission PR, because it does not contain a release version of Kubernetes in it", fileName)
+		}
+		return nil
+	}
 }
 
 func InitializeTestSuite(ctx *godog.TestSuiteContext) {
@@ -686,6 +870,13 @@ func InitializeScenario(p *PRContext) func(*godog.ScenarioContext) {
 		})
 
 		ctx.Step(`^file folder structure must match "(.*)"$`, p.fileFolderStructureMustMatchRegex)
-		ctx.Step(`^it contains the required files$`, p.itContainsTheRequiredFiles)
+		ctx.Step(`^the required <file>$`, p.theRequiredFile(ctx))
+		ctx.Step(`^each <file> must not be empty$`, p.eachFileMustNotBeEmpty(ctx))
+		ctx.Step(`^a "(.*)" file$`, p.aFile(ctx))
+		ctx.Step(`^the yaml must contain the required and non-empty <field>$`, p.theYamlMustContainTheRequiredAndNonEmptyField(ctx))
+		ctx.Step(`^if <type> is "url", the content of the url in the <field>'s value must match it's <dataType>$`, p.ifTypeIsURLTheContentOfTheURLInTheFieldsValueMustMatchItsDataType(ctx))
+		ctx.Step(`^the title of the PR$`, p.theTitleOfThePR(ctx))
+		ctx.Step(`^the title of the PR must match "(.*)"$`, p.theTitleOfThePRMustMatch(ctx))
+		ctx.Step(`^a line of the file "(.*)" must match "(.*)"$`, p.aLineOfTheFileMustMatch(ctx))
 	}
 }

@@ -19,6 +19,7 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -35,6 +36,8 @@ import (
 	"k8s.io/test-infra/prow/pluginhelp"
 	"k8s.io/test-infra/prow/plugins"
 	"sigs.k8s.io/yaml"
+
+	"cncf.io/infra/verify-conformance-release/internal/types"
 )
 
 const (
@@ -193,24 +196,13 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		org := string(pr.Repository.Owner.Login)
 		repo := string(pr.Repository.Name)
 		prNumber := int(pr.Number)
-		//sha := string(pr.Commits.Nodes[0].Commit.Oid)
-
-		githubClient.AddLabel(ghc, org, repo, prNumber, "caleb-was-here-and-is-sorry-if-you-see-this")
-		hasReleaseInTitle, releaseVersion, err := HasReleaseInPrTitle(log, ghc, string(pr.Title))
-
-		hasReleaseLabel, err := HasReleaseLabel(log, org, repo, prNumber, ghc, "release-"+releaseVersion)
-
-		e2eLogHasRelease := false
-		productYamlCorrect := false
-		foldersCorrect := false
-		var productYamlDiff string
-
+		log.Infof("%v %v %v", org, repo, prNumber)
 		prLogger := log.WithFields(logrus.Fields{
 			//"org":  org,
 			//"repo": repo,
-			"pr":            prNumber,
-			"title":         pr.Title,
-			"statedRelease": releaseVersion,
+			"pr":    prNumber,
+			"title": pr.Title,
+			// "statedRelease": releaseVersion,
 		})
 
 		var supportingFiles = make(map[string]github.PullRequestChange)
@@ -224,6 +216,107 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 			supportingFiles[path.Base(change.Filename)] = change
 			//prLogger.Infof("cCHSKR: %+v", supportingFiles[path.Base(change.Filename)])
 		}
+
+		prctx := &PRContext{
+			ghc:             ghc,
+			prLogger:        prLogger,
+			org:             org,
+			repo:            repo,
+			pr:              pr,
+			prNumber:        prNumber,
+			supportingFiles: supportingFiles,
+			buffer:          *bytes.NewBuffer(nil),
+		}
+		status := godog.TestSuite{
+			Name:                 "godogs",
+			TestSuiteInitializer: InitializeTestSuite,
+			ScenarioInitializer:  InitializeScenario(prctx),
+			Options: &godog.Options{
+				Paths:          []string{"./features/", "/app/features/", "/var/lib/kodata/features/"},
+				Randomize:      0,
+				StopOnFailure:  false,
+				NoColors:       false,
+				Concurrency:    0,
+				Format:         "cucumber",
+				Output:         &prctx.buffer,
+				DefaultContext: context.TODO(),
+			},
+		}.Run()
+
+		log.Infof("Test suite run '%d'", status)
+		fmt.Println(prctx.buffer.String())
+		var cukeFeature types.CukeFeatureJSON
+		err = json.Unmarshal([]byte(prctx.buffer.String()), &cukeFeature)
+		if err != nil {
+			log.Infof("Error unmarshalling, %v", err)
+			continue
+		}
+
+		resultPrepares := []ResultPrepare{}
+		for _, e := range cukeFeature.Elements {
+			resultPrepare := ResultPrepare{}
+			fails := false
+			for _, s := range e.Steps {
+				if s.Result.Status == "failed" {
+					resultPrepare.Hints = append(resultPrepare.Hints, s.Result.Error)
+					fails = true
+				}
+			}
+			if fails == true {
+				resultPrepare.Name = e.Name
+			}
+			resultPrepares = append(resultPrepares, resultPrepare)
+		}
+
+		finalComment := `
+All requirements have passed for the submission!
+`
+		labels := []string{"complete"}
+		if len(resultPrepares) > 0 {
+			finalComment = "Some requirements have not passed:\n"
+			for _, r := range resultPrepares {
+				finalComment += "- " + r.Name + "\n\n"
+				for _, h := range r.Hints {
+					finalComment += "- " + h
+				}
+			}
+			labels = []string{"failed"}
+		}
+		githubClient.CreateComment(ghc, org, repo, prNumber, finalComment)
+		for _, label := range labels {
+			if err := githubClient.AddLabel(ghc, org, repo, prNumber, label); err != nil {
+				log.Infof("unable to add label, %v", err)
+				continue
+			}
+		}
+		issueLabels, err := githubClient.GetIssueLabels(prctx.ghc, prctx.org, prctx.repo, prctx.prNumber)
+		if err != nil {
+			prctx.prLogger.WithError(err).Error("failed to list labels on issue")
+			continue
+		}
+		for _, issueLabel := range issueLabels {
+			for _, label := range labels {
+				if issueLabel.Name != label {
+					if err := githubClient.RemoveLabel(ghc, org, repo, prNumber, issueLabel.Name); err != nil {
+						log.Infof("unable to remove label, %v", err)
+						continue
+					}
+				}
+			}
+		}
+
+		continue
+		//sha := string(pr.Commits.Nodes[0].Commit.Oid)
+
+		hasReleaseInTitle, releaseVersion, err := HasReleaseInPrTitle(log, ghc, string(pr.Title))
+
+		hasReleaseLabel, err := HasReleaseLabel(log, org, repo, prNumber, ghc, "release-"+releaseVersion)
+
+		e2eLogHasRelease := false
+		productYamlCorrect := false
+		foldersCorrect := false
+		var productYamlDiff string
+
 		filesIncludedCount := 0
 		// filesIncluded map[string]bool
 	requiredFiles:
@@ -643,14 +736,24 @@ type SearchQuery struct {
 }
 
 type PRContext struct {
-	ghc             githubClient
-	prLogger        *logrus.Entry
-	org             string
-	repo            string
-	prNumber        int
-	prTitle         string
-	pr              PullRequest
-	supportingFiles map[string]github.PullRequestChange
+	ghc      githubClient
+	prLogger *logrus.Entry
+	org      string
+	repo     string
+	prNumber int
+	pr       PullRequest
+	hasLabel bool
+
+	prTitle                string
+	productYAMLMissingKeys []string
+	supportingFiles        map[string]github.PullRequestChange
+
+	buffer bytes.Buffer
+}
+
+type ResultPrepare struct {
+	Name  string
+	Hints []string
 }
 
 func (p *PRContext) aConformanceProductSubmissionPR() func() error {
@@ -678,37 +781,35 @@ func (p *PRContext) fileFolderStructureMustMatchRegex(match string) error {
 	return nil
 }
 
-func (p *PRContext) theRequiredFile(ctx *godog.ScenarioContext) func() error {
-	return func() error {
+func (p *PRContext) theRequiredFile(ctx *godog.ScenarioContext) func(string) error {
+	return func(fileName string) error {
 		filesMissing := []string{}
 		// issueLabels, err := githubClient.GetIssueLabels(p.ghc, p.org, p.repo, p.prNumber)
 		// if err != nil {
 		// 	return err
 		// }
-		for _, fileName := range ctx.Examples {
-			found := false
-			for _, change := range p.supportingFiles {
-				if fileName == path.Base(change.Filename) {
-					found = true
-				}
+		found := false
+		for _, change := range p.supportingFiles {
+			if fileName == path.Base(change.Filename) {
+				found = true
 			}
-			// missingFileLabelName := "missing-file-" + fileName
-			// hasMissingFileLabel := false
-			// for _, label := range issueLabels {
-			// 	if label.Name == missingFileLabelName {
-			// 		hasMissingFileLabel = true
-			// 	}
+		}
+		// missingFileLabelName := "missing-file-" + fileName
+		// hasMissingFileLabel := false
+		// for _, label := range issueLabels {
+		// 	if label.Name == missingFileLabelName {
+		// 		hasMissingFileLabel = true
+		// 	}
+		// }
+		if found == false {
+			// if err := githubClient.AddLabel(p.ghc, p.org, p.repo, p.prNumber, missingFileLabelName); err != nil {
+			// 	p.prLogger.WithError(err).Error("failed to add label")
 			// }
-			if found == false {
-				// if err := githubClient.AddLabel(p.ghc, p.org, p.repo, p.prNumber, missingFileLabelName); err != nil {
-				// 	p.prLogger.WithError(err).Error("failed to add label")
-				// }
-				filesMissing = append(filesMissing, fileName)
-			} else {
-				// if err := githubClient.RemoveLabel(p.ghc, p.org, p.repo, p.prNumber, missingFileLabelName); err != nil {
-				// 	p.prLogger.WithError(err).Error("failed to remove label")
-				// }
-			}
+			filesMissing = append(filesMissing, fileName)
+		} else {
+			// if err := githubClient.RemoveLabel(p.ghc, p.org, p.repo, p.prNumber, missingFileLabelName); err != nil {
+			// 	p.prLogger.WithError(err).Error("failed to remove label")
+			// }
 		}
 		if len(filesMissing) > 0 {
 			return fmt.Errorf("Please include the following files in this Pull Request (check for case-sensitivity): %v", strings.Join(filesMissing, "\n- "))
@@ -717,15 +818,13 @@ func (p *PRContext) theRequiredFile(ctx *godog.ScenarioContext) func() error {
 	}
 }
 
-func (p *PRContext) eachFileMustNotBeEmpty(ctx *godog.ScenarioContext) func() error {
-	return func() error {
-		for _, file := range ctx.Examples {
-			content, _, err := fetchFileFromURI(p.supportingFiles[file.Filename].BlobURL)
-			if err != nil {
-				return fmt.Errorf("Error: failed to request file content of '%v'", file.Filename)
-			} else if content == "" {
-				return fmt.Errorf("Error: file content of '%v' is empty", file.Filename)
-			}
+func (p *PRContext) eachFileMustNotBeEmpty(ctx *godog.ScenarioContext) func(string) error {
+	return func(fileName string) error {
+		content, _, err := fetchFileFromURI(p.supportingFiles[fileName].BlobURL)
+		if err != nil {
+			return fmt.Errorf("Error: failed to request file content of '%v'", fileName)
+		} else if content == "" {
+			return fmt.Errorf("Error: file content of '%v' is empty", fileName)
 		}
 		return nil
 	}
@@ -746,8 +845,8 @@ func (p *PRContext) aFile(ctx *godog.ScenarioContext) func(string) error {
 	}
 }
 
-func (p *PRContext) theYamlMustContainTheRequiredAndNonEmptyField(ctx *godog.ScenarioContext) func(string) error {
-	return func(field string) error {
+func (p *PRContext) theYamlMustContainTheRequiredAndNonEmptyField(ctx *godog.ScenarioContext) func(string, string, string) error {
+	return func(fieldName, contentType, dataType string) error {
 		fileName := "PRODUCT.yaml"
 		content, _, err := fetchFileFromURI(patchUrlToFileUrl(p.supportingFiles[fileName].BlobURL))
 		if err != nil {
@@ -760,14 +859,11 @@ func (p *PRContext) theYamlMustContainTheRequiredAndNonEmptyField(ctx *godog.Sce
 		if err != nil {
 			return fmt.Errorf("Unable to read '%v'", fileName)
 		}
-		missingKeys := []string{}
-		for _, fieldName := range ctx.Examples {
-			if parsedContent[fieldName] == nil {
-				missingKeys = append(missingKeys, fieldName)
-			}
+		if parsedContent[fieldName] == nil {
+			p.productYAMLMissingKeys = append(p.productYAMLMissingKeys, fieldName)
 		}
-		if len(missingKeys) > 0 {
-			return fmt.Errorf("Please ensure that the following fields are filled in for the file '%v': %v", fileName, strings.Join(missingKeys, "\n- "))
+		if len(p.productYAMLMissingKeys) > 0 {
+			return fmt.Errorf("Please ensure that the following fields are filled in for the file '%v': %v", fileName, strings.Join(p.productYAMLMissingKeys, "\n- "))
 		}
 		return nil
 	}
@@ -859,6 +955,53 @@ func (p *PRContext) aLineOfTheFileMustMatch(ctx *godog.ScenarioContext) func(str
 	}
 }
 
+func (p *PRContext) aPRWithoutTheLabel(label string) error {
+	issueLabels, err := githubClient.GetIssueLabels(p.ghc, p.org, p.repo, p.prNumber)
+	if err != nil {
+		p.prLogger.WithError(err).Error("failed to list labels on issue")
+		return err
+	}
+	p.hasLabel = false
+	for _, issueLabel := range issueLabels {
+		if label == issueLabel.Name {
+			p.hasLabel = true
+		}
+	}
+	return nil
+}
+
+func (p *PRContext) addTheLabelToThePR(ctx *godog.ScenarioContext) func(string) error {
+	return func(label string) error {
+		if p.hasLabel == true {
+			return nil
+		}
+		if err := githubClient.AddLabel(p.ghc, p.org, p.repo, p.prNumber, label); err != nil {
+			p.prLogger.WithError(err).Errorf("Failed to add %q label.", label)
+			return err
+		}
+		return nil
+	}
+}
+
+func (p *PRContext) removeTheLabelFromThePR(ctx *godog.ScenarioContext) func(string) error {
+	return func(label string) error {
+		if p.hasLabel == false {
+			return nil
+		}
+		if err := githubClient.RemoveLabel(p.ghc, p.org, p.repo, p.prNumber, label); err != nil {
+			p.prLogger.WithError(err).Errorf("Failed to remove %q label.", label)
+			return err
+		}
+		return nil
+	}
+}
+
+func (p *PRContext) iWillFailForSomeReason(ctx *godog.ScenarioContext) func(string) error {
+	return func(label string) error {
+		return fmt.Errorf("something went wrong! lol")
+	}
+}
+
 func InitializeTestSuite(ctx *godog.TestSuiteContext) {
 	ctx.BeforeSuite(func() {})
 }
@@ -869,12 +1012,18 @@ func InitializeScenario(p *PRContext) func(*godog.ScenarioContext) {
 			return ctx, nil
 		})
 
+		ctx.Step(`^a conformance product submission PR$`, p.aConformanceProductSubmissionPR())
+		ctx.Step(`^a PR without the label "(.*)"$`, p.aPRWithoutTheLabel)
+		ctx.Step(`^add the label "(.*)" to the PR$`, p.addTheLabelToThePR(ctx))
+		ctx.Step(`^remove the label "(.*)" from the PR$`, p.removeTheLabelFromThePR(ctx))
+		ctx.Step(`^i will fail for some reason$`, p.iWillFailForSomeReason(ctx))
+
 		ctx.Step(`^file folder structure must match "(.*)"$`, p.fileFolderStructureMustMatchRegex)
-		ctx.Step(`^the required <file>$`, p.theRequiredFile(ctx))
-		ctx.Step(`^each <file> must not be empty$`, p.eachFileMustNotBeEmpty(ctx))
+		ctx.Step(`^the required "(.*)"$`, p.theRequiredFile(ctx))
+		ctx.Step(`^each "(.*)" must not be empty$`, p.eachFileMustNotBeEmpty(ctx))
 		ctx.Step(`^a "(.*)" file$`, p.aFile(ctx))
-		ctx.Step(`^the yaml must contain the required and non-empty <field>$`, p.theYamlMustContainTheRequiredAndNonEmptyField(ctx))
-		ctx.Step(`^if <type> is "url", the content of the url in the <field>'s value must match it's <dataType>$`, p.ifTypeIsURLTheContentOfTheURLInTheFieldsValueMustMatchItsDataType(ctx))
+		ctx.Step(`^the yaml must contain the required and non-empty "(.*)"$`, p.theYamlMustContainTheRequiredAndNonEmptyField(ctx))
+		ctx.Step(`^if "(.*)" is "url", the content of the url in the "(.*)"'s value must match it's "(.*)"$`, p.ifTypeIsURLTheContentOfTheURLInTheFieldsValueMustMatchItsDataType(ctx))
 		ctx.Step(`^the title of the PR$`, p.theTitleOfThePR(ctx))
 		ctx.Step(`^the title of the PR must match "(.*)"$`, p.theTitleOfThePRMustMatch(ctx))
 		ctx.Step(`^a line of the file "(.*)" must match "(.*)"$`, p.aLineOfTheFileMustMatch(ctx))

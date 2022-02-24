@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"regexp"
 	"strings"
@@ -232,40 +233,64 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 			TestSuiteInitializer: InitializeTestSuite,
 			ScenarioInitializer:  InitializeScenario(prctx),
 			Options: &godog.Options{
-				Paths:          []string{"./features/", "/app/features/", "/var/lib/kodata/features/"},
-				Randomize:      0,
-				StopOnFailure:  false,
-				NoColors:       false,
-				Concurrency:    0,
+				Paths: func() (paths []string) {
+					possiblePaths := []string{"./features/", "/app/features/", os.Getenv("KO_DATA_PATH")}
+				paths:
+					for _, p := range possiblePaths {
+						if p == "" {
+							continue paths
+						}
+						if _, err := os.Stat(p); os.IsNotExist(err) {
+							continue paths
+						}
+						paths = append(paths, p)
+					}
+					return paths
+				}(),
+				Randomize:     0,
+				StopOnFailure: false,
+				NoColors:      false,
+				Concurrency:   0,
+				// Format: "pretty",
+				// Output: os.Stdout,
 				Format:         "cucumber",
 				Output:         &prctx.buffer,
 				DefaultContext: context.TODO(),
 			},
 		}.Run()
 
-		log.Infof("Test suite run '%d'", status)
-		fmt.Println(prctx.buffer.String())
-		var cukeFeature types.CukeFeatureJSON
-		err = json.Unmarshal([]byte(prctx.buffer.String()), &cukeFeature)
+		log.Infof("Test suite run complete with status '%d'", status)
+		// if prctx.buffer.Len() == 0 {
+		// 	log.Infof("Buffer empty")
+		// 	continue
+		// } else {
+		// 	log.Infof("Buffer has contents")
+		// 	log.Infof("%v", prctx.buffer.String())
+		// }
+		cukeFeatures := []types.CukeFeatureJSON{}
+		err = json.Unmarshal([]byte(prctx.buffer.String()), &cukeFeatures)
 		if err != nil {
 			log.Infof("Error unmarshalling, %v", err)
 			continue
 		}
 
 		resultPrepares := []ResultPrepare{}
-		for _, e := range cukeFeature.Elements {
-			resultPrepare := ResultPrepare{}
-			fails := false
-			for _, s := range e.Steps {
-				if s.Result.Status == "failed" {
-					resultPrepare.Hints = append(resultPrepare.Hints, s.Result.Error)
-					fails = true
+		for _, c := range cukeFeatures {
+			for _, e := range c.Elements {
+				resultPrepare := ResultPrepare{}
+				fails := false
+				for _, s := range e.Steps {
+					if s.Result.Status == "failed" {
+						resultPrepare.Hints = append(resultPrepare.Hints, s.Result.Error)
+						fails = true
+					}
+				}
+				if fails == true {
+					resultPrepare.Name = e.Name
+					resultPrepares = append(resultPrepares, resultPrepare)
 				}
 			}
-			if fails == true {
-				resultPrepare.Name = e.Name
-			}
-			resultPrepares = append(resultPrepares, resultPrepare)
+
 		}
 
 		finalComment := `
@@ -273,11 +298,12 @@ All requirements have passed for the submission!
 `
 		labels := []string{"complete"}
 		if len(resultPrepares) > 0 {
+			fmt.Printf("%#v\n", resultPrepares)
 			finalComment = "Some requirements have not passed:\n"
 			for _, r := range resultPrepares {
-				finalComment += "- " + r.Name + "\n\n"
+				finalComment += "- " + r.Name + "\n"
 				for _, h := range r.Hints {
-					finalComment += "- " + h
+					finalComment += "  - " + h
 				}
 			}
 			labels = []string{"failed"}
@@ -997,8 +1023,8 @@ func (p *PRContext) removeTheLabelFromThePR(ctx *godog.ScenarioContext) func(str
 }
 
 func (p *PRContext) iWillFailForSomeReason(ctx *godog.ScenarioContext) func(string) error {
-	return func(label string) error {
-		return fmt.Errorf("something went wrong! lol")
+	return func(reason string) error {
+		return fmt.Errorf(reason)
 	}
 }
 
@@ -1016,7 +1042,7 @@ func InitializeScenario(p *PRContext) func(*godog.ScenarioContext) {
 		ctx.Step(`^a PR without the label "(.*)"$`, p.aPRWithoutTheLabel)
 		ctx.Step(`^add the label "(.*)" to the PR$`, p.addTheLabelToThePR(ctx))
 		ctx.Step(`^remove the label "(.*)" from the PR$`, p.removeTheLabelFromThePR(ctx))
-		ctx.Step(`^i will fail for some reason$`, p.iWillFailForSomeReason(ctx))
+		ctx.Step(`^i will fail for some reason "(.*)"$`, p.iWillFailForSomeReason(ctx))
 
 		ctx.Step(`^file folder structure must match "(.*)"$`, p.fileFolderStructureMustMatchRegex)
 		ctx.Step(`^the required "(.*)"$`, p.theRequiredFile(ctx))

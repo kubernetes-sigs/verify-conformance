@@ -1,0 +1,12 @@
+builds:
+  - id: verify-conformance-release
+    dir: .
+    main: .
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -tags
+      - netgo
+    ldflags:
+      - -s -w
+      - -extldflags "-static"

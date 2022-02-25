@@ -81,6 +81,25 @@ Feature: Verify Conformance Product Submission
 ko build --local -B --tags latest .
 #+end_src
 
+* Set up local dev
+Log into GitHub regularly
+#+begin_src tmate :window prow-config
+gh auth login
+#+end_src
+
+Update the oauth secret
+#+begin_src shell
+kubectl -n prow create secret generic prow-github-oauth \
+    --from-literal=oauth=<(yq e '."github.com".oauth_token' -P - < ~/.config/gh/hosts.yml) \
+    --dry-run=client -o yaml \
+    | kubectl apply -f -
+#+end_src
+
+#+RESULTS:
+#+begin_example
+secret/prow-github-oauth configured
+#+end_example
+
 * Running the plugin locally
 
 The plugin can be run locally as follows, when run locally the plugin interacts with GitHub but by default does not make any changes

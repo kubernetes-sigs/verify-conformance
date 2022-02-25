@@ -1,0 +1,75 @@
+# Copyright 20222CNCF TODO Check this
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: verify-conformance-release
+  namespace: prow
+  labels:
+    app: verify-conformance-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: verify-conformance-release
+  template:
+    metadata:
+      labels:
+        app: verify-conformance-release
+    spec:
+      terminationGracePeriodSeconds: 180
+      containers:
+        - name: verify-conformance-release
+          image: ko.local/verify-conformance-release:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - --dry-run=true
+            - --github-endpoint=http://prow-ghproxy
+            - --github-endpoint=https://api.github.com
+            - --dry-run=false
+            - --hmac-secret-file=/etc/webhook/hmac
+            - --github-token-path=/etc/github/oauth
+            - --plugin-config=/plugin/vcr.yaml
+            - --update-period=5m
+          ports:
+            - name: http
+              containerPort: 8888
+          volumeMounts:
+            - name: hmac
+              mountPath: /etc/webhook
+              readOnly: true
+            - name: oauth
+              mountPath: /etc/github
+              readOnly: true
+            - name: plugins
+              mountPath: /etc/plugins
+              readOnly: true
+            - name: vcr-config
+              mountPath: /plugin/vcr.yaml
+              subPath: vcr.yaml
+              readOnly: true
+      volumes:
+        - name: hmac
+          secret:
+            secretName: prow-github-hmac
+        - name: oauth
+          secret:
+            secretName: prow-github-oauth
+        - name: plugins
+          configMap:
+            name: prow-plugins
+        - name: vcr-config
+          configMap:
+            name: vcr-config

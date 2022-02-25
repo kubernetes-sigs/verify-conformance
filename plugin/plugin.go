@@ -251,10 +251,10 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 				StopOnFailure: false,
 				NoColors:      false,
 				Concurrency:   0,
-				// Format: "pretty",
-				// Output: os.Stdout,
-				Format:         "cucumber",
-				Output:         &prctx.buffer,
+				Format:        "pretty",
+				Output:        os.Stdout,
+				// Format:         "cucumber",
+				// Output:         &prctx.buffer,
 				DefaultContext: context.TODO(),
 			},
 		}.Run()
@@ -267,6 +267,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		// 	log.Infof("Buffer has contents")
 		// 	log.Infof("%v", prctx.buffer.String())
 		// }
+
 		cukeFeatures := []types.CukeFeatureJSON{}
 		err = json.Unmarshal([]byte(prctx.buffer.String()), &cukeFeatures)
 		if err != nil {
@@ -274,15 +275,38 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 			continue
 		}
 
+		uniquelyNamedStepsRun := []string{}
 		resultPrepares := []ResultPrepare{}
 		for _, c := range cukeFeatures {
 			for _, e := range c.Elements {
+				log.Println(e.Name)
+				foundNameInStepsRun := false
+				for _, u := range uniquelyNamedStepsRun {
+					if u == e.Name {
+						foundNameInStepsRun = true
+					}
+				}
+				if foundNameInStepsRun == false {
+					uniquelyNamedStepsRun = append(uniquelyNamedStepsRun, e.Name)
+				}
 				resultPrepare := ResultPrepare{}
 				fails := false
+			steps:
 				for _, s := range e.Steps {
-					if s.Result.Status == "failed" {
-						resultPrepare.Hints = append(resultPrepare.Hints, s.Result.Error)
-						fails = true
+					if s.Result.Status != "failed" {
+						continue steps
+					}
+					fails = true
+					foundExistingResultTitle := false
+					hint := s.Result.Error
+					for ri, r := range resultPrepares {
+						if r.Name == e.Name {
+							foundExistingResultTitle = true
+							resultPrepares[ri].Hints = append(resultPrepares[ri].Hints, hint)
+						}
+					}
+					if foundExistingResultTitle == false {
+						resultPrepare.Hints = append(resultPrepare.Hints, hint)
 					}
 				}
 				if fails == true {
@@ -293,9 +317,9 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 
 		}
 
-		finalComment := `
-All requirements have passed for the submission!
-`
+		finalComment := fmt.Sprintf(`
+All requirements (%v) have passed for the submission!
+`, len(uniquelyNamedStepsRun))
 		labels := []string{"complete"}
 		if len(resultPrepares) > 0 {
 			fmt.Printf("%#v\n", resultPrepares)
@@ -308,6 +332,21 @@ All requirements have passed for the submission!
 			}
 			labels = []string{"failed"}
 		}
+		issueLabels, err := githubClient.GetIssueLabels(prctx.ghc, prctx.org, prctx.repo, prctx.prNumber)
+		if err != nil {
+			prctx.prLogger.WithError(err).Error("failed to list labels on issue")
+			continue
+		}
+		// foundCompleteLabel := false
+		// foundFailedLabel := false
+		// for _, issueLabel := range issueLabels {
+		// 	if issueLabel.Name == "complete" {
+		// 		foundCompleteLabel = true
+		// 	} else if issueLabel.Name == "failed" {
+		// 		foundFailedLabel = true
+		// 	}
+		// }
+		// if !(foundCompleteLabel || foundFailedLabel) {
 		githubClient.CreateComment(ghc, org, repo, prNumber, finalComment)
 		for _, label := range labels {
 			if err := githubClient.AddLabel(ghc, org, repo, prNumber, label); err != nil {
@@ -315,11 +354,9 @@ All requirements have passed for the submission!
 				continue
 			}
 		}
-		issueLabels, err := githubClient.GetIssueLabels(prctx.ghc, prctx.org, prctx.repo, prctx.prNumber)
-		if err != nil {
-			prctx.prLogger.WithError(err).Error("failed to list labels on issue")
-			continue
-		}
+		// } else {
+		// 	log.Infof("%v is up to date", prctx.prNumber)
+		// }
 		for _, issueLabel := range issueLabels {
 			for _, label := range labels {
 				if issueLabel.Name != label {
@@ -761,6 +798,11 @@ type SearchQuery struct {
 	} `graphql:"search(type: ISSUE, first: 100, after: $searchCursor, query: $query)"`
 }
 
+type ResultPrepare struct {
+	Name  string
+	Hints []string
+}
+
 type PRContext struct {
 	ghc      githubClient
 	prLogger *logrus.Entry
@@ -775,11 +817,6 @@ type PRContext struct {
 	supportingFiles        map[string]github.PullRequestChange
 
 	buffer bytes.Buffer
-}
-
-type ResultPrepare struct {
-	Name  string
-	Hints []string
 }
 
 func (p *PRContext) aConformanceProductSubmissionPR() func() error {
@@ -838,7 +875,7 @@ func (p *PRContext) theRequiredFile(ctx *godog.ScenarioContext) func(string) err
 			// }
 		}
 		if len(filesMissing) > 0 {
-			return fmt.Errorf("Please include the following files in this Pull Request (check for case-sensitivity): %v", strings.Join(filesMissing, "\n- "))
+			return fmt.Errorf("files are missing: %v", strings.Join(filesMissing, ", "))
 		}
 		return nil
 	}

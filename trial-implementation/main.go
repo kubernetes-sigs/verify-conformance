@@ -60,8 +60,9 @@ type PullRequestFile struct {
 type PullRequest struct {
 	PullRequestQuery
 
-	Labels          []string
-	SupportingFiles map[string]*PullRequestFile
+	Labels                  []string
+	SupportingFiles         map[string]*PullRequestFile
+	ProductYAMLURLDataTypes map[string]string
 }
 
 func GetPRs() []PullRequest {
@@ -72,6 +73,17 @@ func GetPRs() []PullRequest {
 				Number: 1,
 			},
 			Labels: []string{},
+			ProductYAMLURLDataTypes: map[string]string{
+				"vendor":            "string",
+				"name":              "string",
+				"version":           "string",
+				"type":              "string",
+				"description":       "string",
+				"website_url":       "text/html",
+				"repo_url":          "text/html",
+				"documentation_url": "text/html",
+				"product_logo_url":  "image/svg",
+			},
 			SupportingFiles: map[string]*PullRequestFile{
 				"README.md": &PullRequestFile{
 					Name:     "v1.23/cool/README.md",
@@ -130,7 +142,23 @@ SSSSS
 				Title:  "Conformance results for v1.23 Something (Passing completely)",
 				Number: 2,
 			},
-			Labels: []string{"no-failed-tests-v1.23", "release-documents-checked", "release-v1.23", "tests-verified-v1.23"},
+			Labels: []string{
+				"no-failed-tests-v1.23",
+				"release-documents-checked",
+				"release-v1.23",
+				"tests-verified-v1.23",
+			},
+			ProductYAMLURLDataTypes: map[string]string{
+				"vendor":            "string",
+				"name":              "string",
+				"version":           "string",
+				"type":              "string",
+				"description":       "string",
+				"website_url":       "text/html",
+				"repo_url":          "text/html",
+				"documentation_url": "text/html",
+				"product_logo_url":  "application/postscript",
+			},
 			SupportingFiles: map[string]*PullRequestFile{
 				"README.md": &PullRequestFile{
 					Name:     "v1.23/cool/README.md",
@@ -190,6 +218,17 @@ SSSSS
 				Number: 2,
 			},
 			Labels: []string{"release-documents-checked", "release-v1.23", "tests-verified-v1.23"},
+			ProductYAMLURLDataTypes: map[string]string{
+				"vendor":            "string",
+				"name":              "string",
+				"version":           "string",
+				"type":              "string",
+				"description":       "string",
+				"website_url":       "text/html",
+				"repo_url":          "text/html",
+				"documentation_url": "text/html",
+				"product_logo_url":  "image/svg",
+			},
 			SupportingFiles: map[string]*PullRequestFile{
 				"README.md": &PullRequestFile{
 					Name:     "v1.23/cool/README.md",
@@ -249,6 +288,17 @@ SSSSS
 				Number: 3,
 			},
 			Labels: []string{"release-documents-checked", "release-v1.23", "required-tests-missing"},
+			ProductYAMLURLDataTypes: map[string]string{
+				"vendor":            "string",
+				"name":              "string",
+				"version":           "string",
+				"type":              "string",
+				"description":       "string",
+				"website_url":       "",
+				"repo_url":          "",
+				"documentation_url": "application/json",
+				"product_logo_url":  "image/gif",
+			},
 			SupportingFiles: map[string]*PullRequestFile{
 				"PRODUCT.yaml": &PullRequestFile{
 					Name:    "v1.23/cool/PRODUCT.yaml",
@@ -318,6 +368,7 @@ func (s *PRSuite) NewTestSuite() godog.TestSuite {
 	s.Suite = godog.TestSuite{
 		Name: "how-are-the-prs",
 		Options: &godog.Options{
+			// Format: "pretty",
 			Format: "cucumber",
 			Output: &s.buffer,
 		},
@@ -376,7 +427,7 @@ func (s *PRSuite) theTitleOfThePR() error {
 func (s *PRSuite) theTitleOfThePRMustMatch(match string) error {
 	pattern := regexp.MustCompile(match)
 	if pattern.MatchString(string(s.PR.Title)) != true {
-		return fmt.Errorf("unable to use product submission PR, as the title doesn't appear to match what's required, please use something like 'Conformance results for $KubernetesReleaseVersion $ProductName' (e.g: Conformance results for v1.23 CoolKubernetes)")
+		return fmt.Errorf("title must be formatted like 'Conformance results for $KubernetesReleaseVersion $ProductName' (e.g: Conformance results for v1.23 CoolKubernetes)")
 	}
 	return nil
 }
@@ -452,6 +503,22 @@ func (s *PRSuite) theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShoul
 	return nil
 }
 
+func (s *PRSuite) ifIsSetToUrlTheContentOfTheUrlInTheValueOfMustMatchIts(contentType, field, dataType string) error {
+	if contentType != "url" {
+		return nil
+	}
+	foundDataType := false
+	for _, dt := range strings.Split(dataType, " ") {
+		if s.PR.ProductYAMLURLDataTypes[field] == dt {
+			foundDataType = true
+		}
+	}
+	if foundDataType == false {
+		return fmt.Errorf("unable to use field '%v' in PRODUCT.yaml as it's data type doesn't match what is expected (%v)", field, dataType)
+	}
+	return nil
+}
+
 func (s *PRSuite) SetReleaseVersionFromTitle() *PRSuite {
 	pattern := regexp.MustCompile("(.* )(v1.[0-9]{2})([ /].*)")
 
@@ -515,7 +582,6 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer(buf *bytes.Buffer) 
 				resultPrepares = append(resultPrepares, resultPrepare)
 			}
 		}
-
 	}
 
 	finalComment := fmt.Sprintf("All requirements (%v) have passed for the submission!", len(uniquelyNamedStepsRun))
@@ -554,6 +620,7 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a line of the file "([^"]*)" must match "([^"]*)"$`, s.aLineOfTheFileMustMatch)
 	ctx.Step(`^a list of labels in the PR$`, s.aListOfLabelsInThePR)
 	ctx.Step(`^the label prefixed with "([^"]*)" and ending with Kubernetes release version should be present$`, s.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent)
+	ctx.Step(`^if "([^"]*)" is set to url, the content of the url in the value of "([^"]*)" must match it\'s "([^"]*)"$`, s.ifIsSetToUrlTheContentOfTheUrlInTheValueOfMustMatchIts)
 }
 
 func main() {

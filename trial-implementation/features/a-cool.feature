@@ -39,7 +39,7 @@ Feature: A cool
   Scenario: the PRODUCT.yaml metadata must contain required fields
     Given a "PRODUCT.yaml" file
     Then the yaml file "PRODUCT.yaml" must contain the required and non-empty <field>
-    # And if <type> is "url", the content of the url in the <field>'s value must match it's <dataType>
+    And if <contentType> is set to url, the content of the url in the value of <field> must match it's <dataType>
 
     Examples:
       | field               | contentType | dataType                           |

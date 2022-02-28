@@ -294,23 +294,43 @@ SSSSS
 }
 
 type PRSuite struct {
-	PR *PullRequest
-
+	PR                       *PullRequest
 	KubernetesReleaseVersion string
-	Suite                    godog.TestSuite
-	buffer                   bytes.Buffer
+
+	Suite  godog.TestSuite
+	buffer bytes.Buffer
+}
+
+func NewPRSuite(PR *PullRequest) *PRSuite {
+	return &PRSuite{
+		PR: PR,
+
+		buffer: *bytes.NewBuffer(nil),
+	}
+}
+
+func (s *PRSuite) NewTestSuite() godog.TestSuite {
+	s.Suite = godog.TestSuite{
+		Name: "how-are-the-prs",
+		Options: &godog.Options{
+			Format: "cucumber",
+			Output: &s.buffer,
+		},
+		ScenarioInitializer: s.InitializeScenario,
+	}
+	return s.Suite
 }
 
 func (s *PRSuite) aConformanceProductSubmissionPR() error {
 	if s.PR == nil {
-		return fmt.Errorf("PR doesn't exist")
+		return fmt.Errorf("unable to find PR from query")
 	}
 	return nil
 }
 
 func (s *PRSuite) thePRTitleIsNotEmpty() error {
 	if len(s.PR.Title) == 0 {
-		return fmt.Errorf("Title (%v) length is too short!", s.PR.Title)
+		return fmt.Errorf("title is empty")
 	}
 	return nil
 }
@@ -427,7 +447,7 @@ func (s *PRSuite) theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShoul
 	return nil
 }
 
-func (s *PRSuite) SetReleaseVersionFromTitle() {
+func (s *PRSuite) SetReleaseVersionFromTitle() *PRSuite {
 	pattern := regexp.MustCompile("(.* )(v1.[0-9]{2})([ /].*)")
 
 	allIndexes := pattern.FindAllSubmatchIndex([]byte(s.PR.Title), -1)
@@ -435,7 +455,7 @@ func (s *PRSuite) SetReleaseVersionFromTitle() {
 		s.KubernetesReleaseVersion = string(s.PR.Title[loc[4]:loc[5]])
 		break
 	}
-	return
+	return s
 }
 
 func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
@@ -539,19 +559,8 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer(buf *bytes.Buffer) 
 func main() {
 	prs := GetPRs()
 	for _, pr := range prs {
-		suite := &PRSuite{
-			PR:     &pr,
-			buffer: *bytes.NewBuffer(nil),
-		}
-		suite.SetReleaseVersionFromTitle()
-		godog.TestSuite{
-			Name: "how-are-the-prs",
-			Options: &godog.Options{
-				Format: "cucumber",
-				Output: &suite.buffer,
-			},
-			ScenarioInitializer: suite.InitializeScenario,
-		}.Run()
+		suite := NewPRSuite(&pr).SetReleaseVersionFromTitle()
+		suite.NewTestSuite().Run()
 
 		finalComment, labels, err := suite.GetLabelsAndCommentsFromSuiteResultsBuffer(&suite.buffer)
 		if err != nil {

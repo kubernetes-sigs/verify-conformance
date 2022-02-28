@@ -240,7 +240,7 @@ SSSSS
 		},
 		{
 			PullRequestQuery: PullRequestQuery{
-				Title:  "Conformance results for Something (Failing at pretty much everything)",
+				Title:  "Conformance results for Failurernetes (Failing at pretty much everything)",
 				Number: 3,
 			},
 			Labels: []string{"release-documents-checked", "release-v1.23", "required-tests-missing"},
@@ -514,9 +514,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer(buf *bytes.Buffer) 
 
 	}
 
-	finalComment := fmt.Sprintf(`
-All requirements (%v) have passed for the submission!
-`, len(uniquelyNamedStepsRun))
+	finalComment := fmt.Sprintf("All requirements (%v) have passed for the submission!", len(uniquelyNamedStepsRun))
 	labels = []string{}
 	if s.KubernetesReleaseVersion != "" {
 		labels = []string{"release-" + s.KubernetesReleaseVersion}
@@ -533,6 +531,7 @@ All requirements (%v) have passed for the submission!
 	} else {
 		labels = append(labels, "release-documents-checked")
 	}
+	finalComment += "\n"
 
 	return finalComment, labels, nil
 }
@@ -560,10 +559,9 @@ func main() {
 			continue
 		}
 
-		fmt.Println("PR:", suite.PR.Title)
-		fmt.Println("Final comment:", finalComment)
-		fmt.Println("Labels:", labels)
+		fmt.Println("PR title:", suite.PR.Title)
 		fmt.Println("Release Version:", suite.KubernetesReleaseVersion)
-		fmt.Println("")
+		fmt.Println("Labels:", strings.Join(labels, ", "))
+		fmt.Println(finalComment)
 	}
 }

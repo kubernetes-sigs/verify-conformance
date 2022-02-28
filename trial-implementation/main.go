@@ -354,7 +354,7 @@ func (s *PRSuite) fileFolderStructureMustMatchRegex(match string) error {
 			distroName := string(file.Name[loc[4]:loc[5]])
 
 			if baseFolder == "" || distroName == "" {
-				return fmt.Errorf("The content structure of your product submission PR must match '%v' (KubernetesReleaseVersion/ProductName, e.g: v1.23/averycooldistro)", match)
+				return fmt.Errorf("the content structure of your product submission PR must match '%v' (KubernetesReleaseVersion/ProductName, e.g: v1.23/averycooldistro)", match)
 			}
 		}
 	}
@@ -382,7 +382,7 @@ func (s *PRSuite) theFilesInThePR() error {
 
 func (s *PRSuite) aFile(fileName string) error {
 	if s.PR.SupportingFiles[fileName] == nil {
-		return fmt.Errorf("unable to find file")
+		return fmt.Errorf("unable to find required file '%v' in list files in product submission PR", fileName)
 	}
 	return nil
 }
@@ -391,7 +391,7 @@ func (s *PRSuite) theYamlFileMustContainTheRequiredAndNonEmptyField(fileName, fi
 	var parsedContent map[string]*interface{}
 	err := yaml.Unmarshal([]byte(s.PR.SupportingFiles[fileName].Contents), &parsedContent)
 	if err != nil {
-		return fmt.Errorf("Unable to read '%v'", fileName)
+		return fmt.Errorf("unable to read file '%v'", fileName)
 	}
 	if parsedContent[fieldName] == nil {
 		return fmt.Errorf("missing or empty field '%v' in file '%v'", fieldName, fileName)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"path"
 	"regexp"
 	"strings"
 
@@ -54,6 +55,7 @@ type PullRequestQuery struct {
 type PullRequestFile struct {
 	BlobURL  string
 	Name     string
+	BaseName string
 	Contents string
 }
 
@@ -61,7 +63,7 @@ type PullRequest struct {
 	PullRequestQuery
 
 	Labels                  []string
-	SupportingFiles         map[string]*PullRequestFile
+	SupportingFiles         []*PullRequestFile
 	ProductYAMLURLDataTypes map[string]string
 }
 
@@ -84,15 +86,17 @@ func GetPRs() []PullRequest {
 				"documentation_url": "text/html",
 				"product_logo_url":  "image/svg",
 			},
-			SupportingFiles: map[string]*PullRequestFile{
-				"README.md": &PullRequestFile{
+			SupportingFiles: []*PullRequestFile{
+				&PullRequestFile{
 					Name:     "v1.23/cool/README.md",
+					BaseName: "README.md",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Cool`,
 				},
-				"PRODUCT.yaml": &PullRequestFile{
-					Name:    "v1.23/cool/PRODUCT.yaml",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
+				&PullRequestFile{
+					Name:     "v1.23/cool/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
 					Contents: `
 vendor: Cool
 name: cOOL - A Cool Kubernetes Engine
@@ -105,9 +109,10 @@ type: Installer
 description: Cool Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
 `,
 				},
-				"junit_01.xml": &PullRequestFile{
-					Name:    "v1.23/cool/junit_01.xml",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
+				&PullRequestFile{
+					Name:     "v1.23/cool/junit_01.xml",
+					BaseName: "junit_01.xml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: `
 <?xml version="1.0" encoding="UTF-8"?>
   <testsuite name="Kubernetes e2e suite" tests="311" failures="0" errors="0" time="5121.343">
@@ -123,9 +128,10 @@ description: Cool Kubernetes Engine, a distributed service that automates Kubern
   </testsuite>
 `,
 				},
-				"e2e.log": &PullRequestFile{
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
-					Name:    "v1.23/cool/e2e.log",
+				&PullRequestFile{
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
+					BaseName: "e2e.log",
+					Name:     "v1.23/cool/e2e.log",
 					Contents: `
 May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
 May 27 04:41:36.616: INFO: e2e test version: v1.23.4
@@ -159,15 +165,17 @@ SSSSS
 				"documentation_url": "text/html",
 				"product_logo_url":  "application/postscript",
 			},
-			SupportingFiles: map[string]*PullRequestFile{
-				"README.md": &PullRequestFile{
+			SupportingFiles: []*PullRequestFile{
+				&PullRequestFile{
 					Name:     "v1.23/cool/README.md",
+					BaseName: "README.md",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Something`,
 				},
-				"PRODUCT.yaml": &PullRequestFile{
-					Name:    "v1.23/cool/PRODUCT.yaml",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
+				&PullRequestFile{
+					Name:     "v1.23/cool/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
 					Contents: `
 vendor: Something
 name: something - A Cool Kubernetes Engine
@@ -180,9 +188,10 @@ type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
 `,
 				},
-				"junit_01.xml": &PullRequestFile{
-					Name:    "v1.23/cool/junit_01.xml",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
+				&PullRequestFile{
+					Name:     "v1.23/cool/junit_01.xml",
+					BaseName: "junit_01.xml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: `
 <?xml version="1.0" encoding="UTF-8"?>
   <testsuite name="Kubernetes e2e suite" tests="311" failures="0" errors="0" time="5121.343">
@@ -198,9 +207,10 @@ description: Something Kubernetes Engine, a distributed service that automates K
   </testsuite>
 `,
 				},
-				"e2e.log": &PullRequestFile{
-					Name:    "v1.23/cool/e2e.log",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
+				&PullRequestFile{
+					Name:     "v1.23/cool/e2e.log",
+					BaseName: "e2e.log",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
 					Contents: `
 May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
 May 27 04:41:36.616: INFO: e2e test version: v1.23.4
@@ -229,15 +239,17 @@ SSSSS
 				"documentation_url": "text/html",
 				"product_logo_url":  "image/svg",
 			},
-			SupportingFiles: map[string]*PullRequestFile{
-				"README.md": &PullRequestFile{
+			SupportingFiles: []*PullRequestFile{
+				&PullRequestFile{
 					Name:     "v1.23/cool/README.md",
+					BaseName: "README.md",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Something`,
 				},
-				"PRODUCT.yaml": &PullRequestFile{
-					Name:    "v1.23/cool/PRODUCT.yaml",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
+				&PullRequestFile{
+					Name:     "v1.23/cool/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
 					Contents: `
 vendor: Something
 name: something - A Cool Kubernetes Engine
@@ -250,9 +262,10 @@ type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
 `,
 				},
-				"junit_01.xml": &PullRequestFile{
-					Name:    "v1.23/cool/junit_01.xml",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
+				&PullRequestFile{
+					Name:     "v1.23/cool/junit_01.xml",
+					BaseName: "junit_01.xml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: `
 <?xml version="1.0" encoding="UTF-8"?>
   <testsuite name="Kubernetes e2e suite" tests="311" failures="0" errors="0" time="5121.343">
@@ -268,9 +281,10 @@ description: Something Kubernetes Engine, a distributed service that automates K
   </testsuite>
 `,
 				},
-				"e2e.log": &PullRequestFile{
-					Name:    "v1.23/cool/e2e.log",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
+				&PullRequestFile{
+					Name:     "v1.23/cool/e2e.log",
+					BaseName: "e2e.log",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
 					Contents: `
 May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
 May 27 04:41:36.616: INFO: e2e test version: v1.23.4
@@ -299,10 +313,11 @@ SSSSS
 				"documentation_url": "application/json",
 				"product_logo_url":  "image/gif",
 			},
-			SupportingFiles: map[string]*PullRequestFile{
-				"PRODUCT.yaml": &PullRequestFile{
-					Name:    "v1.23/cool/PRODUCT.yaml",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
+			SupportingFiles: []*PullRequestFile{
+				&PullRequestFile{
+					Name:     "v1.23/cool/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
 					Contents: `
 vendor: Something
 name: something - A Cool Kubernetes Engine
@@ -314,14 +329,16 @@ type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
 `,
 				},
-				"junit_01.xml": &PullRequestFile{
+				&PullRequestFile{
 					Name:     "v1.23/cool/junit_01.xml",
+					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: ``,
 				},
-				"e2e.log": &PullRequestFile{
-					Name:    "v1.23/cool/e2e.log",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
+				&PullRequestFile{
+					Name:     "v1.23/cool/e2e.log",
+					BaseName: "e2e.log",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
 					Contents: `
 May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
 May 27 04:41:36.616: INFO: e2e test version: v2
@@ -331,9 +348,10 @@ May 27 04:41:36.620: INFO: Cluster IP family: ipv4
 SSSSS
 `,
 				},
-				"recipe.org": &PullRequestFile{
-					Name:    "recipe.org",
-					BlobURL: "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/recipe.org",
+				&PullRequestFile{
+					Name:     "recipe.org",
+					BaseName: "recipe.org",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/recipe.org",
 					Contents: `
 * How to cook pasta
 
@@ -351,6 +369,7 @@ SSSSS
 type PRSuite struct {
 	PR                       *PullRequest
 	KubernetesReleaseVersion string
+	ProductName              string
 
 	Suite  godog.TestSuite
 	buffer bytes.Buffer
@@ -392,8 +411,8 @@ func (s *PRSuite) thePRTitleIsNotEmpty() error {
 }
 
 func (s *PRSuite) isIncludedInItsFileList(file string) error {
-	for fileName := range s.PR.SupportingFiles {
-		if fileName == file {
+	for _, f := range s.PR.SupportingFiles {
+		if f.BaseName == file {
 			return nil
 		}
 	}
@@ -403,7 +422,11 @@ func (s *PRSuite) isIncludedInItsFileList(file string) error {
 func (s *PRSuite) fileFolderStructureMustMatchRegex(match string) error {
 	pattern := regexp.MustCompile(match)
 
+	failureError := fmt.Errorf("the content structure of your product submission PR must match '%v' (KubernetesReleaseVersion/ProductName, e.g: v1.23/averycooldistro)", match)
 	for _, file := range s.PR.SupportingFiles {
+		if matches := pattern.MatchString(file.Name); matches != true {
+			return fmt.Errorf("file '%v' not allowed. %v", file.Name, failureError)
+		}
 		allIndexes := pattern.FindAllSubmatchIndex([]byte(file.Name), -1)
 		for _, loc := range allIndexes {
 			baseFolder := string(file.Name[loc[2]:loc[3]])
@@ -437,15 +460,33 @@ func (s *PRSuite) theFilesInThePR() error {
 }
 
 func (s *PRSuite) aFile(fileName string) error {
-	if s.PR.SupportingFiles[fileName] == nil {
+	if s.ProductName == "" || s.KubernetesReleaseVersion == "" {
+		return godog.ErrPending
+	}
+	file := s.GetFileByFileName(fileName)
+	if file == nil {
 		return fmt.Errorf("unable to find required file '%v' in list files in product submission PR", fileName)
+	}
+	return nil
+}
+
+func (s *PRSuite) GetFileByFileName(fileName string) *PullRequestFile {
+	for _, f := range s.PR.SupportingFiles {
+		fullFilePath := path.Join(s.KubernetesReleaseVersion, s.ProductName, fileName)
+		if f.Name == fullFilePath {
+			return f
+		}
 	}
 	return nil
 }
 
 func (s *PRSuite) theYamlFileMustContainTheRequiredAndNonEmptyField(fileName, fieldName string) error {
 	var parsedContent map[string]*interface{}
-	err := yaml.Unmarshal([]byte(s.PR.SupportingFiles[fileName].Contents), &parsedContent)
+	file := s.GetFileByFileName(fileName)
+	if file == nil {
+		return fmt.Errorf("unable to find file '%v'", fileName)
+	}
+	err := yaml.Unmarshal([]byte(file.Contents), &parsedContent)
 	if err != nil {
 		return fmt.Errorf("unable to read file '%v'", fileName)
 	}
@@ -456,7 +497,11 @@ func (s *PRSuite) theYamlFileMustContainTheRequiredAndNonEmptyField(fileName, fi
 }
 
 func (s *PRSuite) isNotEmpty(fileName string) error {
-	if s.PR.SupportingFiles[fileName].Contents == "" {
+	file := s.GetFileByFileName(fileName)
+	if file == nil {
+		return fmt.Errorf("unable to find file '%v'", fileName)
+	}
+	if file.Contents == "" {
 		return fmt.Errorf("file '%v' is empty", fileName)
 	}
 	return nil
@@ -464,7 +509,11 @@ func (s *PRSuite) isNotEmpty(fileName string) error {
 
 func (s *PRSuite) aLineOfTheFileMustMatch(fileName, match string) error {
 	pattern := regexp.MustCompile(match)
-	lines := strings.Split(s.PR.SupportingFiles[fileName].Contents, "\n")
+	file := s.GetFileByFileName(fileName)
+	if file == nil {
+		return fmt.Errorf("unable to find file '%v'", fileName)
+	}
+	lines := strings.Split(file.Contents, "\n")
 	foundMatchingLine := false
 lineLoop:
 	for _, line := range lines {
@@ -519,13 +568,19 @@ func (s *PRSuite) ifIsSetToUrlTheContentOfTheUrlInTheValueOfMustMatchIts(content
 	return nil
 }
 
-func (s *PRSuite) SetReleaseVersionFromTitle() *PRSuite {
-	pattern := regexp.MustCompile("(.* )(v1.[0-9]{2})([ /].*)")
+func (s *PRSuite) SetSubmissionMetadatafromFolderStructure() *PRSuite {
+	pattern := regexp.MustCompile(`(v1.[0-9]{2})/(.*)/.*`)
 
-	allIndexes := pattern.FindAllSubmatchIndex([]byte(s.PR.Title), -1)
-	for _, loc := range allIndexes {
-		s.KubernetesReleaseVersion = string(s.PR.Title[loc[4]:loc[5]])
-		break
+filesLoop:
+	for _, file := range s.PR.SupportingFiles {
+		allIndexes := pattern.FindAllSubmatchIndex([]byte(file.Name), -1)
+		for _, loc := range allIndexes {
+			releaseVersion := string(file.Name[loc[2]:loc[3]])
+			distroName := string(file.Name[loc[4]:loc[5]])
+			s.KubernetesReleaseVersion = releaseVersion
+			s.ProductName = distroName
+			break filesLoop
+		}
 	}
 	return s
 }
@@ -626,7 +681,8 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 func main() {
 	prs := GetPRs()
 	for _, pr := range prs {
-		suite := NewPRSuite(&pr).SetReleaseVersionFromTitle()
+		suite := NewPRSuite(&pr).
+			SetSubmissionMetadatafromFolderStructure()
 		suite.NewTestSuite().Run()
 
 		finalComment, labels, err := suite.GetLabelsAndCommentsFromSuiteResultsBuffer(&suite.buffer)

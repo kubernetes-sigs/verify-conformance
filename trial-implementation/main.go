@@ -620,7 +620,7 @@ func (s *PRSuite) ifIsSetToUrlTheContentOfTheUrlInTheValueOfMustMatchIts(content
 		}
 	}
 	if foundDataType == false {
-		return fmt.Errorf("unable to use field '%v' in PRODUCT.yaml as it's data type doesn't match what is expected (%v)", field, dataType)
+		return fmt.Errorf("unable to use field '%v' in PRODUCT.yaml as the data in the resolved content doesn't match what is expected (%v)", field, dataType)
 	}
 	return nil
 }

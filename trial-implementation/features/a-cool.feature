@@ -36,6 +36,10 @@ Feature: A cool
     # $2 is the product name
     # example: v1.23/coolthing/some.file
 
+  Scenario: submission must only be one product
+    Given the files in the PR
+    Then there is only one path of folders
+
   Scenario: the PRODUCT.yaml metadata must contain required fields
     Given a "PRODUCT.yaml" file
     Then the yaml file "PRODUCT.yaml" must contain the required and non-empty <field>

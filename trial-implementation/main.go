@@ -315,6 +315,40 @@ SSSSS
 			},
 			SupportingFiles: []*PullRequestFile{
 				&PullRequestFile{
+					Name:     "v1.23/cool-metal/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
+					Contents: `
+vendor: Something
+name: something - A Cool Kubernetes Engine
+version: v1.23.3
+website_url: https://something.kubernetes/engine
+repo_url: https://github.com/something/kubernetes-engine
+product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
+type: Installer
+description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
+`,
+				},
+				&PullRequestFile{
+					Name:     "v1.23/cool-metal/junit_01.xml",
+					BaseName: "junit_01.xml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
+					Contents: ``,
+				},
+				&PullRequestFile{
+					Name:     "v1.23/cool-metal/e2e.log",
+					BaseName: "e2e.log",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
+					Contents: `
+May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
+May 27 04:41:36.616: INFO: e2e test version: v2
+May 27 04:41:36.617: INFO: kube-apiserver version: v2
+May 27 04:41:36.617: INFO: >>> kubeConfig: /tmp/kubeconfig-441052555
+May 27 04:41:36.620: INFO: Cluster IP family: ipv4
+SSSSS
+`,
+				},
+				&PullRequestFile{
 					Name:     "v1.23/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
@@ -437,6 +471,29 @@ func (s *PRSuite) fileFolderStructureMustMatchRegex(match string) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
+	paths := []string{}
+	for _, file := range s.PR.SupportingFiles {
+		filePath := path.Dir(file.Name)
+
+		foundInPaths := false
+		for _, p := range paths {
+			if p == filePath {
+				foundInPaths = true
+			}
+		}
+		if foundInPaths == false {
+			paths = append(paths, filePath)
+		}
+	}
+
+	if len(paths) != 1 {
+		return fmt.Errorf("only one product must be submitted at a time, will use '%v'. Please remove the following: '%v'", paths[0], strings.Join(paths[1:], ", "))
+	}
+
 	return nil
 }
 
@@ -676,6 +733,7 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a list of labels in the PR$`, s.aListOfLabelsInThePR)
 	ctx.Step(`^the label prefixed with "([^"]*)" and ending with Kubernetes release version should be present$`, s.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent)
 	ctx.Step(`^if "([^"]*)" is set to url, the content of the url in the value of "([^"]*)" must match it\'s "([^"]*)"$`, s.ifIsSetToUrlTheContentOfTheUrlInTheValueOfMustMatchIts)
+	ctx.Step(`^there is only one path of folders$`, s.thereIsOnlyOnePathOfFolders)
 }
 
 func main() {

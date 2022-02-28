@@ -15,6 +15,11 @@ import (
 	"cncf.io/infra/verify-conformance-release/internal/types"
 )
 
+type ResultPrepare struct {
+	Name  string
+	Hints []string
+}
+
 type PullRequestQuery struct {
 	Number githubql.Int
 	Author struct {
@@ -458,27 +463,6 @@ func (s *PRSuite) SetReleaseVersionFromTitle() *PRSuite {
 	return s
 }
 
-func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
-	ctx.Step(`^a conformance product submission PR$`, s.aConformanceProductSubmissionPR)
-	ctx.Step(`^the PR title is not empty$`, s.thePRTitleIsNotEmpty)
-	ctx.Step(`^"([^"]*)" is included in its file list$`, s.isIncludedInItsFileList)
-	ctx.Step(`^the files in the PR`, s.theFilesInThePR)
-	ctx.Step(`^file folder structure must match "([^"]*)"$`, s.fileFolderStructureMustMatchRegex)
-	ctx.Step(`^the title of the PR$`, s.theTitleOfThePR)
-	ctx.Step(`^the title of the PR must match "([^"]*)"$`, s.theTitleOfThePRMustMatch)
-	ctx.Step(`^the yaml file "([^"]*)" must contain the required and non-empty "([^"]*)"$`, s.theYamlFileMustContainTheRequiredAndNonEmptyField)
-	ctx.Step(`^a "([^"]*)" file$`, s.aFile)
-	ctx.Step(`^"([^"]*)" is not empty$`, s.isNotEmpty)
-	ctx.Step(`^a line of the file "([^"]*)" must match "([^"]*)"$`, s.aLineOfTheFileMustMatch)
-	ctx.Step(`^a list of labels in the PR$`, s.aListOfLabelsInThePR)
-	ctx.Step(`^the label prefixed with "([^"]*)" and ending with Kubernetes release version should be present$`, s.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent)
-}
-
-type ResultPrepare struct {
-	Name  string
-	Hints []string
-}
-
 func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer(buf *bytes.Buffer) (comment string, labels []string, err error) {
 	cukeFeatures := []types.CukeFeatureJSON{}
 	err = json.Unmarshal([]byte(s.buffer.String()), &cukeFeatures)
@@ -490,6 +474,9 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer(buf *bytes.Buffer) 
 	for _, c := range cukeFeatures {
 		for _, e := range c.Elements {
 			foundNameInStepsRun := false
+			resultPrepare := ResultPrepare{}
+			hasFails := false
+			foundExistingResultTitle := false
 			for _, u := range uniquelyNamedStepsRun {
 				if u == e.Name {
 					foundNameInStepsRun = true
@@ -498,15 +485,12 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer(buf *bytes.Buffer) 
 			if foundNameInStepsRun == false {
 				uniquelyNamedStepsRun = append(uniquelyNamedStepsRun, e.Name)
 			}
-			resultPrepare := ResultPrepare{}
-			fails := false
-			foundExistingResultTitle := false
 		steps:
 			for _, s := range e.Steps {
 				if s.Result.Status != "failed" {
 					continue steps
 				}
-				fails = true
+				hasFails = true
 				hint := s.Result.Error
 				for ri, r := range resultPrepares {
 					hintAlreadyPresentInResult := false
@@ -526,7 +510,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer(buf *bytes.Buffer) 
 					resultPrepare.Hints = append(resultPrepare.Hints, hint)
 				}
 			}
-			if fails == true && foundExistingResultTitle == false {
+			if hasFails == true && foundExistingResultTitle == false {
 				resultPrepare.Name = e.Name
 				resultPrepares = append(resultPrepares, resultPrepare)
 			}
@@ -554,6 +538,22 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer(buf *bytes.Buffer) 
 	finalComment += "\n"
 
 	return finalComment, labels, nil
+}
+
+func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
+	ctx.Step(`^a conformance product submission PR$`, s.aConformanceProductSubmissionPR)
+	ctx.Step(`^the PR title is not empty$`, s.thePRTitleIsNotEmpty)
+	ctx.Step(`^"([^"]*)" is included in its file list$`, s.isIncludedInItsFileList)
+	ctx.Step(`^the files in the PR`, s.theFilesInThePR)
+	ctx.Step(`^file folder structure must match "([^"]*)"$`, s.fileFolderStructureMustMatchRegex)
+	ctx.Step(`^the title of the PR$`, s.theTitleOfThePR)
+	ctx.Step(`^the title of the PR must match "([^"]*)"$`, s.theTitleOfThePRMustMatch)
+	ctx.Step(`^the yaml file "([^"]*)" must contain the required and non-empty "([^"]*)"$`, s.theYamlFileMustContainTheRequiredAndNonEmptyField)
+	ctx.Step(`^a "([^"]*)" file$`, s.aFile)
+	ctx.Step(`^"([^"]*)" is not empty$`, s.isNotEmpty)
+	ctx.Step(`^a line of the file "([^"]*)" must match "([^"]*)"$`, s.aLineOfTheFileMustMatch)
+	ctx.Step(`^a list of labels in the PR$`, s.aListOfLabelsInThePR)
+	ctx.Step(`^the label prefixed with "([^"]*)" and ending with Kubernetes release version should be present$`, s.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent)
 }
 
 func main() {

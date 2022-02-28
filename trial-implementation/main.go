@@ -485,6 +485,9 @@ func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
 				foundInPaths = true
 			}
 		}
+		if filePath == "." {
+			continue
+		}
 		if foundInPaths == false {
 			paths = append(paths, filePath)
 		}

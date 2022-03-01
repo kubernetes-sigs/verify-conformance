@@ -201,7 +201,7 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		return &suite.PRSuite{}, fmt.Errorf("failed to find PRODUCT.yaml from the list of files in the PR (%v)", pr.Number)
 	}
 
-	var productYAML map[string]string
+	productYAML := map[string]string{}
 	err = yaml.Unmarshal([]byte(productYAMLContent), &productYAML)
 	if err != nil {
 		return &suite.PRSuite{}, fmt.Errorf("failed to parse content of PRODUCT.yaml in PR (%v), %v", pr.Number, err)
@@ -218,6 +218,9 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 			return &suite.PRSuite{}, fmt.Errorf("failed to make a HEAD request to url '%v' from the field '%v' in PRODUCT.yaml in PR (%v), %v", u, pr.Number, err)
 		}
 		contentType := resp.Header.Get("Content-Type")
+		if prSuite.PR.ProductYAMLURLDataTypes == nil {
+			prSuite.PR.ProductYAMLURLDataTypes = map[string]string{}
+		}
 		prSuite.PR.ProductYAMLURLDataTypes[f.Field] = contentType
 	}
 

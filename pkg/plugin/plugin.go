@@ -33,7 +33,7 @@ var (
 		{Field: "documentation_url"},
 		{Field: "product_logo_url"},
 	}
-	godogPaths = []string{"./features/", "./kodata/features/", "/var/lib/kodata/features/"}
+	godogPaths = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
 )
 
 type ProductYAMLField struct {
@@ -229,9 +229,10 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 
 func GetGodogPaths() (paths []string) {
 	for _, p := range godogPaths {
-		if _, err := os.Stat(p); err == nil {
-			paths = append(paths, p)
+		if _, err := os.Stat(p); os.IsNotExist(err) == true {
+			continue
 		}
+		paths = append(paths, p)
 	}
 	return paths
 }

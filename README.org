@@ -118,6 +118,42 @@ kubectl -n prow create secret generic prow-github-oauth \
 secret/prow-github-oauth configured
 #+end_example
 
+Install the config
+#+begin_src shell
+kubectl -n prow create cm vcr-config --from-file=vcr.yaml=./vcr.yaml --dry-run=client -o yaml | \
+    kubectl -n prow apply -f -
+#+end_src
+
+#+RESULTS:
+#+begin_example
+configmap/vcr-config created
+#+end_example
+
+Install the plugin
+#+begin_src shell
+kubectl -n prow apply -f verify-conformance-release-deployment-dev-temp.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+deployment.apps/verify-conformance-release created
+#+end_example
+
+Restart it
+#+begin_src shell
+kubectl -n prow rollout restart deployment verify-conformance-release
+#+end_src
+
+Uninstall the plugin
+#+begin_src shell
+kubectl -n prow delete -f verify-conformance-release-deployment-dev-temp.yaml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+deployment.apps "verify-conformance-release" deleted
+#+end_example
+
 * Running the plugin locally
 
 The plugin can be run locally as follows, when run locally the plugin interacts with GitHub but by default does not make any changes

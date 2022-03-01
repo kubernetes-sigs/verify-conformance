@@ -241,8 +241,8 @@ SSSSS
 			},
 			SupportingFiles: []*PullRequestFile{
 				&PullRequestFile{
-					Name:     "v1.23/cool/README.md",
-					BaseName: "README.md",
+					Name:     "v1.23/cool/README.MD",
+					BaseName: "README.MD",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Something`,
 				},
@@ -537,8 +537,7 @@ func (s *PRSuite) aFile(fileName string) error {
 
 func (s *PRSuite) GetFileByFileName(fileName string) *PullRequestFile {
 	for _, f := range s.PR.SupportingFiles {
-		fullFilePath := path.Join(s.KubernetesReleaseVersion, s.ProductName, fileName)
-		if f.Name == fullFilePath {
+		if strings.ToLower(f.BaseName) == strings.ToLower(fileName) {
 			return f
 		}
 	}

@@ -12,7 +12,7 @@ func main() {
 	for _, pr := range prs {
 		prSuite := suite.NewPRSuite(&pr).
 			SetSubmissionMetadatafromFolderStructure()
-		prSuite.NewTestSuite().Run()
+		prSuite.NewTestSuite(suite.PRSuiteOptions{}).Run()
 
 		finalComment, labels, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()
 		if err != nil {

@@ -409,6 +409,10 @@ type PRSuite struct {
 	buffer bytes.Buffer
 }
 
+type PRSuiteOptions struct {
+	Paths []string
+}
+
 func NewPRSuite(PR *PullRequest) *PRSuite {
 	return &PRSuite{
 		PR: PR,
@@ -417,13 +421,14 @@ func NewPRSuite(PR *PullRequest) *PRSuite {
 	}
 }
 
-func (s *PRSuite) NewTestSuite() godog.TestSuite {
+func (s *PRSuite) NewTestSuite(opts PRSuiteOptions) godog.TestSuite {
 	s.Suite = godog.TestSuite{
 		Name: "how-are-the-prs",
 		Options: &godog.Options{
 			// Format: "pretty",
 			Format: "cucumber",
 			Output: &s.buffer,
+			Paths:  opts.Paths,
 		},
 		ScenarioInitializer: s.InitializeScenario,
 	}

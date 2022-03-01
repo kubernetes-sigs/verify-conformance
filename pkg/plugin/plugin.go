@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strings"
 
@@ -32,6 +33,7 @@ var (
 		{Field: "documentation_url"},
 		{Field: "product_logo_url"},
 	}
+	godogPaths = []string{"./features/", "./kodata/features/", "/var/lib/kodata/features/"}
 )
 
 type ProductYAMLField struct {
@@ -96,7 +98,7 @@ type SearchQuery struct {
 			EndCursor   githubql.String
 		}
 		Nodes []struct {
-			PullRequest PullRequest `graphql:"... on PullRequest"`
+			PullRequest suite.PullRequestQuery `graphql:"... on PullRequest"`
 		}
 	} `graphql:"search(type: ISSUE, first: 100, after: $searchCursor, query: $query)"`
 }
@@ -124,8 +126,8 @@ func fetchFileFromURI(uri string) (content string, resp *http.Response, err erro
 }
 
 // Executes the search query contained in q using the GitHub client ghc
-func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string, org string) ([]PullRequest, error) {
-	var ret []PullRequest
+func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string, org string) ([]suite.PullRequestQuery, error) {
+	var ret []suite.PullRequestQuery
 	vars := map[string]interface{}{
 		"query":        githubql.String(q),
 		"searchCursor": (*githubql.String)(nil),
@@ -152,16 +154,18 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string, 
 	return ret, nil
 }
 
-func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *github.PullRequest) (prSuite *suite.PRSuite, err error) {
-	prSuite = suite.NewPRSuite(suite.PullRequest{PullRequestQuery: pr})
-	issueLabels, err := ghc.GetIssueLabels(pr.Base.Repo.Owner.Login, pr.Base.Repo.Name, pr.Number)
+func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) (prSuite *suite.PRSuite, err error) {
+	prSuite = suite.NewPRSuite(&suite.PullRequest{PullRequestQuery: *pr})
+	issueLabels, err := ghc.GetIssueLabels(string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number))
 	if err != nil {
 		return &suite.PRSuite{}, fmt.Errorf("error fetching PR issue labels for issue (%v), %v ", pr.Number, err)
 	}
-	prSuite.Labels = issueLabels
+	for _, l := range issueLabels {
+		prSuite.PR.Labels = append(prSuite.PR.Labels, l.Name)
+	}
 
 	var productYAMLContent string
-	changes, err := ghc.GetPullRequestChanges(pr.Base.Repo.Owner.Login, pr.Base.Repo.Name, pr.Number)
+	changes, err := ghc.GetPullRequestChanges(string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number))
 	if err != nil {
 		return &suite.PRSuite{}, fmt.Errorf("error fetching PR (%v) changes, %v", pr.Number, err)
 	}
@@ -176,9 +180,9 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *github.PullRequest
 			Name:     c.Filename,
 			BaseName: baseName,
 			BlobURL:  c.BlobURL,
-			Content:  content,
+			Contents: content,
 		}
-		prSuite.SupportingFiles = append(prSuite.SupportingFiles, prFile)
+		prSuite.PR.SupportingFiles = append(prSuite.PR.SupportingFiles, prFile)
 
 		if baseName == "PRODUCT.yaml" {
 			productYAMLContent = content
@@ -188,16 +192,8 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *github.PullRequest
 		return &suite.PRSuite{}, fmt.Errorf("failed to find PRODUCT.yaml from the list of files in the PR (%v)", pr.Number)
 	}
 
-	labels, err := ghc.GetIssueLabels(pr.Base.Repo.Owner.Login, pr.Base.Repo.Name, pr.Number)
-	if err != nil {
-		return &suite.PRSuite{}, fmt.Errorf("failed to retrieve the list of labels in PR (%v), %v", pr.Number, err)
-	}
-	for _, l := range labels {
-		prSuite.Labels = append(prSuite.Labels, l.Name)
-	}
-
 	var productYAML map[string]string
-	err = yaml.Unmarshal(&productYAML, []byte(productYAMLContent))
+	err = yaml.Unmarshal([]byte(productYAMLContent), &productYAML)
 	if err != nil {
 		return &suite.PRSuite{}, fmt.Errorf("failed to parse content of PRODUCT.yaml in PR (%v), %v", pr.Number, err)
 	}
@@ -213,18 +209,32 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *github.PullRequest
 			return &suite.PRSuite{}, fmt.Errorf("failed to make a HEAD request to url '%v' from the field '%v' in PRODUCT.yaml in PR (%v), %v", u, pr.Number, err)
 		}
 		contentType := resp.Header.Get("Content-Type")
-		prSuite.ProductYAMLURLDataTypes[f.Field] = contentType
+		prSuite.PR.ProductYAMLURLDataTypes[f.Field] = contentType
 	}
 
 	return prSuite, nil
 }
 
+func GetGodogPaths() (paths []string) {
+	for _, p := range godogPaths {
+		if _, err := os.Stat(p); err == nil {
+			paths = append(paths, p)
+		}
+	}
+	return paths
+}
+
 // handle checks a Conformance Certification PR to determine if the contents of the PR pass sanity checks.
 // Adds a comment to indicate whether or not the version in the PR title occurs in the supplied logs.
-func handle(log *logrus.Entry, ghc githubClient, pr *github.PullRequest) error {
-	prSuite := NewPRSuiteForPR(log, ghc, pr).
-		SetSubmissionMetadatafromFolderStructure()
-	prSuite.NewTestSuite().Run()
+func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) error {
+	godogFeaturePaths := GetGodogPaths()
+	prSuite, err := NewPRSuiteForPR(log, ghc, pr)
+	if err != nil {
+		return err
+	}
+
+	prSuite.SetSubmissionMetadatafromFolderStructure()
+	prSuite.NewTestSuite(suite.PRSuiteOptions{Paths: godogFeaturePaths}).Run()
 
 	finalComment, labels, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()
 	if err != nil {
@@ -238,6 +248,31 @@ func handle(log *logrus.Entry, ghc githubClient, pr *github.PullRequest) error {
 	return nil
 }
 
+func NewPullRequestQueryForGithubPullRequest(orgName string, repoName string, number int, pr *github.PullRequest) *suite.PullRequestQuery {
+	return &suite.PullRequestQuery{
+		Title:  githubql.String(pr.Title),
+		Number: githubql.Int(number),
+		Author: struct {
+			Login githubql.String
+		}{
+			Login: githubql.String(pr.User.Login),
+		},
+		Repository: struct {
+			Name  githubql.String
+			Owner struct {
+				Login githubql.String
+			}
+		}{
+			Name: githubql.String(repoName),
+			Owner: struct {
+				Login githubql.String
+			}{
+				Login: githubql.String(pr.User.Login),
+			},
+		},
+	}
+}
+
 // HandlePullRequestEvent handles a GitHub pull request event
 func HandlePullRequestEvent(log *logrus.Entry, ghc githubClient, pre *github.PullRequestEvent) error {
 	log.Infof("HandlePullRequestEvent")
@@ -245,7 +280,7 @@ func HandlePullRequestEvent(log *logrus.Entry, ghc githubClient, pre *github.Pul
 		return nil
 	}
 
-	return handle(log, ghc, &pre.PullRequest)
+	return handle(log, ghc, NewPullRequestQueryForGithubPullRequest(pre.Repo.Owner.Login, pre.Repo.Name, pre.Number, &pre.PullRequest))
 }
 
 // HandleIssueCommentEvent handles a GitHub issue comment event and adds or removes a
@@ -261,7 +296,7 @@ func HandleIssueCommentEvent(log *logrus.Entry, ghc githubClient, ice *github.Is
 		return err
 	}
 
-	return handle(log, ghc, pr)
+	return handle(log, ghc, NewPullRequestQueryForGithubPullRequest(ice.Repo.Owner.Login, ice.Repo.Name, ice.Issue.Number, pr))
 }
 
 // HandleAll is called periodically and the period is setup in main.go
@@ -302,7 +337,7 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		fmt.Fprintf(&queryOpenPRs, " org:\"%s\"", org)
 	}
 
-	prs := []PullRequest{}
+	prs := []suite.PullRequestQuery{}
 	for _, org := range orgs {
 		prSearch, err := search(context.Background(), log, ghc, queryOpenPRs.String(), org)
 		if err != nil {

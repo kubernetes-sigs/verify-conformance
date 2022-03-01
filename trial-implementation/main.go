@@ -453,7 +453,7 @@ func (s *PRSuite) isIncludedInItsFileList(file string) error {
 	return fmt.Errorf("missing file '%v'", file)
 }
 
-func (s *PRSuite) fileFolderStructureMustMatchRegex(match string) error {
+func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 	pattern := regexp.MustCompile(match)
 
 	failureError := fmt.Errorf("the content structure of your product submission PR must match '%v' (KubernetesReleaseVersion/ProductName, e.g: v1.23/averycooldistro)", match)
@@ -507,7 +507,7 @@ func (s *PRSuite) theTitleOfThePR() error {
 	return nil
 }
 
-func (s *PRSuite) theTitleOfThePRMustMatch(match string) error {
+func (s *PRSuite) theTitleOfThePRMatches(match string) error {
 	pattern := regexp.MustCompile(match)
 	if pattern.MatchString(string(s.PR.Title)) != true {
 		return fmt.Errorf("title must be formatted like 'Conformance results for $KubernetesReleaseVersion $ProductName' (e.g: Conformance results for v1.23 CoolKubernetes)")
@@ -540,7 +540,7 @@ func (s *PRSuite) GetFileByFileName(fileName string) *PullRequestFile {
 	return nil
 }
 
-func (s *PRSuite) theYamlFileMustContainTheRequiredAndNonEmptyField(fileName, fieldName string) error {
+func (s *PRSuite) theYamlFileContainsTheRequiredAndNonEmptyField(fileName, fieldName string) error {
 	var parsedContent map[string]*interface{}
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
@@ -567,7 +567,7 @@ func (s *PRSuite) isNotEmpty(fileName string) error {
 	return nil
 }
 
-func (s *PRSuite) aLineOfTheFileMustMatch(fileName, match string) error {
+func (s *PRSuite) aLineOfTheFileMatches(fileName, match string) error {
 	pattern := regexp.MustCompile(match)
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
@@ -612,7 +612,7 @@ func (s *PRSuite) theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShoul
 	return nil
 }
 
-func (s *PRSuite) ifIsSetToUrlTheContentOfTheUrlInTheValueOfMustMatchIts(contentType, field, dataType string) error {
+func (s *PRSuite) ifIsSetToUrlTheContentOfTheUrlInTheValueOfMatchesIts(contentType, field, dataType string) error {
 	if contentType != "url" {
 		return nil
 	}
@@ -726,16 +726,16 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the PR title is not empty$`, s.thePRTitleIsNotEmpty)
 	ctx.Step(`^"([^"]*)" is included in its file list$`, s.isIncludedInItsFileList)
 	ctx.Step(`^the files in the PR`, s.theFilesInThePR)
-	ctx.Step(`^file folder structure must match "([^"]*)"$`, s.fileFolderStructureMustMatchRegex)
+	ctx.Step(`^file folder structure matches "([^"]*)"$`, s.fileFolderStructureMatchesRegex)
 	ctx.Step(`^the title of the PR$`, s.theTitleOfThePR)
-	ctx.Step(`^the title of the PR must match "([^"]*)"$`, s.theTitleOfThePRMustMatch)
-	ctx.Step(`^the yaml file "([^"]*)" must contain the required and non-empty "([^"]*)"$`, s.theYamlFileMustContainTheRequiredAndNonEmptyField)
+	ctx.Step(`^the title of the PR matches "([^"]*)"$`, s.theTitleOfThePRMatches)
+	ctx.Step(`^the yaml file "([^"]*)" contains the required and non-empty "([^"]*)"$`, s.theYamlFileContainsTheRequiredAndNonEmptyField)
 	ctx.Step(`^a "([^"]*)" file$`, s.aFile)
 	ctx.Step(`^"([^"]*)" is not empty$`, s.isNotEmpty)
-	ctx.Step(`^a line of the file "([^"]*)" must match "([^"]*)"$`, s.aLineOfTheFileMustMatch)
+	ctx.Step(`^a line of the file "([^"]*)" matches "([^"]*)"$`, s.aLineOfTheFileMatches)
 	ctx.Step(`^a list of labels in the PR$`, s.aListOfLabelsInThePR)
 	ctx.Step(`^the label prefixed with "([^"]*)" and ending with Kubernetes release version should be present$`, s.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent)
-	ctx.Step(`^if "([^"]*)" is set to url, the content of the url in the value of "([^"]*)" must match it\'s "([^"]*)"$`, s.ifIsSetToUrlTheContentOfTheUrlInTheValueOfMustMatchIts)
+	ctx.Step(`^if "([^"]*)" is set to url, the content of the url in the value of "([^"]*)" matches it\'s "([^"]*)"$`, s.ifIsSetToUrlTheContentOfTheUrlInTheValueOfMatchesIts)
 	ctx.Step(`^there is only one path of folders$`, s.thereIsOnlyOnePathOfFolders)
 }
 

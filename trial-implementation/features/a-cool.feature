@@ -29,21 +29,21 @@ Feature: A cool
       | "e2e.log"      |
       | "junit_01.xml" |
 
-  Scenario: submission must have files in structure of releaseversion/productname/
+  Scenario: submission has files in structure of releaseversion/productname/
     Given the files in the PR
-    Then file folder structure must match "(v1.[0-9]{2})/(.*)/.*"
+    Then file folder structure matches "(v1.[0-9]{2})/(.*)/.*"
     # $1 is the release version of Kubernetes
     # $2 is the product name
     # example: v1.23/coolthing/some.file
 
-  Scenario: submission must only be one product
+  Scenario: submission is only one product
     Given the files in the PR
     Then there is only one path of folders
 
-  Scenario: the PRODUCT.yaml metadata must contain required fields
+  Scenario: the PRODUCT.yaml metadata contains required fields
     Given a "PRODUCT.yaml" file
-    Then the yaml file "PRODUCT.yaml" must contain the required and non-empty <field>
-    And if <contentType> is set to url, the content of the url in the value of <field> must match it's <dataType>
+    Then the yaml file "PRODUCT.yaml" contains the required and non-empty <field>
+    And if <contentType> is set to url, the content of the url in the value of <field> matches it's <dataType>
 
     Examples:
       | field               | contentType | dataType                           |
@@ -57,17 +57,17 @@ Feature: A cool
       | "documentation_url" | "url"       | "text/html"                        |
       | "product_logo_url"  | "url"       | "image/svg application/postscript" |
 
-  Scenario: title of product submission must contain Kubernetes release version and product name
+  Scenario: title of product submission contains Kubernetes release version and product name
     Given the title of the PR
-    Then the title of the PR must match "(.*) (v1.[0-9]{2})[ /](.*)"
+    Then the title of the PR matches "(.*) (v1.[0-9]{2})[ /](.*)"
     # $1 is the string for conformance results for
     # $2 is the version of Kubernetes
     # $3 is the product name
     # example: Conformance test for v1.23 Cool Engine
 
-  Scenario: the e2e.log output must contain the Kubernetes release version
+  Scenario: the e2e.log output contains the Kubernetes release version
     Given a "e2e.log" file
-    Then a line of the file "e2e.log" must match "^.*e2e test version: (v1.[0-9]{2}(.[0-9]{1,2})?)$"
+    Then a line of the file "e2e.log" matches "^.*e2e test version: (v1.[0-9]{2}(.[0-9]{1,2})?)$"
     # $1 is the release version of Kubernetes
     # $2 is the (optional) point release version of Kubernetes
     # example: Feb 25 10:20:32.383: INFO: e2e test version: v1.23.0

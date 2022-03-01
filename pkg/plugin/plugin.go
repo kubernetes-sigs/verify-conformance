@@ -125,6 +125,15 @@ func fetchFileFromURI(uri string) (content string, resp *http.Response, err erro
 	return string(body), resp, nil
 }
 
+// takes a patchUrl from a githubClient.PullRequestChange and transforms it
+// to produce the url that delivers the raw file associated with the patch.
+// Tested for small files.
+func rawURLForBlobURL(patchUrl string) string {
+	fileUrl := strings.Replace(patchUrl, "github.com", "raw.githubusercontent.com", 1)
+	fileUrl = strings.Replace(fileUrl, "/blob", "", 1)
+	return fileUrl
+}
+
 // Executes the search query contained in q using the GitHub client ghc
 func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string, org string) ([]suite.PullRequestQuery, error) {
 	var ret []suite.PullRequestQuery
@@ -170,7 +179,7 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		return &suite.PRSuite{}, fmt.Errorf("error fetching PR (%v) changes, %v", pr.Number, err)
 	}
 	for _, c := range changes {
-		content, _, err := fetchFileFromURI(c.BlobURL)
+		content, _, err := fetchFileFromURI(rawURLForBlobURL(c.BlobURL))
 		if err != nil {
 			return &suite.PRSuite{}, fmt.Errorf("error fetching content of '%v' in PR (%v) via '%v', %v", c.Filename, pr.Number, c.BlobURL, err)
 		}

@@ -51,6 +51,11 @@ Feature: A cool
     Given the files in the PR
     Then there is only one path of folders
 
+  Scenario: submission release version in title matches release version in folder structure
+    Given the files in the PR
+    And the title of the PR
+    Then the release version matches the release version in the title
+
   Scenario: the PRODUCT.yaml metadata contains required fields
     Given a "PRODUCT.yaml" file
     Then the yaml file "PRODUCT.yaml" contains the required and non-empty <field>
@@ -102,6 +107,7 @@ ko build --local -B --tags latest .
 * Set up local dev
 Log into GitHub regularly
 #+begin_src tmate :window prow-config
+unset GITHUB_TOKEN
 gh auth login
 #+end_src
 
@@ -143,6 +149,11 @@ Restart it
 #+begin_src shell
 kubectl -n prow rollout restart deployment verify-conformance-release
 #+end_src
+
+#+RESULTS:
+#+begin_example
+deployment.apps/verify-conformance-release restarted
+#+end_example
 
 Uninstall the plugin
 #+begin_src shell

@@ -42,6 +42,11 @@ Feature: A cool
     Given the files in the PR
     Then there is only one path of folders
 
+  Scenario: submission release version in title matches release version in folder structure
+    Given the files in the PR
+    And the title of the PR
+    Then the release version matches the release version in the title
+
   Scenario: the PRODUCT.yaml metadata contains required fields
     Given a "PRODUCT.yaml" file
     Then the yaml file "PRODUCT.yaml" contains the required and non-empty <field>

@@ -12,7 +12,7 @@ func main() {
 	for _, pr := range prs {
 		prSuite := suite.NewPRSuite(&pr).
 			SetSubmissionMetadatafromFolderStructure()
-		prSuite.NewTestSuite(suite.PRSuiteOptions{}).Run()
+		prSuite.NewTestSuite(suite.PRSuiteOptions{Paths: []string{"../kodata/features"}}).Run()
 
 		finalComment, labels, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()
 		if err != nil {

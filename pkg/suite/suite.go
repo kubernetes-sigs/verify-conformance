@@ -623,12 +623,13 @@ func (s *PRSuite) ifIsSetToUrlTheContentOfTheUrlInTheValueOfMatchesIts(contentTy
 	}
 	foundDataType := false
 	for _, dt := range strings.Split(dataType, " ") {
-		if s.PR.ProductYAMLURLDataTypes[field] == dt {
-			foundDataType = true
+		foundDataType = strings.Contains(s.PR.ProductYAMLURLDataTypes[field], dt) == true
+		if foundDataType == true {
+			break
 		}
 	}
 	if foundDataType == false {
-		return fmt.Errorf("unable to use field '%v' in PRODUCT.yaml as the data in the resolved content doesn't match what is expected (%v)", field, dataType)
+		return fmt.Errorf("unable to use field '%v' in PRODUCT.yaml as the data in the resolved content (%v) doesn't match what is expected (%v). Please ensure that the urls resolve to exact resources intended (especially for an image the exact image url)", field, s.PR.ProductYAMLURLDataTypes[field], dataType)
 	}
 	return nil
 }
@@ -726,6 +727,23 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 	return finalComment, labels, nil
 }
 
+func (s *PRSuite) theReleaseVersionMatchesTheReleaseVersionInTheTitle() error {
+	pattern := regexp.MustCompile(`(.*) (v1.[0-9]{2})[ /](.*)`)
+
+	var titleReleaseVersion string
+	allIndexes := pattern.FindAllSubmatchIndex([]byte(s.PR.Title), -1)
+	for _, loc := range allIndexes {
+		titleReleaseVersion = string(s.PR.Title[loc[4]:loc[5]])
+		if titleReleaseVersion != "" {
+			break
+		}
+	}
+	if titleReleaseVersion != s.KubernetesReleaseVersion {
+		return fmt.Errorf("there is a mismatch between the release version in the title (%v) and the release version in the in the folder structure (%v)", titleReleaseVersion, s.KubernetesReleaseVersion)
+	}
+	return nil
+}
+
 func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a conformance product submission PR$`, s.aConformanceProductSubmissionPR)
 	ctx.Step(`^the PR title is not empty$`, s.thePRTitleIsNotEmpty)
@@ -742,4 +760,5 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the label prefixed with "([^"]*)" and ending with Kubernetes release version should be present$`, s.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent)
 	ctx.Step(`^if "([^"]*)" is set to url, the content of the url in the value of "([^"]*)" matches it\'s "([^"]*)"$`, s.ifIsSetToUrlTheContentOfTheUrlInTheValueOfMatchesIts)
 	ctx.Step(`^there is only one path of folders$`, s.thereIsOnlyOnePathOfFolders)
+	ctx.Step(`^the release version matches the release version in the title$`, s.theReleaseVersionMatchesTheReleaseVersionInTheTitle)
 }

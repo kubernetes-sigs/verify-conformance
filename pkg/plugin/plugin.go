@@ -33,7 +33,8 @@ var (
 		{Field: "documentation_url"},
 		{Field: "product_logo_url"},
 	}
-	godogPaths = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
+	managedPRLabelTemplates = []string{"release-%v", "release-documents-checked"}
+	godogPaths              = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
 )
 
 type ProductYAMLField struct {
@@ -218,6 +219,7 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 			return &suite.PRSuite{}, fmt.Errorf("failed to make a HEAD request to url '%v' from the field '%v' in PRODUCT.yaml in PR (%v), %v", u, pr.Number, err)
 		}
 		contentType := resp.Header.Get("Content-Type")
+		log.Printf("%v: %v -> %v = %v\n", pr.Number, f.Field, u.String(), contentType)
 		if prSuite.PR.ProductYAMLURLDataTypes == nil {
 			prSuite.PR.ProductYAMLURLDataTypes = map[string]string{}
 		}
@@ -254,6 +256,7 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 		return err
 	}
 
+	fmt.Printf("PR url: https://github.com/%v/%v/pull/%v \n", prSuite.PR.PullRequestQuery.Repository.Owner.Login, prSuite.PR.PullRequestQuery.Repository.Name, prSuite.PR.PullRequestQuery.Number)
 	fmt.Println("PR title:", prSuite.PR.Title)
 	fmt.Println("Release Version:", prSuite.KubernetesReleaseVersion)
 	fmt.Println("Labels:", strings.Join(labels, ", "))

@@ -33,7 +33,7 @@ var (
 		{Field: "documentation_url"},
 		{Field: "product_logo_url"},
 	}
-	managedPRLabelTemplates = []string{"release-%v", "release-documents-checked"}
+	managedPRLabelTemplates = []string{"release-%v", "release-documents-checked", "not-verifiable", "no-failed-tests-%v"}
 	godogPaths              = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
 )
 
@@ -239,6 +239,69 @@ func GetGodogPaths() (paths []string) {
 	return paths
 }
 
+func updateLabels(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery, prSuite *suite.PRSuite, labels []string) (newLabels, removedLabels []string, err error) {
+labels:
+	for _, l := range labels {
+		foundInManagedLabelTemplates := false
+		for _, ml := range managedPRLabelTemplates {
+			if fmt.Sprintf(ml, prSuite.KubernetesReleaseVersion) != l {
+				foundInManagedLabelTemplates = true
+			}
+		}
+		if foundInManagedLabelTemplates == false {
+			continue labels
+		}
+		for _, prl := range prSuite.PR.Labels {
+			if prl == l {
+				continue labels
+			}
+		}
+		if err := githubClient.AddLabel(ghc, string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number), l); err != nil {
+			return []string{}, []string{}, fmt.Errorf("failed to add label '%v' to %v/%v!%v", l, pr.Repository.Owner.Login, pr.Repository.Name, pr.Number)
+		}
+		newLabels = append(newLabels, l)
+	}
+
+prLabels:
+	for _, prl := range prSuite.PR.Labels {
+		foundManagingTrackingPRLabelToRemove := false
+		for _, l := range labels {
+			for _, ml := range managedPRLabelTemplates {
+				if fmt.Sprintf(ml, prSuite.KubernetesReleaseVersion) != l {
+					continue prLabels
+				}
+				foundManagingTrackingPRLabelToRemove = true
+			}
+		}
+		if foundManagingTrackingPRLabelToRemove == true {
+			if err := githubClient.RemoveLabel(ghc, string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number), prl); err != nil {
+				return []string{}, []string{}, fmt.Errorf("failed to add remove '%v' to %v/%v!%v", prl, pr.Repository.Owner.Login, pr.Repository.Name, pr.Number)
+			}
+			removedLabels = append(removedLabels, prl)
+		}
+	}
+
+	prSuite.PR.Labels = removeSliceOfStringsFromStringSlice(prSuite.PR.Labels, removedLabels)
+	prSuite.PR.Labels = append(prSuite.PR.Labels, newLabels...)
+	return newLabels, removedLabels, nil
+}
+
+func updateComments(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery, prSuite *suite.PRSuite, comment string) error {
+	return nil
+}
+
+func removeSliceOfStringsFromStringSlice(originalSlice []string, removeSlice []string) (output []string) {
+	for _, oItem := range originalSlice {
+		for _, delString := range removeSlice {
+			if oItem == delString {
+				continue
+			}
+		}
+		output = append(output, oItem)
+	}
+	return output
+}
+
 // handle checks a Conformance Certification PR to determine if the contents of the PR pass sanity checks.
 // Adds a comment to indicate whether or not the version in the PR title occurs in the supplied logs.
 func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) error {
@@ -261,6 +324,13 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 	fmt.Println("Release Version:", prSuite.KubernetesReleaseVersion)
 	fmt.Println("Labels:", strings.Join(labels, ", "))
 	fmt.Println(finalComment)
+
+	newLabels, removedLabels, err := updateLabels(log, ghc, pr, prSuite, labels)
+	if err != nil {
+		return err
+	}
+	fmt.Println("NewLabels: ", newLabels)
+	fmt.Println("RemovedLabels: ", removedLabels)
 	return nil
 }
 

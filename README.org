@@ -99,8 +99,9 @@ Feature: A cool
     # example: no-failed-tests-v1.23
 
   Scenario: the submission release version is a supported version of Kubernetes
-   Given the release version
-   Then it is a valid and supported release
+    Given the release version
+    And the files in the PR
+    Then it is a valid and supported release
 #+end_src
 
 * Build locally

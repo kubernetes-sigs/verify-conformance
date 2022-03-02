@@ -433,7 +433,7 @@ func (s *PRSuite) itIsAValidAndSupportedRelease() error {
 	}
 	latestVersionSegments := latestVersion.Segments()
 	latestVersionSegments[1] -= 2
-	oldestVersion := fmt.Sprintf("%v.%v", latestVersionSegments[0], latestVersionSegments[1])
+	oldestVersion := fmt.Sprintf("v%v.%v", latestVersionSegments[0], latestVersionSegments[1])
 	oldestSupportedVersion, err := semver.NewSemver(oldestVersion)
 	if err != nil {
 		fmt.Printf("error with go-version parsing oldest release version '%v': %v\n", latestVersionSegments, err)

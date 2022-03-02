@@ -380,7 +380,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 		labels = []string{"release-" + s.KubernetesReleaseVersion}
 	}
 	if len(resultPrepares) > 0 {
-		finalComment = "Some requirements have not passed:"
+		finalComment = fmt.Sprintf("%v of %v requirements have passed. Please review the following:", len(uniquelyNamedStepsRun)-len(resultPrepares), len(uniquelyNamedStepsRun))
 		for _, r := range resultPrepares {
 			finalComment += "\n- [FAIL] " + r.Name
 			for _, h := range r.Hints {

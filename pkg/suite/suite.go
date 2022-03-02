@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/cucumber/godog"
+	semver "github.com/hashicorp/go-version"
 	githubql "github.com/shurcooL/githubv4"
 	"sigs.k8s.io/yaml"
 	// "k8s.io/test-infra/prow/github"
@@ -301,7 +302,7 @@ SSSSS
 				Title:  "Conformance results for Failurernetes (Failing at pretty much everything)",
 				Number: 3,
 			},
-			Labels: []string{"release-documents-checked", "release-v1.23", "required-tests-missing"},
+			Labels: []string{"release-documents-checked", "release-v1.18", "required-tests-missing"},
 			ProductYAMLURLDataTypes: map[string]string{
 				"vendor":            "string",
 				"name":              "string",
@@ -315,13 +316,13 @@ SSSSS
 			},
 			SupportingFiles: []*PullRequestFile{
 				&PullRequestFile{
-					Name:     "v1.23/cool-metal/PRODUCT.yaml",
+					Name:     "v1.19/cool-metal/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
-					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/PRODUCT.yaml",
 					Contents: `
 vendor: Something
 name: something - A Cool Kubernetes Engine
-version: v1.23.3
+version: v1.19.3
 website_url: https://something.kubernetes/engine
 repo_url: https://github.com/something/kubernetes-engine
 product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
@@ -330,15 +331,15 @@ description: Something Kubernetes Engine, a distributed service that automates K
 `,
 				},
 				&PullRequestFile{
-					Name:     "v1.23/cool-metal/junit_01.xml",
+					Name:     "v1.19/cool-metal/junit_01.xml",
 					BaseName: "junit_01.xml",
-					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/junit_01.xml",
 					Contents: ``,
 				},
 				&PullRequestFile{
-					Name:     "v1.23/cool-metal/e2e.log",
+					Name:     "v1.19/cool-metal/e2e.log",
 					BaseName: "e2e.log",
-					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/e2e.log",
 					Contents: `
 May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
 May 27 04:41:36.616: INFO: e2e test version: v2
@@ -349,13 +350,13 @@ SSSSS
 `,
 				},
 				&PullRequestFile{
-					Name:     "v1.23/cool/PRODUCT.yaml",
+					Name:     "v1.19/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
-					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/PRODUCT.yaml",
 					Contents: `
 vendor: Something
 name: something - A Cool Kubernetes Engine
-version: v1.23.3
+version: v1.19.3
 website_url: https://something.kubernetes/engine
 repo_url: https://github.com/something/kubernetes-engine
 product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
@@ -364,15 +365,15 @@ description: Something Kubernetes Engine, a distributed service that automates K
 `,
 				},
 				&PullRequestFile{
-					Name:     "v1.23/cool/junit_01.xml",
+					Name:     "v1.19/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
-					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/junit_01.xml",
 					Contents: ``,
 				},
 				&PullRequestFile{
-					Name:     "v1.23/cool/e2e.log",
+					Name:     "v1.19/cool/e2e.log",
 					BaseName: "e2e.log",
-					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/e2e.log",
 					Contents: `
 May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
 May 27 04:41:36.616: INFO: e2e test version: v2
@@ -401,9 +402,11 @@ SSSSS
 }
 
 type PRSuite struct {
-	PR                       *PullRequest
-	KubernetesReleaseVersion string
-	ProductName              string
+	PR                             *PullRequest
+	KubernetesReleaseVersion       string
+	KubernetesReleaseVersionLatest string
+	ProductName                    string
+	MissingFiles                   []string
 
 	Suite  godog.TestSuite
 	buffer bytes.Buffer
@@ -743,6 +746,41 @@ func (s *PRSuite) theReleaseVersionMatchesTheReleaseVersionInTheTitle() error {
 	return nil
 }
 
+func (s *PRSuite) theReleaseVersion() error {
+	if s.KubernetesReleaseVersion == "" {
+		return godog.ErrPending
+	}
+	return nil
+}
+
+func (s *PRSuite) itIsAValidAndSupportedRelease() error {
+	latestVersion, err := semver.NewSemver(s.KubernetesReleaseVersionLatest)
+	if err != nil {
+		fmt.Printf("error with go-version parsing latestVersion '%v': %v\n", s.KubernetesReleaseVersionLatest, err)
+		return fmt.Errorf("unable to parse latest release version")
+	}
+	currentVersion, err := semver.NewSemver(s.KubernetesReleaseVersion)
+	if err != nil {
+		fmt.Printf("error with go-version parsing currentVersion '%v': %v\n", currentVersion, err)
+		return fmt.Errorf("unable to parse latest release version")
+	}
+	latestVersionSegments := latestVersion.Segments()
+	latestVersionSegments[1] -= 2
+	oldestVersion := fmt.Sprintf("%v.%v", latestVersionSegments[0], latestVersionSegments[1])
+	oldestSupportedVersion, err := semver.NewSemver(oldestVersion)
+	if err != nil {
+		fmt.Printf("error with go-version parsing oldest release version '%v': %v\n", latestVersionSegments, err)
+		return fmt.Errorf("unable to parse oldest supported release version")
+	}
+
+	if currentVersion.GreaterThan(latestVersion) {
+		return fmt.Errorf("unable to use version '%v' because it is newer than the current supported release (%v)", s.KubernetesReleaseVersion, s.KubernetesReleaseVersionLatest)
+	} else if currentVersion.LessThan(oldestSupportedVersion) {
+		return fmt.Errorf("unable to use version '%v' because it is older than the last currently supported release (%v)", s.KubernetesReleaseVersion, oldestVersion)
+	}
+	return nil
+}
+
 func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a conformance product submission PR$`, s.aConformanceProductSubmissionPR)
 	ctx.Step(`^the PR title is not empty$`, s.thePRTitleIsNotEmpty)
@@ -760,4 +798,6 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^if "([^"]*)" is set to url, the content of the url in the value of "([^"]*)" matches it\'s "([^"]*)"$`, s.ifIsSetToUrlTheContentOfTheUrlInTheValueOfMatchesIts)
 	ctx.Step(`^there is only one path of folders$`, s.thereIsOnlyOnePathOfFolders)
 	ctx.Step(`^the release version matches the release version in the title$`, s.theReleaseVersionMatchesTheReleaseVersionInTheTitle)
+	ctx.Step(`^the release version$`, s.theReleaseVersion)
+	ctx.Step(`^it is a valid and supported release$`, s.itIsAValidAndSupportedRelease)
 }

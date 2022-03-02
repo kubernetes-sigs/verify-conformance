@@ -125,6 +125,7 @@ func (s *PRSuite) isIncludedInItsFileList(file string) error {
 			return nil
 		}
 	}
+	s.MissingFiles = append(s.MissingFiles, file)
 	return fmt.Errorf("missing file '%v'", file)
 }
 
@@ -242,7 +243,6 @@ func (s *PRSuite) isNotEmpty(fileName string) error {
 		return fmt.Errorf("unable to find file '%v'", fileName)
 	}
 	if file.Contents == "" {
-		s.MissingFiles = append(s.MissingFiles, fileName)
 		return fmt.Errorf("file '%v' is empty", fileName)
 	}
 	return nil
@@ -387,7 +387,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 		labels = append(labels, "missing-file-"+f)
 	}
 	if s.KubernetesReleaseVersion != "" {
-		labels = []string{"release-" + s.KubernetesReleaseVersion}
+		labels = append(labels, "release-"+s.KubernetesReleaseVersion)
 	}
 	if len(resultPrepares) > 0 {
 		finalComment = fmt.Sprintf("%v of %v requirements have passed. Please review the following:", len(uniquelyNamedStepsRun)-len(resultPrepares), len(uniquelyNamedStepsRun))

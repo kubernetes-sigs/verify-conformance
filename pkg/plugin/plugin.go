@@ -256,27 +256,32 @@ func GetGodogPaths() (paths []string) {
 	return paths
 }
 
+func labelIsVersionLabel(label, version string) bool {
+	for _, ml := range managedPRLabelTemplatesWithVersion {
+		if fmt.Sprintf(ml, version) == label {
+			return true
+		}
+	}
+	return false
+}
+
+func labelIsFileLabel(label string, missingFiles []string) bool {
+	for _, ml := range managedPRLabelTemplatesWithFileName {
+		for _, f := range missingFiles {
+			if fmt.Sprintf(ml, f) == label {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func updateLabels(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery, prSuite *suite.PRSuite, labels []string) (newLabels, removedLabels []string, err error) {
 labels:
 	for _, l := range labels {
-		foundInManagedLabelTemplates := false
-		for _, ml := range managedPRLabelTemplatesWithVersion {
-			if fmt.Sprintf(ml, prSuite.KubernetesReleaseVersion) != l {
-				foundInManagedLabelTemplates = true
-				goto addManagedLabelCheck
-			}
-		}
-		// for _, ml := range managedPRLabelTemplatesWithFileName {
-		// 	for _, f := range prSuite.MissingFiles {
-		// 		if fmt.Sprintf(ml, f) != l {
-		// 			foundInManagedLabelTemplates = true
-		// 			goto addManagedLabelCheck
-		// 		}
-
-		// 	}
-		// }
-	addManagedLabelCheck:
-		if foundInManagedLabelTemplates == false {
+		isInVersionLabel := labelIsVersionLabel(l, prSuite.KubernetesReleaseVersion)
+		isInMissingFileLabel := labelIsFileLabel(l, prSuite.MissingFiles)
+		if isInVersionLabel == false && isInMissingFileLabel == false {
 			continue labels
 		}
 		for _, prl := range prSuite.PR.Labels {
@@ -289,57 +294,28 @@ labels:
 		}
 		newLabels = append(newLabels, l)
 	}
+	prSuite.PR.Labels = append(prSuite.PR.Labels, newLabels...)
 
-	// prLabelsWithVersion:
-	// 	// for each existing label
-	// 	for _, prl := range prSuite.PR.Labels {
-	// 		// for each
-	// 		foundInLabels := false
-	// 		for _, l := range labels {
-	// 			// for each managed label
-	// 			for _, ml := range managedPRLabelTemplatesWithVersion {
-	// 				// exit if the label to delete is not a managed one
-	// 				if fmt.Sprintf(ml, prSuite.KubernetesReleaseVersion) != prl {
-	// 					continue prLabelsWithVersion
-	// 				}
-	// 				foundInLabels = true
-	// 			}
-	// 			if foundInLabels == true {
-	// 				removedLabels = append(removedLabels, l)
-	// 			}
-	// 		}
-	// 	}
+prLabels:
+	for _, prl := range prSuite.PR.Labels {
+		isInVersionLabel := labelIsVersionLabel(prl, prSuite.KubernetesReleaseVersion)
+		isInMissingFileLabel := labelIsFileLabel(prl, prSuite.MissingFiles)
+		if isInVersionLabel == true || isInMissingFileLabel == true {
+			continue prLabels
+		}
 
-	// prLabelsWithFileName:
-	// 	// for each existing label
-	// 	for _, prl := range prSuite.PR.Labels {
-	// 		// for each
-	// 		foundInLabels := false
-	// 		for _, l := range labels {
-	// 			// for each managed label
-	// 			for _, ml := range managedPRLabelTemplatesWithFileName {
-	// 				for _, f := range prSuite.MissingFiles {
-	// 					// exit if the label to delete is not a managed one
-	// 					if fmt.Sprintf(ml, f) != prl {
-	// 						continue prLabelsWithFileName
-	// 					}
-	// 					foundInLabels = true
-	// 				}
-	// 			}
-	// 			if foundInLabels == true {
-	// 				removedLabels = append(removedLabels, l)
-	// 			}
-	// 		}
-	// 	}
-
-	for _, prl := range removedLabels {
+		for _, l := range labels {
+			if prl == l {
+				continue prLabels
+			}
+		}
 		if err := githubClient.RemoveLabel(ghc, string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number), prl); err != nil {
 			return []string{}, []string{}, fmt.Errorf("failed to add remove '%v' to %v/%v!%v", prl, pr.Repository.Owner.Login, pr.Repository.Name, pr.Number)
 		}
+		removedLabels = append(prSuite.PR.Labels, prl)
 	}
-
 	prSuite.PR.Labels = removeSliceOfStringsFromStringSlice(prSuite.PR.Labels, removedLabels)
-	prSuite.PR.Labels = append(prSuite.PR.Labels, newLabels...)
+
 	return newLabels, removedLabels, nil
 }
 

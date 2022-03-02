@@ -348,8 +348,22 @@ func updateComments(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQu
 	if err != nil {
 		return fmt.Errorf("unable to list comments, %v", err)
 	}
+	botUserChecker, err := githubClient.BotUserChecker(ghc)
+	if err != nil {
+		return fmt.Errorf("unable to get bot name, %v", err)
+	}
+	botComments := []github.IssueComment{}
+	for _, c := range comments {
+		if botUserChecker(c.User.Login) != true {
+			continue
+		}
+		if c.Body == "" {
+			continue
+		}
+		botComments = append(botComments, c)
+	}
 	if len(comments) > 0 {
-		if comments[len(comments)-1].Body == comment {
+		if botComments[len(botComments)-1].Body == comment {
 			log.Printf("warning: nothing new to add in PR (%v)\n", int(pr.Number))
 			return nil
 		}

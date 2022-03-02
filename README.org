@@ -150,6 +150,11 @@ kubectl -n prow apply -f verify-conformance-release-deployment-dev-temp.yaml
 deployment.apps/verify-conformance-release created
 #+end_example
 
+Read the logs
+#+begin_src tmate :window prow-config
+kubectl -n prow logs -l app=verify-conformance-release --tail=50 -f
+#+end_src
+
 Restart it
 #+begin_src shell
 kubectl -n prow rollout restart deployment verify-conformance-release

@@ -150,6 +150,9 @@ func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 }
 
 func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
+	if len(s.PR.SupportingFiles) == 0 {
+		return godog.ErrPending
+	}
 	paths := []string{}
 	for _, file := range s.PR.SupportingFiles {
 		filePath := path.Dir(file.Name)
@@ -191,6 +194,9 @@ func (s *PRSuite) theTitleOfThePRMatches(match string) error {
 }
 
 func (s *PRSuite) theFilesInThePR() error {
+	if len(s.PR.SupportingFiles) == 0 {
+		return fmt.Errorf("there were no files found in the submission")
+	}
 	return nil
 }
 

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
@@ -35,6 +36,7 @@ var (
 	}
 	managedPRLabelTemplates = []string{"release-%v", "release-documents-checked", "not-verifiable", "no-failed-tests-%v"}
 	godogPaths              = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
+	kubernetesLatestTxtURL  = "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
 )
 
 type ProductYAMLField struct {
@@ -225,6 +227,12 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		}
 		prSuite.PR.ProductYAMLURLDataTypes[f.Field] = contentType
 	}
+
+	content, _, err := fetchFileFromURI(kubernetesLatestTxtURL)
+	if err != nil {
+		return &suite.PRSuite{}, fmt.Errorf("unable to download the latest version info from '%v'", kubernetesLatestTxtURL)
+	}
+	prSuite.KubernetesReleaseVersionLatest = content
 
 	return prSuite, nil
 }

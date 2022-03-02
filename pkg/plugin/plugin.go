@@ -34,9 +34,10 @@ var (
 		{Field: "documentation_url"},
 		{Field: "product_logo_url"},
 	}
-	managedPRLabelTemplates = []string{"release-%v", "release-documents-checked", "not-verifiable", "no-failed-tests-%v"}
-	godogPaths              = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
-	kubernetesLatestTxtURL  = "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
+	managedPRLabelTemplatesWithVersion  = []string{"release-%v", "release-documents-checked", "not-verifiable", "no-failed-tests-%v"}
+	managedPRLabelTemplatesWithFileName = []string{"missing-file-%v"}
+	godogPaths                          = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
+	kubernetesLatestTxtURL              = "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
 )
 
 type ProductYAMLField struct {
@@ -259,11 +260,22 @@ func updateLabels(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuer
 labels:
 	for _, l := range labels {
 		foundInManagedLabelTemplates := false
-		for _, ml := range managedPRLabelTemplates {
+		for _, ml := range managedPRLabelTemplatesWithVersion {
 			if fmt.Sprintf(ml, prSuite.KubernetesReleaseVersion) != l {
 				foundInManagedLabelTemplates = true
+				goto addManagedLabelCheck
 			}
 		}
+		// for _, ml := range managedPRLabelTemplatesWithFileName {
+		// 	for _, f := range prSuite.MissingFiles {
+		// 		if fmt.Sprintf(ml, f) != l {
+		// 			foundInManagedLabelTemplates = true
+		// 			goto addManagedLabelCheck
+		// 		}
+
+		// 	}
+		// }
+	addManagedLabelCheck:
 		if foundInManagedLabelTemplates == false {
 			continue labels
 		}
@@ -278,22 +290,51 @@ labels:
 		newLabels = append(newLabels, l)
 	}
 
-prLabels:
-	for _, prl := range prSuite.PR.Labels {
-		foundManagingTrackingPRLabelToRemove := false
-		for _, l := range labels {
-			for _, ml := range managedPRLabelTemplates {
-				if fmt.Sprintf(ml, prSuite.KubernetesReleaseVersion) != l {
-					continue prLabels
-				}
-				foundManagingTrackingPRLabelToRemove = true
-			}
-		}
-		if foundManagingTrackingPRLabelToRemove == true {
-			if err := githubClient.RemoveLabel(ghc, string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number), prl); err != nil {
-				return []string{}, []string{}, fmt.Errorf("failed to add remove '%v' to %v/%v!%v", prl, pr.Repository.Owner.Login, pr.Repository.Name, pr.Number)
-			}
-			removedLabels = append(removedLabels, prl)
+	// prLabelsWithVersion:
+	// 	// for each existing label
+	// 	for _, prl := range prSuite.PR.Labels {
+	// 		// for each
+	// 		foundInLabels := false
+	// 		for _, l := range labels {
+	// 			// for each managed label
+	// 			for _, ml := range managedPRLabelTemplatesWithVersion {
+	// 				// exit if the label to delete is not a managed one
+	// 				if fmt.Sprintf(ml, prSuite.KubernetesReleaseVersion) != prl {
+	// 					continue prLabelsWithVersion
+	// 				}
+	// 				foundInLabels = true
+	// 			}
+	// 			if foundInLabels == true {
+	// 				removedLabels = append(removedLabels, l)
+	// 			}
+	// 		}
+	// 	}
+
+	// prLabelsWithFileName:
+	// 	// for each existing label
+	// 	for _, prl := range prSuite.PR.Labels {
+	// 		// for each
+	// 		foundInLabels := false
+	// 		for _, l := range labels {
+	// 			// for each managed label
+	// 			for _, ml := range managedPRLabelTemplatesWithFileName {
+	// 				for _, f := range prSuite.MissingFiles {
+	// 					// exit if the label to delete is not a managed one
+	// 					if fmt.Sprintf(ml, f) != prl {
+	// 						continue prLabelsWithFileName
+	// 					}
+	// 					foundInLabels = true
+	// 				}
+	// 			}
+	// 			if foundInLabels == true {
+	// 				removedLabels = append(removedLabels, l)
+	// 			}
+	// 		}
+	// 	}
+
+	for _, prl := range removedLabels {
+		if err := githubClient.RemoveLabel(ghc, string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number), prl); err != nil {
+			return []string{}, []string{}, fmt.Errorf("failed to add remove '%v' to %v/%v!%v", prl, pr.Repository.Owner.Login, pr.Repository.Name, pr.Number)
 		}
 	}
 

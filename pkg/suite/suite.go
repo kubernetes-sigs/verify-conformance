@@ -242,6 +242,7 @@ func (s *PRSuite) isNotEmpty(fileName string) error {
 		return fmt.Errorf("unable to find file '%v'", fileName)
 	}
 	if file.Contents == "" {
+		s.MissingFiles = append(s.MissingFiles, fileName)
 		return fmt.Errorf("file '%v' is empty", fileName)
 	}
 	return nil
@@ -382,6 +383,9 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 
 	finalComment := fmt.Sprintf("All requirements (%v) have passed for the submission!", len(uniquelyNamedStepsRun))
 	labels = []string{}
+	for _, f := range s.MissingFiles {
+		labels = append(labels, "missing-file-"+f)
+	}
 	if s.KubernetesReleaseVersion != "" {
 		labels = []string{"release-" + s.KubernetesReleaseVersion}
 	}

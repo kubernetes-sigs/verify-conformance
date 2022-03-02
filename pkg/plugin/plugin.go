@@ -46,6 +46,7 @@ type ProductYAMLField struct {
 type githubClient interface {
 	GetIssueLabels(org, repo string, number int) ([]github.Label, error)
 	CreateComment(org, repo string, number int, comment string) error
+	ListIssueCommentsWithContext(ctx context.Context, org, repo string, number int) ([]github.IssueComment, error)
 	BotUserChecker() (func(candidate string) bool, error)
 	AddLabel(org, repo string, number int, label string) error
 	RemoveLabel(org, repo string, number int, label string) error
@@ -53,10 +54,6 @@ type githubClient interface {
 	QueryWithGitHubAppsSupport(context.Context, interface{}, map[string]interface{}, string) error
 	GetPullRequest(org, repo string, number int) (*github.PullRequest, error)
 	GetPullRequestChanges(org, repo string, number int) ([]github.PullRequestChange, error)
-}
-
-type commentPruner interface {
-	PruneComments(shouldPrune func(github.IssueComment) bool)
 }
 
 type PullRequest struct {
@@ -88,6 +85,17 @@ type PullRequest struct {
 			}
 		}
 	} `graphql:"commits(first:5)"`
+}
+
+type IssueComment struct {
+	ID   githubql.Int
+	Body githubql.String
+	User struct {
+		Login githubql.String
+	}
+	HTMLURL   githubql.String
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type SearchQuery struct {
@@ -295,6 +303,21 @@ prLabels:
 }
 
 func updateComments(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery, prSuite *suite.PRSuite, comment string) error {
+	comments, err := githubClient.ListIssueCommentsWithContext(ghc, context.TODO(), string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number))
+	if err != nil {
+		return fmt.Errorf("unable to list comments, %v", err)
+	}
+	if len(comments) > 0 {
+		if comments[len(comments)-1].Body == comment {
+			log.Printf("warning: nothing new to add in PR (%v)\n", int(pr.Number))
+			return nil
+		}
+	}
+
+	err = githubClient.CreateComment(ghc, string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number), comment)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -339,6 +362,11 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 	}
 	fmt.Println("NewLabels: ", newLabels)
 	fmt.Println("RemovedLabels: ", removedLabels)
+
+	err = updateComments(log, ghc, pr, prSuite, finalComment)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

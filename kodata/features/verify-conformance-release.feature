@@ -87,7 +87,7 @@ Feature: A cool
 
   Scenario: the submission release version is a supported version of Kubernetes
     the release version of Kubernetes in this submission is not supported for conformance
-    
+
     Given the release version
     And the files in the PR
     Then it is a valid and supported release
@@ -103,3 +103,10 @@ Feature: A cool
   #     | "no-failed-tests-" |
   #     | "tests-verified-"  |
   #   # example: no-failed-tests-v1.23
+
+  Scenario: all required conformance tests in the junit_01 and e2e.log pass and are successful
+    it appears that some tests in the product submission appear to not pass
+
+    Given a "e2e.log" file
+    And a "junit_01.xml" file
+    Then the tests must pass and be successful

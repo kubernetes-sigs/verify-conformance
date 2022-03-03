@@ -35,13 +35,16 @@ var (
 		{Field: "product_logo_url"},
 	}
 	managedPRLabels = []string{
-		"release-documents-checked",
-		"not-verifiable",
 		"conformance-product-submission",
+		"not-verifiable",
+		"release-documents-checked",
+		"required-tests-missing",
+		"evidence-missing",
 	}
 	managedPRLabelTemplatesWithVersion = []string{
 		"release-%v",
 		"no-failed-tests-%v",
+		"tests-verified-%v",
 	}
 	managedPRLabelTemplatesWithFileName = []string{"missing-file-%v"}
 	godogPaths                          = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}

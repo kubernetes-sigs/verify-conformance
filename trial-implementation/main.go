@@ -4,10 +4,19 @@ import (
 	"fmt"
 	"strings"
 
+	"cncf.io/infra/verify-conformance-release/pkg/common"
 	"cncf.io/infra/verify-conformance-release/pkg/suite"
 )
 
-var latest = "v1.23.4"
+var (
+	latest                  = "v1.23.4"
+	testdataJunitXmlGood, _ = common.ReadFile("./testdata/junit_01-good.xml")
+	testdataJunitXmlBad1, _ = common.ReadFile("./testdata/junit_01-bad1.xml")
+	testdataJunitXmlBad2, _ = common.ReadFile("./testdata/junit_01-bad2.xml")
+	testdataE2eLogGood, _   = common.ReadFile("./testdata/e2e-good.log")
+	testdataE2eLogBad1, _   = common.ReadFile("./testdata/e2e-bad1.log")
+	testdataE2eLogBad2, _   = common.ReadFile("./testdata/e2e-bad2.log")
+)
 
 func GetPRs() []suite.PullRequest {
 	return []suite.PullRequest{
@@ -61,33 +70,13 @@ description: Cool Kubernetes Engine, a distributed service that automates Kubern
 					Name:     "v1.23/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
-					Contents: `
-<?xml version="1.0" encoding="UTF-8"?>
-  <testsuite name="Kubernetes e2e suite" tests="311" failures="0" errors="0" time="5121.343">
-      <testcase name="[sig-storage] In-tree Volumes [Driver: local][LocalVolumeType: dir-link] [Testpattern: Dynamic PV (block volmode)] multiVolume [Slow] should access to two volumes with the same volume mode and retain data across pod recreation on different node [LinuxOnly]" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-      <testcase name="[sig-auth] PodSecurityPolicy [Feature:PodSecurityPolicy] should forbid pod creation when no PSP is available" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-      <testcase name="[sig-storage] In-tree Volumes [Driver: ceph][Feature:Volumes][Serial] [Testpattern: Dynamic PV (default fs)] subPath should support existing single file [LinuxOnly]" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-  </testsuite>
-`,
+					Contents: testdataJunitXmlGood,
 				},
 				&suite.PullRequestFile{
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
 					BaseName: "e2e.log",
 					Name:     "v1.23/cool/e2e.log",
-					Contents: `
-May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
-May 27 04:41:36.616: INFO: e2e test version: v1.23.4
-May 27 04:41:36.617: INFO: kube-apiserver version: v1.23.4
-May 27 04:41:36.617: INFO: >>> kubeConfig: /tmp/kubeconfig-441052555
-May 27 04:41:36.620: INFO: Cluster IP family: ipv4
-SSSSS
-`,
+					Contents: testdataE2eLogGood,
 				},
 			},
 		},
@@ -140,33 +129,13 @@ description: Something Kubernetes Engine, a distributed service that automates K
 					Name:     "v1.23/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
-					Contents: `
-<?xml version="1.0" encoding="UTF-8"?>
-  <testsuite name="Kubernetes e2e suite" tests="311" failures="0" errors="0" time="5121.343">
-      <testcase name="[sig-storage] In-tree Volumes [Driver: local][LocalVolumeType: dir-link] [Testpattern: Dynamic PV (block volmode)] multiVolume [Slow] should access to two volumes with the same volume mode and retain data across pod recreation on different node [LinuxOnly]" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-      <testcase name="[sig-auth] PodSecurityPolicy [Feature:PodSecurityPolicy] should forbid pod creation when no PSP is available" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-      <testcase name="[sig-storage] In-tree Volumes [Driver: ceph][Feature:Volumes][Serial] [Testpattern: Dynamic PV (default fs)] subPath should support existing single file [LinuxOnly]" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-  </testsuite>
-`,
+					Contents: testdataJunitXmlGood,
 				},
 				&suite.PullRequestFile{
 					Name:     "v1.23/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
-					Contents: `
-May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
-May 27 04:41:36.616: INFO: e2e test version: v1.23.4
-May 27 04:41:36.617: INFO: kube-apiserver version: v1.23.4
-May 27 04:41:36.617: INFO: >>> kubeConfig: /tmp/kubeconfig-441052555
-May 27 04:41:36.620: INFO: Cluster IP family: ipv4
-SSSSS
-`,
+					Contents: testdataE2eLogGood,
 				},
 			},
 		},
@@ -214,33 +183,13 @@ description: Something Kubernetes Engine, a distributed service that automates K
 					Name:     "v1.23/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
-					Contents: `
-<?xml version="1.0" encoding="UTF-8"?>
-  <testsuite name="Kubernetes e2e suite" tests="311" failures="0" errors="0" time="5121.343">
-      <testcase name="[sig-storage] In-tree Volumes [Driver: local][LocalVolumeType: dir-link] [Testpattern: Dynamic PV (block volmode)] multiVolume [Slow] should access to two volumes with the same volume mode and retain data across pod recreation on different node [LinuxOnly]" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-      <testcase name="[sig-auth] PodSecurityPolicy [Feature:PodSecurityPolicy] should forbid pod creation when no PSP is available" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-      <testcase name="[sig-storage] In-tree Volumes [Driver: ceph][Feature:Volumes][Serial] [Testpattern: Dynamic PV (default fs)] subPath should support existing single file [LinuxOnly]" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-  </testsuite>
-`,
+					Contents: testdataJunitXmlBad1,
 				},
 				&suite.PullRequestFile{
 					Name:     "v1.23/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
-					Contents: `
-May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
-May 27 04:41:36.616: INFO: e2e test version: v1.23.4
-May 27 04:41:36.617: INFO: kube-apiserver version: v1.23.4
-May 27 04:41:36.617: INFO: >>> kubeConfig: /tmp/kubeconfig-441052555
-May 27 04:41:36.620: INFO: Cluster IP family: ipv4
-SSSSS
-`,
+					Contents: testdataE2eLogBad1,
 				},
 			},
 		},
@@ -287,14 +236,7 @@ description: Something Kubernetes Engine, a distributed service that automates K
 					Name:     "v1.19/cool-metal/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/e2e.log",
-					Contents: `
-May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
-May 27 04:41:36.616: INFO: e2e test version: v2
-May 27 04:41:36.617: INFO: kube-apiserver version: v2
-May 27 04:41:36.617: INFO: >>> kubeConfig: /tmp/kubeconfig-441052555
-May 27 04:41:36.620: INFO: Cluster IP family: ipv4
-SSSSS
-`,
+					Contents: testdataE2eLogBad1,
 				},
 				&suite.PullRequestFile{
 					Name:     "v1.19/cool/PRODUCT.yaml",
@@ -315,20 +257,13 @@ description: Something Kubernetes Engine, a distributed service that automates K
 					Name:     "v1.19/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/junit_01.xml",
-					Contents: ``,
+					Contents: testdataJunitXmlBad1,
 				},
 				&suite.PullRequestFile{
 					Name:     "v1.19/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/e2e.log",
-					Contents: `
-May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
-May 27 04:41:36.616: INFO: e2e test version: v2
-May 27 04:41:36.617: INFO: kube-apiserver version: v2
-May 27 04:41:36.617: INFO: >>> kubeConfig: /tmp/kubeconfig-441052555
-May 27 04:41:36.620: INFO: Cluster IP family: ipv4
-SSSSS
-`,
+					Contents: testdataE2eLogBad1,
 				},
 				&suite.PullRequestFile{
 					Name:     "recipe.org",
@@ -392,33 +327,13 @@ description: Something Kubernetes Engine, a distributed service that automates K
 					Name:     "v1.18/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.18/cke/junit_01.xml",
-					Contents: `
-<?xml version="1.0" encoding="UTF-8"?>
-  <testsuite name="Kubernetes e2e suite" tests="311" failures="0" errors="0" time="5121.343">
-      <testcase name="[sig-storage] In-tree Volumes [Driver: local][LocalVolumeType: dir-link] [Testpattern: Dynamic PV (block volmode)] multiVolume [Slow] should access to two volumes with the same volume mode and retain data across pod recreation on different node [LinuxOnly]" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-      <testcase name="[sig-auth] PodSecurityPolicy [Feature:PodSecurityPolicy] should forbid pod creation when no PSP is available" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-      <testcase name="[sig-storage] In-tree Volumes [Driver: ceph][Feature:Volumes][Serial] [Testpattern: Dynamic PV (default fs)] subPath should support existing single file [LinuxOnly]" classname="Kubernetes e2e suite" time="0">
-          <skipped></skipped>
-      </testcase>
-  </testsuite>
-`,
+					Contents: testdataJunitXmlGood,
 				},
 				&suite.PullRequestFile{
 					Name:     "v1.18/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.18/cke/e2e.log",
-					Contents: `
-May 27 04:41:36.616: INFO: 3 / 3 pods ready in namespace 'kube-system' in daemonset 'node-dns' (0 seconds elapsed)
-May 27 04:41:36.616: INFO: e2e test version: v1.18.4
-May 27 04:41:36.617: INFO: kube-apiserver version: v1.18.4
-May 27 04:41:36.617: INFO: >>> kubeConfig: /tmp/kubeconfig-441052555
-May 27 04:41:36.620: INFO: Cluster IP family: ipv4
-SSSSS
-`,
+					Contents: testdataE2eLogGood,
 				},
 			},
 		},
@@ -446,7 +361,8 @@ func main() {
 	prs := GetPRs()
 	for _, pr := range prs {
 		prSuite := suite.NewPRSuite(&pr).
-			SetSubmissionMetadatafromFolderStructure()
+			SetSubmissionMetadatafromFolderStructure().
+			SetMetadataFolder("../kodata/conformance-testdata")
 		prSuite.KubernetesReleaseVersionLatest = latest
 		prSuite.NewTestSuite(suite.PRSuiteOptions{Paths: []string{"../kodata/features"}}).Run()
 
@@ -460,5 +376,19 @@ func main() {
 		fmt.Println("Release Version:", prSuite.KubernetesReleaseVersion)
 		fmt.Println("Labels:", strings.Join(labels, ", "))
 		fmt.Println(finalComment)
+
+		tests, err := prSuite.GetMissingTestsFromPRSuite()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		fmt.Printf("missing tests: %#v\n", tests)
+
+		success, err := prSuite.DetermineE2eLogSucessful()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		fmt.Printf("passed test suite: %v\n", success)
 	}
 }

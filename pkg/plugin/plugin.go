@@ -299,14 +299,18 @@ labels:
 		isManagedLabel := labelIsManaged(l)
 		isInVersionLabel := labelIsVersionLabel(l, prSuite.KubernetesReleaseVersion)
 		isInMissingFileLabel := labelIsFileLabel(l, prSuite.MissingFiles)
-		log.Printf("label '%v', isInVersionLabel %v, isInMissingFileLabel %v\n", l, isInVersionLabel, isInMissingFileLabel)
+		log.Printf("label '%v', isManagedLabel %v, isInVersionLabel %v, isInMissingFileLabel %v\n", l, isManagedLabel, isInVersionLabel, isInMissingFileLabel)
 		if isInVersionLabel == false && isInMissingFileLabel == false && isManagedLabel == false {
 			continue labels
 		}
+		foundInLabels := false
 		for _, prl := range prSuite.PR.Labels {
 			if prl == l {
-				continue labels
+				foundInLabels = true
 			}
+		}
+		if foundInLabels == true {
+			continue labels
 		}
 		if err := githubClient.AddLabel(ghc, string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number), l); err != nil {
 			return []string{}, []string{}, fmt.Errorf("failed to add label '%v' to %v/%v!%v", l, pr.Repository.Owner.Login, pr.Repository.Name, pr.Number)
@@ -320,16 +324,21 @@ prLabels:
 		isManagedLabel := labelIsManaged(prl)
 		isInVersionLabel := labelIsVersionLabel(prl, prSuite.KubernetesReleaseVersion)
 		isInMissingFileLabel := labelIsFileLabel(prl, prSuite.MissingFiles)
-		log.Printf("label '%v', isInVersionLabel %v, isInMissingFileLabel %v\n", prl, isInVersionLabel, isInMissingFileLabel)
-		if isInVersionLabel == true || isInMissingFileLabel == true || isManagedLabel == true {
+		log.Printf("label '%v', isManagedLabel %v, isInVersionLabel %v, isInMissingFileLabel %v\n", prl, isManagedLabel, isInVersionLabel, isInMissingFileLabel)
+		if isInVersionLabel == false && isInMissingFileLabel == false && isManagedLabel == false {
 			continue prLabels
 		}
 
+		foundInLabels := false
 		for _, l := range labels {
 			if prl == l {
-				continue prLabels
+				foundInLabels = true
 			}
 		}
+		if foundInLabels == true {
+			continue prLabels
+		}
+		// log.Printf("Will remove label '%v'", prl)
 		if err := githubClient.RemoveLabel(ghc, string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number), prl); err != nil {
 			return []string{}, []string{}, fmt.Errorf("failed to add remove '%v' to %v/%v!%v", prl, pr.Repository.Owner.Login, pr.Repository.Name, pr.Number)
 		}

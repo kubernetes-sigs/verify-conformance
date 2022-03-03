@@ -305,7 +305,7 @@ func (s *PRSuite) ifIsSetToUrlTheContentOfTheUrlInTheValueOfMatchesIts(contentTy
 		}
 	}
 	if foundDataType == false {
-		return fmt.Errorf("unable to use field '%v' in PRODUCT.yaml as the data in the resolved content (%v) doesn't match what is expected (%v). Please ensure that the urls resolve to exact resources intended (especially for an image the exact image url)", field, s.PR.ProductYAMLURLDataTypes[field], dataType)
+		return fmt.Errorf("unable to use field '%v' in PRODUCT.yaml as the data in the resolved content (%v) doesn't match what is expected (%v). Please ensure that the urls resolve to exact resources intended (especially for an image the exact image url)", field, s.PR.ProductYAMLURLDataTypes[field], strings.Join(strings.Split(dataType, " "), ", or "))
 	}
 	return nil
 }

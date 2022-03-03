@@ -400,7 +400,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 	}
 
 	finalComment := fmt.Sprintf("All requirements (%v) have passed for the submission!", len(uniquelyNamedStepsRun))
-	labels = []string{}
+	labels = []string{"conformance-product-submission"}
 	for _, f := range s.MissingFiles {
 		labels = append(labels, "missing-file-"+f)
 	}

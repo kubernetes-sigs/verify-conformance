@@ -34,7 +34,15 @@ var (
 		{Field: "documentation_url"},
 		{Field: "product_logo_url"},
 	}
-	managedPRLabelTemplatesWithVersion  = []string{"release-%v", "release-documents-checked", "not-verifiable", "no-failed-tests-%v"}
+	managedPRLabels = []string{
+		"release-documents-checked",
+		"not-verifiable",
+		"conformance-product-submission",
+	}
+	managedPRLabelTemplatesWithVersion = []string{
+		"release-%v",
+		"no-failed-tests-%v",
+	}
 	managedPRLabelTemplatesWithFileName = []string{"missing-file-%v"}
 	godogPaths                          = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
 	kubernetesLatestTxtURL              = "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
@@ -256,6 +264,15 @@ func GetGodogPaths() (paths []string) {
 	return paths
 }
 
+func labelIsManaged(input string) bool {
+	for _, l := range managedPRLabels {
+		if l == input {
+			return true
+		}
+	}
+	return false
+}
+
 func labelIsVersionLabel(label, version string) bool {
 	for _, ml := range managedPRLabelTemplatesWithVersion {
 		if fmt.Sprintf(ml, version) == label {
@@ -279,9 +296,11 @@ func labelIsFileLabel(label string, missingFiles []string) bool {
 func updateLabels(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery, prSuite *suite.PRSuite, labels []string) (newLabels, removedLabels []string, err error) {
 labels:
 	for _, l := range labels {
+		isManagedLabel := labelIsManaged(l)
 		isInVersionLabel := labelIsVersionLabel(l, prSuite.KubernetesReleaseVersion)
 		isInMissingFileLabel := labelIsFileLabel(l, prSuite.MissingFiles)
-		if isInVersionLabel == false && isInMissingFileLabel == false {
+		log.Printf("label '%v', isInVersionLabel %v, isInMissingFileLabel %v\n", l, isInVersionLabel, isInMissingFileLabel)
+		if isInVersionLabel == false && isInMissingFileLabel == false && isManagedLabel == false {
 			continue labels
 		}
 		for _, prl := range prSuite.PR.Labels {
@@ -298,9 +317,11 @@ labels:
 
 prLabels:
 	for _, prl := range prSuite.PR.Labels {
+		isManagedLabel := labelIsManaged(prl)
 		isInVersionLabel := labelIsVersionLabel(prl, prSuite.KubernetesReleaseVersion)
 		isInMissingFileLabel := labelIsFileLabel(prl, prSuite.MissingFiles)
-		if isInVersionLabel == true || isInMissingFileLabel == true {
+		log.Printf("label '%v', isInVersionLabel %v, isInMissingFileLabel %v\n", prl, isInVersionLabel, isInMissingFileLabel)
+		if isInVersionLabel == true || isInMissingFileLabel == true || isManagedLabel == true {
 			continue prLabels
 		}
 

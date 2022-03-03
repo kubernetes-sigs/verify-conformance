@@ -3,6 +3,7 @@ package suite
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"path"
 	"regexp"
@@ -15,6 +16,7 @@ import (
 	// "k8s.io/test-infra/prow/github"
 
 	"cncf.io/infra/verify-conformance-release/internal/types"
+	"cncf.io/infra/verify-conformance-release/pkg/common"
 )
 
 type ResultPrepare struct {
@@ -68,16 +70,143 @@ type PullRequest struct {
 	ProductYAMLURLDataTypes map[string]string
 }
 
+type ConformanceTestMetadata struct {
+	Testname    string `yaml:"testname"`
+	Codename    string `yaml:"codename"`
+	Description string `yaml:"description"`
+	Release     string `yaml:"release"`
+	File        string `yaml:"file"`
+}
+
+func (s *PRSuite) GetRequiredTests() (tests map[string]bool, err error) {
+	versionSemver, err := semver.NewVersion(s.KubernetesReleaseVersion)
+	if err != nil {
+		return map[string]bool{}, err
+	}
+	var conformanceMetadata []ConformanceTestMetadata
+	content, err := common.ReadFile(path.Join(s.MetadataFolder, s.KubernetesReleaseVersion, "conformance.yaml"))
+	if err != nil {
+		return map[string]bool{}, err
+	}
+	err = yaml.Unmarshal([]byte(content), &conformanceMetadata)
+	if err != nil {
+		return map[string]bool{}, err
+	}
+	tests = map[string]bool{}
+	for _, test := range conformanceMetadata {
+		foundInTestVersions := false
+	testSupportedVersions:
+		for _, r := range strings.Split(test.Release, ",") {
+			testVersionSemver, err := semver.NewVersion(r)
+			if err != nil {
+				return map[string]bool{}, err
+			}
+			if versionSemver.GreaterThanOrEqual(testVersionSemver) == true {
+				foundInTestVersions = true
+			}
+			if foundInTestVersions == true {
+				break testSupportedVersions
+			}
+		}
+		if foundInTestVersions != true {
+			continue
+		}
+		tests[test.Codename] = false
+	}
+	return tests, nil
+}
+
+type JunitTestCase struct {
+	XMLName xml.Name  `xml:"testcase"`
+	Name    string    `xml:"name,attr"`
+	Skipped *struct{} `xml:"skipped"`
+}
+
+type JunitTestSuite struct {
+	TestSuite []JunitTestCase `xml:"testcase"`
+}
+
+func (s *PRSuite) GetSubmittedConformanceTests() (tests []string, err error) {
+	file := s.GetFileByFileName("junit_01.xml")
+	if file == nil {
+		return []string{}, fmt.Errorf("unable to find file junit_01.xml")
+	}
+	testSuite := JunitTestSuite{}
+	if err := xml.Unmarshal([]byte(file.Contents), &testSuite); err != nil {
+		return []string{}, fmt.Errorf("unable to parse junit_01.xml file, %v", err)
+	}
+	for _, testcase := range testSuite.TestSuite {
+		if testcase.Skipped != nil {
+			continue
+		}
+		if strings.Contains(testcase.Name, "[Conformance]") == false {
+			continue
+		}
+		testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
+		testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
+		testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
+		testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
+		tests = append(tests, testcase.Name)
+	}
+
+	return tests, nil
+}
+
+func (s *PRSuite) GetMissingTestsFromPRSuite() (missingTests []string, err error) {
+	requiredTests, err := s.GetRequiredTests()
+	if err != nil {
+		return []string{}, err
+	}
+	submittedTests, err := s.GetSubmittedConformanceTests()
+	if err != nil {
+		return []string{}, err
+	}
+
+	for _, submittedTest := range submittedTests {
+		if _, found := requiredTests[submittedTest]; found != true {
+			continue
+		}
+		requiredTests[submittedTest] = true
+	}
+	for test, found := range requiredTests {
+		if found == true {
+			continue
+		}
+		missingTests = append(missingTests, test)
+	}
+
+	return missingTests, nil
+}
+
+func (s *PRSuite) DetermineE2eLogSucessful() (success bool, err error) {
+	file := s.GetFileByFileName("e2e.log")
+	if file == nil {
+		return false, fmt.Errorf("unable to find file e2e.log")
+	}
+	fileLines := strings.Split(file.Contents, "\n")
+	fileLast10Lines := fileLines[len(fileLines)-10:]
+	patternComplete := regexp.MustCompile(`^SUCCESS! -- [0-9]+ Passed | 0 Failed | 0 Pending | [0-9]+ Skipped$`)
+	for _, line := range fileLast10Lines {
+		if patternComplete.MatchString(line) == true {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 type PRSuite struct {
 	PR                             *PullRequest
 	KubernetesReleaseVersion       string
 	KubernetesReleaseVersionLatest string
 	ProductName                    string
 	MissingFiles                   []string
+	MissingTests                   []string
+	E2eLogSuccess                  bool
 	IsNotConformanceSubmission     bool
 
-	Suite  godog.TestSuite
-	buffer bytes.Buffer
+	MetadataFolder string
+	Suite          godog.TestSuite
+	buffer         bytes.Buffer
 }
 
 type PRSuiteOptions struct {
@@ -88,7 +217,8 @@ func NewPRSuite(PR *PullRequest) *PRSuite {
 	return &PRSuite{
 		PR: PR,
 
-		buffer: *bytes.NewBuffer(nil),
+		MetadataFolder: "/var/run/ko/conformance-testdata",
+		buffer:         *bytes.NewBuffer(nil),
 	}
 }
 
@@ -104,6 +234,11 @@ func (s *PRSuite) NewTestSuite(opts PRSuiteOptions) godog.TestSuite {
 		ScenarioInitializer: s.InitializeScenario,
 	}
 	return s.Suite
+}
+
+func (s *PRSuite) SetMetadataFolder(path string) *PRSuite {
+	s.MetadataFolder = path
+	return s
 }
 
 func (s *PRSuite) aConformanceProductSubmissionPR() error {
@@ -407,6 +542,14 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 	if s.KubernetesReleaseVersion != "" {
 		labels = append(labels, "release-"+s.KubernetesReleaseVersion)
 	}
+	if len(s.MissingTests) > 0 {
+		labels = append(labels, "required-tests-missing")
+	}
+	if s.E2eLogSuccess == true {
+		labels = append(labels, "tests-verified-"+s.KubernetesReleaseVersion, "no-failed-tests")
+	} else {
+		labels = append(labels, "evidence-missing")
+	}
 	if len(resultPrepares) > 0 {
 		finalComment = fmt.Sprintf("%v of %v requirements have passed. Please review the following:", len(uniquelyNamedStepsRun)-len(resultPrepares), len(uniquelyNamedStepsRun))
 		for _, r := range resultPrepares {
@@ -415,7 +558,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 				finalComment += "\n  - " + h
 			}
 		}
-		labels = append(labels, []string{"not-verifiable"}...)
+		labels = append(labels, "not-verifiable")
 	} else {
 		labels = append(labels, "release-documents-checked")
 	}
@@ -476,6 +619,26 @@ func (s *PRSuite) itIsAValidAndSupportedRelease() error {
 	return nil
 }
 
+func (s *PRSuite) theTestsMustPassAndBeSuccessful() error {
+	success, err := s.DetermineE2eLogSucessful()
+	if err != nil {
+		return err
+	}
+	if success == false {
+		return fmt.Errorf("it appears that there failures in the e2e.log")
+	}
+	s.E2eLogSuccess = true
+	missingTests, err := s.GetMissingTestsFromPRSuite()
+	if err != nil {
+		return err
+	}
+	if len(missingTests) > 0 {
+		s.MissingTests = missingTests
+		return fmt.Errorf("the following test(s) are missing: \n    - %v", strings.Join(missingTests, "\n    - "))
+	}
+	return nil
+}
+
 func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a conformance product submission PR$`, s.aConformanceProductSubmissionPR)
 	ctx.Step(`^the PR title is not empty$`, s.thePRTitleIsNotEmpty)
@@ -495,4 +658,5 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the release version matches the release version in the title$`, s.theReleaseVersionMatchesTheReleaseVersionInTheTitle)
 	ctx.Step(`^the release version$`, s.theReleaseVersion)
 	ctx.Step(`^it is a valid and supported release$`, s.itIsAValidAndSupportedRelease)
+	ctx.Step(`^the tests must pass and be successful$`, s.theTestsMustPassAndBeSuccessful)
 }

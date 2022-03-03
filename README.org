@@ -94,6 +94,39 @@ Feature: A cool
     Then it is a valid and supported release
 #+end_src
 
+* Prepare conformance metadata
+#+begin_src shell
+mkdir -p ./kodata/conformance-testdata/{v1.{15..23},master}/
+
+MANIFESTS=(
+  https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.15.yaml
+  https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.16.yaml
+  https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.17.yaml
+  https://raw.githubusercontent.com/cncf-infra/prow-config/master/tests/conformance-1.18.yaml
+  https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.19/test/conformance/testdata/conformance.yaml
+  https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.20/test/conformance/testdata/conformance.yaml
+  https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.21/test/conformance/testdata/conformance.yaml
+  https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.22/test/conformance/testdata/conformance.yaml
+  https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.23/test/conformance/testdata/conformance.yaml
+  https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml
+)
+
+re="^.*([0-9].[0-9]{2}|master).*$"
+for METADATA in ${MANIFESTS[*]}; do
+    if [[ $METADATA =~ $re ]]; then
+        version=${BASH_REMATCH[1]}
+
+        semver="v${version}"
+        if [ "${version}" = master ]; then
+            semver="${version}"
+        fi
+        curl -L \
+            -o ./kodata/conformance-testdata/${semver}/conformance.yaml \
+            ${METADATA}
+    fi
+done
+#+end_src
+
 * Build locally
 #+begin_src tmate :window prow-config
 ko build --local -B --tags latest .
@@ -127,7 +160,7 @@ kubectl -n prow create cm vcr-config --from-file=vcr.yaml=./vcr.yaml --dry-run=c
 
 #+RESULTS:
 #+begin_example
-configmap/vcr-config configured
+configmap/vcr-config created
 #+end_example
 
 Install the plugin

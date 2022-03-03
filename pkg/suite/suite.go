@@ -74,6 +74,7 @@ type PRSuite struct {
 	KubernetesReleaseVersionLatest string
 	ProductName                    string
 	MissingFiles                   []string
+	IsNotConformanceSubmission     bool
 
 	Suite  godog.TestSuite
 	buffer bytes.Buffer
@@ -109,6 +110,10 @@ func (s *PRSuite) aConformanceProductSubmissionPR() error {
 	if s.PR == nil {
 		return fmt.Errorf("unable to find PR from query")
 	}
+	if strings.Contains(strings.ToLower(string(s.PR.Title)), "conformance results") != true {
+		s.IsNotConformanceSubmission = true
+		return godog.ErrPending
+	}
 	return nil
 }
 
@@ -132,7 +137,7 @@ func (s *PRSuite) isIncludedInItsFileList(file string) error {
 func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 	pattern := regexp.MustCompile(match)
 
-	failureError := fmt.Errorf("the content structure of your product submission PR must match '%v' (KubernetesReleaseVersion/ProductName, e.g: v1.23/averycooldistro)", match)
+	failureError := fmt.Errorf("your product submission PR be in folders like $KubernetesReleaseVersion/$ProductName, e.g: v1.23/averycooldistro")
 	for _, file := range s.PR.SupportingFiles {
 		if matches := pattern.MatchString(file.Name); matches != true {
 			return fmt.Errorf("file '%v' not allowed. %v", file.Name, failureError)
@@ -143,7 +148,7 @@ func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 			distroName := string(file.Name[loc[4]:loc[5]])
 
 			if baseFolder == "" || distroName == "" {
-				return fmt.Errorf("the content structure of your product submission PR must match '%v' (KubernetesReleaseVersion/ProductName, e.g: v1.23/averycooldistro)", match)
+				return failureError
 			}
 		}
 	}
@@ -328,6 +333,9 @@ filesLoop:
 }
 
 func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, labels []string, err error) {
+	if s.IsNotConformanceSubmission == true {
+		return "", []string{}, nil
+	}
 	cukeFeatures := []types.CukeFeatureJSON{}
 	err = json.Unmarshal([]byte(s.buffer.String()), &cukeFeatures)
 	if err != nil {

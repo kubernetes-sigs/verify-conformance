@@ -5,19 +5,9 @@ Feature: A cool
   Background:
     Given a conformance product submission PR
 
-  # Scenario: PR title is not empty
-  #   Given a PR title
-  #   Then the PR title is not empty
-
-  # Scenario: Is true
-  #   Given a <value>
-  #   Then the value is "true"
-
-  #   Examples:
-  #     | value |
-  #     | true  |
-  #     | true  |
-  #     | false |
+  Scenario: PR title is not empty
+    Given a PR title
+    Then the PR title is not empty
 
   Scenario: submission contains all required files
     Given a conformance product submission PR

@@ -375,10 +375,18 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 
 	prSuite.SetSubmissionMetadatafromFolderStructure()
 	prSuite.NewTestSuite(suite.PRSuiteOptions{Paths: godogFeaturePaths}).Run()
+	if prSuite.IsNotConformanceSubmission == true {
+		log.Println("This PR (%v) is not a conformance PR", int(prSuite.PR.Number))
+		return nil
+	}
 
 	finalComment, labels, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()
 	if err != nil {
 		return err
+	}
+	if finalComment == "" && len(labels) == 0 {
+		log.Println("There is nothing to comment on PR (%v)", int(prSuite.PR.Number))
+		return nil
 	}
 
 	fmt.Printf("PR url: https://github.com/%v/%v/pull/%v \n", prSuite.PR.PullRequestQuery.Repository.Owner.Login, prSuite.PR.PullRequestQuery.Repository.Name, prSuite.PR.PullRequestQuery.Number)

@@ -14,19 +14,9 @@ Feature: A cool
   Background:
     Given a conformance product submission PR
 
-  # Scenario: PR title is not empty
-  #   Given a PR title
-  #   Then the PR title is not empty
-
-  # Scenario: Is true
-  #   Given a <value>
-  #   Then the value is "true"
-
-  #   Examples:
-  #     | value |
-  #     | true  |
-  #     | true  |
-  #     | false |
+  Scenario: PR title is not empty
+    Given a PR title
+    Then the PR title is not empty
 
   Scenario: submission contains all required files
     Given a conformance product submission PR
@@ -137,7 +127,7 @@ kubectl -n prow create cm vcr-config --from-file=vcr.yaml=./vcr.yaml --dry-run=c
 
 #+RESULTS:
 #+begin_example
-configmap/vcr-config created
+configmap/vcr-config configured
 #+end_example
 
 Install the plugin
@@ -156,7 +146,7 @@ kubectl -n prow logs -l app=verify-conformance-release --tail=50 -f
 #+end_src
 
 Restart it
-#+begin_src shell
+#+begin_src tmate :window prow-config
 kubectl -n prow rollout restart deployment verify-conformance-release
 #+end_src
 

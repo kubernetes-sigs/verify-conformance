@@ -32,7 +32,7 @@ Feature: A cool
 
   Scenario: submission has files in structure of releaseversion/productname/
     Given the files in the PR
-    Then file folder structure matches "(v1.[0-9]{2})/(.*)/.*"
+    Then file folder structure matches "(v1.[0-9]{2})/(.*)"
     # $1 is the release version of Kubernetes
     # $2 is the product name
     # example: v1.23/coolthing/some.file

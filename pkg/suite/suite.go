@@ -110,7 +110,7 @@ func (s *PRSuite) aConformanceProductSubmissionPR() error {
 	if s.PR == nil {
 		return fmt.Errorf("unable to find PR from query")
 	}
-	if strings.Contains(strings.ToLower(string(s.PR.Title)), "conformance results") != true {
+	if strings.Contains(strings.ToLower(string(s.PR.Title)), "conformance") != true {
 		s.IsNotConformanceSubmission = true
 		return godog.ErrPending
 	}
@@ -137,12 +137,22 @@ func (s *PRSuite) isIncludedInItsFileList(file string) error {
 func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 	pattern := regexp.MustCompile(match)
 
+	anyProductFoldersFound := false
+	for _, file := range s.PR.SupportingFiles {
+		if matches := pattern.MatchString(path.Dir(file.Name)); matches == true {
+			anyProductFoldersFound = true
+		}
+	}
+	if anyProductFoldersFound == false {
+		s.IsNotConformanceSubmission = true
+		return godog.ErrPending
+	}
 	failureError := fmt.Errorf("your product submission PR be in folders like $KubernetesReleaseVersion/$ProductName, e.g: v1.23/averycooldistro")
 	for _, file := range s.PR.SupportingFiles {
-		if matches := pattern.MatchString(file.Name); matches != true {
+		if matches := pattern.MatchString(path.Dir(file.Name)); matches != true {
 			return fmt.Errorf("file '%v' not allowed. %v", file.Name, failureError)
 		}
-		allIndexes := pattern.FindAllSubmatchIndex([]byte(file.Name), -1)
+		allIndexes := pattern.FindAllSubmatchIndex([]byte(path.Dir(file.Name)), -1)
 		for _, loc := range allIndexes {
 			baseFolder := string(file.Name[loc[2]:loc[3]])
 			distroName := string(file.Name[loc[4]:loc[5]])

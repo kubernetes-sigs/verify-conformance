@@ -393,7 +393,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 				}
 			}
 			if hasFails == true && foundExistingResultTitle == false {
-				resultPrepare.Name = e.Name
+				resultPrepare.Name = strings.TrimSpace(e.Description)
 				resultPrepares = append(resultPrepares, resultPrepare)
 			}
 		}

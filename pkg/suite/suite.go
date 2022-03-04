@@ -202,6 +202,7 @@ type PRSuite struct {
 	MissingFiles                   []string
 	MissingTests                   []string
 	E2eLogSuccess                  bool
+	E2eLogKubernetesReleaseVersion string
 	IsNotConformanceSubmission     bool
 
 	MetadataFolder string
@@ -405,16 +406,44 @@ func (s *PRSuite) aLineOfTheFileMatches(fileName, match string) error {
 		return fmt.Errorf("unable to find file '%v'", fileName)
 	}
 	lines := strings.Split(file.Contents, "\n")
-	foundMatchingLine := false
+	var matchingLine string
 lineLoop:
 	for _, line := range lines {
-		foundMatchingLine = pattern.MatchString(line)
-		if foundMatchingLine == true {
+		if pattern.MatchString(line) == true {
+			matchingLine = line
 			break lineLoop
 		}
 	}
-	if foundMatchingLine == false {
+	if matchingLine == "" {
 		return fmt.Errorf("the file '%v' does not contain a release version of Kubernetes in it", fileName)
+	}
+	allIndexes := pattern.FindAllSubmatchIndex([]byte(matchingLine), -1)
+	for _, loc := range allIndexes {
+		e2eLogKubernetesReleaseVersion := string(matchingLine[loc[2]:loc[3]])
+		if e2eLogKubernetesReleaseVersion == "" {
+			continue
+		}
+		s.E2eLogKubernetesReleaseVersion = e2eLogKubernetesReleaseVersion
+		break
+	}
+	return nil
+}
+
+func (s *PRSuite) thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolderStructure() error {
+	e2elogVersion, err := semver.NewSemver(s.E2eLogKubernetesReleaseVersion)
+	if err != nil {
+		return err
+	}
+	e2elogVersionSegments := e2elogVersion.Segments()
+	releaseVersion, err := semver.NewSemver(s.KubernetesReleaseVersion)
+	if err != nil {
+		return err
+	}
+	releaseVersionSegements := releaseVersion.Segments()
+	fmt.Println("e2elog version", s.E2eLogKubernetesReleaseVersion, s.KubernetesReleaseVersion)
+	if !(e2elogVersionSegments[0] == releaseVersionSegements[0] ||
+		e2elogVersionSegments[1] == releaseVersionSegements[1]) {
+		return fmt.Errorf("the Kubernetes release version in file 'e2e.log' (%v) doesn't match the same version in the folder structure (%v)", s.E2eLogKubernetesReleaseVersion, s.KubernetesReleaseVersion)
 	}
 	return nil
 }

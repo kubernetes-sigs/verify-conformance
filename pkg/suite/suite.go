@@ -243,7 +243,7 @@ func (s *PRSuite) SetMetadataFolder(path string) *PRSuite {
 
 func (s *PRSuite) aConformanceProductSubmissionPR() error {
 	if s.PR == nil {
-		return fmt.Errorf("unable to find PR from query")
+		return fmt.Errorf("unable to find retrieve PR information")
 	}
 	if strings.Contains(strings.ToLower(string(s.PR.Title)), "conformance") != true {
 		s.IsNotConformanceSubmission = true
@@ -323,7 +323,7 @@ func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
 	}
 
 	if len(paths) != 1 {
-		return fmt.Errorf("only one product must be submitted at a time, will use '%v'. Please remove the following: '%v'", paths[0], strings.Join(paths[1:], ", "))
+		return fmt.Errorf("Will use '%v'. Please remove the following: '%v'", paths[0], strings.Join(paths[1:], ", "))
 	}
 
 	return nil
@@ -331,7 +331,7 @@ func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
 
 func (s *PRSuite) theTitleOfThePR() error {
 	if s.PR.Title == "" {
-		return fmt.Errorf("unable to use product submission PR, as it appears to not have a title")
+		return fmt.Errorf("title is empty")
 	}
 	return nil
 }
@@ -357,7 +357,7 @@ func (s *PRSuite) aFile(fileName string) error {
 	}
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
-		return fmt.Errorf("unable to find required file '%v' in list files in product submission PR", fileName)
+		return fmt.Errorf("missing required file '%v'", fileName)
 	}
 	return nil
 }
@@ -375,7 +375,7 @@ func (s *PRSuite) theYamlFileContainsTheRequiredAndNonEmptyField(fileName, field
 	var parsedContent map[string]*interface{}
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
-		return fmt.Errorf("unable to find file '%v'", fileName)
+		return fmt.Errorf("missing required file '%v'", fileName)
 	}
 	err := yaml.Unmarshal([]byte(file.Contents), &parsedContent)
 	if err != nil {
@@ -438,7 +438,7 @@ func (s *PRSuite) theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShoul
 		}
 	}
 	if foundLabel != true {
-		return fmt.Errorf("unable to find required label '%v' on this PR. It may be safe to ignore and wait for it to appear if everything else is passing", labelWithReleaseAttached)
+		return fmt.Errorf("required label '%v' not found", labelWithReleaseAttached)
 	}
 	return nil
 }
@@ -455,7 +455,7 @@ func (s *PRSuite) ifIsSetToUrlTheContentOfTheUrlInTheValueOfMatchesIts(contentTy
 		}
 	}
 	if foundDataType == false {
-		return fmt.Errorf("unable to use field '%v' in PRODUCT.yaml as the data in the resolved content (%v) doesn't match what is expected (%v). Please ensure that the urls resolve to exact resources intended (especially for an image the exact image url)", field, s.PR.ProductYAMLURLDataTypes[field], strings.Join(strings.Split(dataType, " "), ", or "))
+		return fmt.Errorf("URL field '%v' in PRODUCT.yaml resolving content type '%v' must be (%v)", field, s.PR.ProductYAMLURLDataTypes[field], strings.Join(strings.Split(dataType, " "), ", or "))
 	}
 	return nil
 }
@@ -546,7 +546,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 		labels = append(labels, "required-tests-missing")
 	}
 	if s.E2eLogSuccess == true {
-		labels = append(labels, "tests-verified-"+s.KubernetesReleaseVersion, "no-failed-tests")
+		labels = append(labels, "tests-verified-"+s.KubernetesReleaseVersion, "no-failed-tests-"+s.KubernetesReleaseVersion)
 	} else {
 		labels = append(labels, "evidence-missing")
 	}
@@ -579,7 +579,7 @@ func (s *PRSuite) theReleaseVersionMatchesTheReleaseVersionInTheTitle() error {
 		}
 	}
 	if titleReleaseVersion != s.KubernetesReleaseVersion {
-		return fmt.Errorf("there is a mismatch between the release version in the title (%v) and the release version in the in the folder structure (%v)", titleReleaseVersion, s.KubernetesReleaseVersion)
+		return fmt.Errorf("Kubernetes release version in the title (%v) and folder structure (%v) don't match", titleReleaseVersion, s.KubernetesReleaseVersion)
 	}
 	return nil
 }
@@ -659,4 +659,5 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the release version$`, s.theReleaseVersion)
 	ctx.Step(`^it is a valid and supported release$`, s.itIsAValidAndSupportedRelease)
 	ctx.Step(`^the tests must pass and be successful$`, s.theTestsMustPassAndBeSuccessful)
+	ctx.Step(`^that version matches the same Kubernetes release version as in the folder structure$`, s.thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolderStructure)
 }

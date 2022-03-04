@@ -232,6 +232,10 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 
 	for _, f := range productYAMLRequiredFieldDateTypes {
 		uri := productYAML[f.Field]
+		if uri == "" {
+			log.Println("field '%v' is empty in PRODUCT.yaml, not resolving URL", f.Field)
+			continue
+		}
 		u, err := url.Parse(uri)
 		if err != nil {
 			return &suite.PRSuite{}, fmt.Errorf("failed to parse url '%v' of the field '%v' in PRODUCT.yaml in PR (%v), %v", uri, pr.Number, err)

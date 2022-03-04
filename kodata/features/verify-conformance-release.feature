@@ -12,7 +12,7 @@ Feature: A cool
     Then the PR title is not empty
 
   Scenario: submission contains all required files
-    there seems to be some files missing
+    there seems to be some required files missing (https://github.com/cncf/k8s-conformance/blob/master/instructions.md#contents-of-the-pr)
 
     Given a conformance product submission PR
     Then <file> is included in its file list
@@ -26,7 +26,7 @@ Feature: A cool
       | "junit_01.xml" |
 
   Scenario: submission has files in structure of releaseversion/productname/
-    submission file structure is not like a conformance submission
+    the submission file directory does not seem to match the Kubernetes release version in the files
 
     Given the files in the PR
     Then file folder structure matches "(v1.[0-9]{2})/(.*)"
@@ -35,20 +35,20 @@ Feature: A cool
     # example: v1.23/coolthing/some.file
 
   Scenario: submission is only one product
-    it appears that you are submitting more than one product
+    the submission seems to contain files of multiple Kubernetes release versions or products. Each Kubernetes release version and products should be submitted in a separate PRs
 
     Given the files in the PR
     Then there is only one path of folders
 
   Scenario: submission release version in title matches release version in folder structure
-    it seems that the release version of Kubernetes that is found in your title doesn't match the version in the file structure
+    the title of the submission does not seem to contain a Kubernetes release version that matches the release version in the submitted files
 
     Given the files in the PR
     And the title of the PR
     Then the release version matches the release version in the title
 
   Scenario: the PRODUCT.yaml metadata contains required fields
-    there seems to be some missing fields in the PRODUCT.yaml
+    it appears that the PRODUCT.yaml file does not contain all the required fields (https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml)
 
     Given a "PRODUCT.yaml" file
     Then the yaml file "PRODUCT.yaml" contains the required and non-empty <field>
@@ -67,7 +67,7 @@ Feature: A cool
       | "product_logo_url"  | "url"       | "image/svg application/postscript" |
 
   Scenario: title of product submission contains Kubernetes release version and product name
-    it appears that there isn't a product name or Kubernetes release version in the title of the submission
+    the submission title is missing either a Kubernetes release version (v1.xx) or product name
 
     Given the title of the PR
     Then the title of the PR matches "(.*) (v1.[0-9]{2})[ /](.*)"
@@ -77,32 +77,21 @@ Feature: A cool
     # example: Conformance test for v1.23 Cool Engine
 
   Scenario: the e2e.log output contains the Kubernetes release version
-    it appears that in the e2e.log the Kubernetes release version is not found
+    it seems the e2e.log does not contain the Kubernetes release version that match the submission title
 
     Given a "e2e.log" file
     Then a line of the file "e2e.log" matches "^.*e2e test version: (v1.[0-9]{2}(.[0-9]{1,2})?)$"
+    And that version matches the same Kubernetes release version as in the folder structure
     # $1 is the release version of Kubernetes
     # $2 is the (optional) point release version of Kubernetes
     # example: Feb 25 10:20:32.383: INFO: e2e test version: v1.23.0
 
   Scenario: the submission release version is a supported version of Kubernetes
-    the release version of Kubernetes in this submission is not supported for conformance
+    the Kubenetes release version in this pull request does not qualify for conformance submission anymore (https://github.com/cncf/k8s-conformance/blob/master/terms-conditions/Certified_Kubernetes_Terms.md#qualifying-offerings-and-self-testing)
 
     Given the release version
     And the files in the PR
     Then it is a valid and supported release
-
-  # Scenario: there are labels for tests succeeding
-
-
-  #   Given a list of labels in the PR
-  #   Then the label prefixed with <label> and ending with Kubernetes release version should be present
-
-  #   Examples:
-  #     | label              |
-  #     | "no-failed-tests-" |
-  #     | "tests-verified-"  |
-  #   # example: no-failed-tests-v1.23
 
   Scenario: all required conformance tests in the junit_01 and e2e.log pass and are successful
     it appears that some tests in the product submission appear to not pass

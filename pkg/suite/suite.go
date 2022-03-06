@@ -79,6 +79,16 @@ type ConformanceTestMetadata struct {
 	File        string `yaml:"file"`
 }
 
+type JunitTestCase struct {
+	XMLName xml.Name  `xml:"testcase"`
+	Name    string    `xml:"name,attr"`
+	Skipped *struct{} `xml:"skipped"`
+}
+
+type JunitTestSuite struct {
+	TestSuite []JunitTestCase `xml:"testcase"`
+}
+
 func (s *PRSuite) GetRequiredTests() (tests map[string]bool, err error) {
 	versionSemver, err := semver.NewVersion(s.KubernetesReleaseVersion)
 	if err != nil {
@@ -115,16 +125,6 @@ func (s *PRSuite) GetRequiredTests() (tests map[string]bool, err error) {
 		tests[test.Codename] = false
 	}
 	return tests, nil
-}
-
-type JunitTestCase struct {
-	XMLName xml.Name  `xml:"testcase"`
-	Name    string    `xml:"name,attr"`
-	Skipped *struct{} `xml:"skipped"`
-}
-
-type JunitTestSuite struct {
-	TestSuite []JunitTestCase `xml:"testcase"`
 }
 
 func (s *PRSuite) GetSubmittedConformanceTests() (tests []string, err error) {
@@ -199,6 +199,10 @@ func (s *PRSuite) DetermineE2eLogSucessful() (success bool, err error) {
 	return false, nil
 }
 
+type PRSuiteOptions struct {
+	Paths []string
+}
+
 type PRSuite struct {
 	PR                             *PullRequest
 	KubernetesReleaseVersion       string
@@ -213,10 +217,6 @@ type PRSuite struct {
 	MetadataFolder string
 	Suite          godog.TestSuite
 	buffer         bytes.Buffer
-}
-
-type PRSuiteOptions struct {
-	Paths []string
 }
 
 func NewPRSuite(PR *PullRequest) *PRSuite {
@@ -511,6 +511,78 @@ filesLoop:
 	return s
 }
 
+func (s *PRSuite) theReleaseVersionMatchesTheReleaseVersionInTheTitle() error {
+	pattern := regexp.MustCompile(`(.*) (v1.[0-9]{2})[ /](.*)`)
+
+	var titleReleaseVersion string
+	allIndexes := pattern.FindAllSubmatchIndex([]byte(s.PR.Title), -1)
+	for _, loc := range allIndexes {
+		titleReleaseVersion = string(s.PR.Title[loc[4]:loc[5]])
+		if titleReleaseVersion != "" {
+			break
+		}
+	}
+	if titleReleaseVersion != s.KubernetesReleaseVersion {
+		return fmt.Errorf("Kubernetes release version in the title (%v) and folder structure (%v) don't match", titleReleaseVersion, s.KubernetesReleaseVersion)
+	}
+	return nil
+}
+
+func (s *PRSuite) theReleaseVersion() error {
+	if s.KubernetesReleaseVersion == "" {
+		return godog.ErrPending
+	}
+	return nil
+}
+
+func (s *PRSuite) itIsAValidAndSupportedRelease() error {
+	latestVersion, err := semver.NewSemver(s.KubernetesReleaseVersionLatest)
+	if err != nil {
+		fmt.Printf("error with go-version parsing latestVersion '%v': %v\n", s.KubernetesReleaseVersionLatest, err)
+		return fmt.Errorf("unable to parse latest release version")
+	}
+	currentVersion, err := semver.NewSemver(s.KubernetesReleaseVersion)
+	if err != nil {
+		fmt.Printf("error with go-version parsing currentVersion '%v': %v\n", currentVersion, err)
+		return fmt.Errorf("unable to parse latest release version")
+	}
+	latestVersionSegments := latestVersion.Segments()
+	latestVersionSegments[1] -= 3
+	oldestVersion := fmt.Sprintf("v%v.%v", latestVersionSegments[0], latestVersionSegments[1])
+	oldestSupportedVersion, err := semver.NewSemver(oldestVersion)
+	if err != nil {
+		fmt.Printf("error with go-version parsing oldest release version '%v': %v\n", latestVersionSegments, err)
+		return fmt.Errorf("unable to parse oldest supported release version")
+	}
+
+	if currentVersion.GreaterThan(latestVersion) {
+		return fmt.Errorf("unable to use version '%v' because it is newer than the current supported release (%v)", s.KubernetesReleaseVersion, s.KubernetesReleaseVersionLatest)
+	} else if currentVersion.LessThan(oldestSupportedVersion) {
+		return fmt.Errorf("unable to use version '%v' because it is older than the last currently supported release (%v)", s.KubernetesReleaseVersion, oldestVersion)
+	}
+	return nil
+}
+
+func (s *PRSuite) theTestsMustPassAndBeSuccessful() error {
+	success, err := s.DetermineE2eLogSucessful()
+	if err != nil {
+		return err
+	}
+	if success == false {
+		return fmt.Errorf("it appears that there failures in the e2e.log")
+	}
+	s.E2eLogSuccess = true
+	missingTests, err := s.GetMissingTestsFromPRSuite()
+	if err != nil {
+		return err
+	}
+	if len(missingTests) > 0 {
+		s.MissingTests = missingTests
+		return fmt.Errorf("the following test(s) are missing: \n    - %v", strings.Join(missingTests, "\n    - "))
+	}
+	return nil
+}
+
 func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, labels []string, err error) {
 	if s.IsNotConformanceSubmission == true {
 		return "", []string{}, nil
@@ -601,78 +673,6 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 	finalComment += "\n"
 
 	return finalComment, labels, nil
-}
-
-func (s *PRSuite) theReleaseVersionMatchesTheReleaseVersionInTheTitle() error {
-	pattern := regexp.MustCompile(`(.*) (v1.[0-9]{2})[ /](.*)`)
-
-	var titleReleaseVersion string
-	allIndexes := pattern.FindAllSubmatchIndex([]byte(s.PR.Title), -1)
-	for _, loc := range allIndexes {
-		titleReleaseVersion = string(s.PR.Title[loc[4]:loc[5]])
-		if titleReleaseVersion != "" {
-			break
-		}
-	}
-	if titleReleaseVersion != s.KubernetesReleaseVersion {
-		return fmt.Errorf("Kubernetes release version in the title (%v) and folder structure (%v) don't match", titleReleaseVersion, s.KubernetesReleaseVersion)
-	}
-	return nil
-}
-
-func (s *PRSuite) theReleaseVersion() error {
-	if s.KubernetesReleaseVersion == "" {
-		return godog.ErrPending
-	}
-	return nil
-}
-
-func (s *PRSuite) itIsAValidAndSupportedRelease() error {
-	latestVersion, err := semver.NewSemver(s.KubernetesReleaseVersionLatest)
-	if err != nil {
-		fmt.Printf("error with go-version parsing latestVersion '%v': %v\n", s.KubernetesReleaseVersionLatest, err)
-		return fmt.Errorf("unable to parse latest release version")
-	}
-	currentVersion, err := semver.NewSemver(s.KubernetesReleaseVersion)
-	if err != nil {
-		fmt.Printf("error with go-version parsing currentVersion '%v': %v\n", currentVersion, err)
-		return fmt.Errorf("unable to parse latest release version")
-	}
-	latestVersionSegments := latestVersion.Segments()
-	latestVersionSegments[1] -= 3
-	oldestVersion := fmt.Sprintf("v%v.%v", latestVersionSegments[0], latestVersionSegments[1])
-	oldestSupportedVersion, err := semver.NewSemver(oldestVersion)
-	if err != nil {
-		fmt.Printf("error with go-version parsing oldest release version '%v': %v\n", latestVersionSegments, err)
-		return fmt.Errorf("unable to parse oldest supported release version")
-	}
-
-	if currentVersion.GreaterThan(latestVersion) {
-		return fmt.Errorf("unable to use version '%v' because it is newer than the current supported release (%v)", s.KubernetesReleaseVersion, s.KubernetesReleaseVersionLatest)
-	} else if currentVersion.LessThan(oldestSupportedVersion) {
-		return fmt.Errorf("unable to use version '%v' because it is older than the last currently supported release (%v)", s.KubernetesReleaseVersion, oldestVersion)
-	}
-	return nil
-}
-
-func (s *PRSuite) theTestsMustPassAndBeSuccessful() error {
-	success, err := s.DetermineE2eLogSucessful()
-	if err != nil {
-		return err
-	}
-	if success == false {
-		return fmt.Errorf("it appears that there failures in the e2e.log")
-	}
-	s.E2eLogSuccess = true
-	missingTests, err := s.GetMissingTestsFromPRSuite()
-	if err != nil {
-		return err
-	}
-	if len(missingTests) > 0 {
-		s.MissingTests = missingTests
-		return fmt.Errorf("the following test(s) are missing: \n    - %v", strings.Join(missingTests, "\n    - "))
-	}
-	return nil
 }
 
 func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {

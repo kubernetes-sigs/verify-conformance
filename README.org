@@ -216,6 +216,12 @@ kubectl -n prow delete -f verify-conformance-release-deployment-dev-temp.yaml
 deployment.apps "verify-conformance-release" deleted
 #+end_example
 
+* Run trial-implementation
+#+begin_src tmate :window trial-implementation
+cd ./trial-implementation
+go run .
+#+end_src
+
 * Running the plugin locally
 
 The plugin can be run locally as follows, when run locally the plugin interacts with GitHub but by default does not make any changes

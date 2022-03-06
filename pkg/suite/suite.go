@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"os"
 	"path"
 	"regexp"
 	"sort"
@@ -223,7 +224,7 @@ func NewPRSuite(PR *PullRequest) *PRSuite {
 	return &PRSuite{
 		PR: PR,
 
-		MetadataFolder: "/var/run/ko/conformance-testdata",
+		MetadataFolder: path.Join(os.Getenv("KO_DATA_PATH"), "conformance-testdata"),
 		buffer:         *bytes.NewBuffer(nil),
 	}
 }

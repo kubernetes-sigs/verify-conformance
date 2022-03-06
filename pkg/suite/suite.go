@@ -623,17 +623,15 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 							hintAlreadyPresentInResult = true
 						}
 					}
-					if r.Name == e.Name {
+					if r.Name == strings.TrimSpace(e.Description) {
 						foundExistingResultTitle = true
 					}
 					if foundExistingResultTitle && !hintAlreadyPresentInResult {
 						resultPrepares[ri].Hints = append(resultPrepares[ri].Hints, hint)
-						sort.Strings(resultPrepares[ri].Hints)
 					}
 				}
 				if foundExistingResultTitle == false {
 					resultPrepare.Hints = append(resultPrepare.Hints, hint)
-					sort.Strings(resultPrepare.Hints)
 				}
 			}
 			if hasFails == true && foundExistingResultTitle == false {

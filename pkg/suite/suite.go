@@ -268,7 +268,7 @@ func (s *PRSuite) thePRTitleIsNotEmpty() error {
 
 func (s *PRSuite) isIncludedInItsFileList(file string) error {
 	for _, f := range s.PR.SupportingFiles {
-		if f.BaseName == file {
+		if strings.ToLower(f.BaseName) == strings.ToLower(file) {
 			return nil
 		}
 	}

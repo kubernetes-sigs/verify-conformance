@@ -184,8 +184,12 @@ func (s *PRSuite) DetermineE2eLogSucessful() (success bool, err error) {
 		return false, fmt.Errorf("unable to find file e2e.log")
 	}
 	fileLines := strings.Split(file.Contents, "\n")
-	fileLast10Lines := fileLines[len(fileLines)-10:]
-	patternComplete := regexp.MustCompile(`^SUCCESS! -- [0-9]+ Passed | 0 Failed | 0 Pending | [0-9]+ Skipped$`)
+	lastLinesAmount := len(fileLines) - 10
+	if lastLinesAmount < 0 {
+		lastLinesAmount = len(fileLines)
+	}
+	fileLast10Lines := fileLines[lastLinesAmount:]
+	patternComplete := regexp.MustCompile(`^SUCCESS! -- [1-9][0-9]+ Passed | 0 Failed | 0 Pending | [0-9]+ Skipped$`)
 	for _, line := range fileLast10Lines {
 		if patternComplete.MatchString(line) == true {
 			return true, nil

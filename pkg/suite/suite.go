@@ -578,6 +578,7 @@ func (s *PRSuite) theTestsMustPassAndBeSuccessful() error {
 	}
 	if len(missingTests) > 0 {
 		s.MissingTests = missingTests
+		sort.Strings(s.MissingTests)
 		return fmt.Errorf("the following test(s) are missing: \n    - %v", strings.Join(missingTests, "\n    - "))
 	}
 	return nil

@@ -381,6 +381,20 @@ func updateComments(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQu
 			return nil
 		}
 	}
+	err = githubClient.DeleteStaleCommentsWithContext(
+		ghc,
+		context.TODO(),
+		string(pr.Repository.Owner.Login),
+		string(pr.Repository.Name),
+		int(pr.Number),
+		botComments,
+		func(ic github.IssueComment) bool {
+			return botUserChecker(ic.User.Login)
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("unable to prune stale comments comments on PR (%v), %v", int(pr.Number), err)
+	}
 
 	err = githubClient.CreateComment(ghc, string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number), comment)
 	if err != nil {

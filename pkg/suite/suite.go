@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/cucumber/godog"
@@ -554,10 +555,12 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 					}
 					if foundExistingResultTitle && !hintAlreadyPresentInResult {
 						resultPrepares[ri].Hints = append(resultPrepares[ri].Hints, hint)
+						sort.Strings(resultPrepares[ri].Hints)
 					}
 				}
 				if foundExistingResultTitle == false {
 					resultPrepare.Hints = append(resultPrepare.Hints, hint)
+					sort.Strings(resultPrepare.Hints)
 				}
 			}
 			if hasFails == true && foundExistingResultTitle == false {

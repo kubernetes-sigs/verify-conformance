@@ -381,13 +381,18 @@ func updateComments(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQu
 			return nil
 		}
 	}
+	botCommentsToPrune := botComments
+	if len(botComments) > 0 {
+		botCommentsToPrune = botComments[:len(botComments)-1]
+	}
+
 	err = githubClient.DeleteStaleCommentsWithContext(
 		ghc,
 		context.TODO(),
 		string(pr.Repository.Owner.Login),
 		string(pr.Repository.Name),
 		int(pr.Number),
-		botComments,
+		botCommentsToPrune,
 		func(ic github.IssueComment) bool {
 			return botUserChecker(ic.User.Login)
 		},

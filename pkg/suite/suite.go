@@ -91,7 +91,7 @@ type JunitTestSuite struct {
 }
 
 func (s *PRSuite) GetRequiredTests() (tests map[string]bool, err error) {
-	versionSemver, err := semver.NewVersion(s.KubernetesReleaseVersion)
+	versionSemver, err := semver.NewSemver(s.KubernetesReleaseVersion)
 	if err != nil {
 		return map[string]bool{}, err
 	}
@@ -109,7 +109,7 @@ func (s *PRSuite) GetRequiredTests() (tests map[string]bool, err error) {
 		foundInTestVersions := false
 	testSupportedVersions:
 		for _, r := range strings.Split(test.Release, ",") {
-			testVersionSemver, err := semver.NewVersion(r)
+			testVersionSemver, err := semver.NewSemver(r)
 			if err != nil {
 				return map[string]bool{}, err
 			}

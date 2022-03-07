@@ -21,6 +21,10 @@ import (
 	"cncf.io/infra/verify-conformance-release/pkg/common"
 )
 
+var (
+	lastSupportingVersions = 3
+)
+
 type ResultPrepare struct {
 	Name  string
 	Hints []string
@@ -548,7 +552,7 @@ func (s *PRSuite) itIsAValidAndSupportedRelease() error {
 		return fmt.Errorf("unable to parse latest release version")
 	}
 	latestVersionSegments := latestVersion.Segments()
-	latestVersionSegments[1] -= 3
+	latestVersionSegments[1] -= lastSupportingVersions
 	oldestVersion := fmt.Sprintf("v%v.%v", latestVersionSegments[0], latestVersionSegments[1])
 	oldestSupportedVersion, err := semver.NewSemver(oldestVersion)
 	if err != nil {

@@ -289,7 +289,7 @@ func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 		s.IsNotConformanceSubmission = true
 		return godog.ErrPending
 	}
-	failureError := fmt.Errorf("your product submission PR be in folders like $KubernetesReleaseVersion/$ProductName, e.g: v1.23/averycooldistro")
+	failureError := fmt.Errorf("your product submission PR be in folders like [KubernetesReleaseVersion]/[ProductName], e.g: v1.23/averycooldistro")
 	for _, file := range s.PR.SupportingFiles {
 		if matches := pattern.MatchString(path.Dir(file.Name)); matches != true {
 			return fmt.Errorf("file '%v' not allowed. %v", file.Name, failureError)
@@ -346,7 +346,7 @@ func (s *PRSuite) theTitleOfThePR() error {
 func (s *PRSuite) theTitleOfThePRMatches(match string) error {
 	pattern := regexp.MustCompile(match)
 	if pattern.MatchString(string(s.PR.Title)) != true {
-		return fmt.Errorf("title must be formatted like 'Conformance results for $KubernetesReleaseVersion/$ProductName' (e.g: Conformance results for v1.23/CoolKubernetes)")
+		return fmt.Errorf("title must be formatted like 'Conformance results for [KubernetesReleaseVersion]/[ProductName]' (e.g: Conformance results for v1.23/CoolKubernetes)")
 	}
 	return nil
 }

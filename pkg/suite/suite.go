@@ -214,7 +214,7 @@ func (s *PRSuite) DetermineE2eLogSucessful() (success bool, err error) {
 		lastLinesAmount = len(fileLines)
 	}
 	fileLast10Lines := fileLines[lastLinesAmount:]
-	patternComplete := regexp.MustCompile(`^SUCCESS! -- [1-9][0-9]+ Passed | 0 Failed | 0 Pending | [0-9]+ Skipped$`)
+	patternComplete := regexp.MustCompile(`^SUCCESS! -- [1-9][0-9]+ Passed \| 0 Failed \| 0 Pending \| [0-9]+ Skipped$`)
 	for _, line := range fileLast10Lines {
 		if patternComplete.MatchString(line) == true {
 			return true, nil

@@ -15,7 +15,6 @@ import (
 	semver "github.com/hashicorp/go-version"
 	githubql "github.com/shurcooL/githubv4"
 	"sigs.k8s.io/yaml"
-	// "k8s.io/test-infra/prow/github"
 
 	"cncf.io/infra/verify-conformance-release/internal/types"
 	"cncf.io/infra/verify-conformance-release/pkg/common"
@@ -104,9 +103,8 @@ type PRSuite struct {
 	KubernetesReleaseVersionLatest string
 	ProductName                    string
 	MissingFiles                   []string
-	MissingTests                   []string
-	E2eLogSuccess                  bool
 	E2eLogKubernetesReleaseVersion string
+	Labels                         []string
 
 	MetadataFolder string
 	Suite          godog.TestSuite
@@ -225,7 +223,8 @@ func (s *PRSuite) DetermineE2eLogSucessful() (success bool, err error) {
 
 func NewPRSuite(PR *PullRequest) *PRSuite {
 	return &PRSuite{
-		PR: PR,
+		PR:     PR,
+		Labels: []string{"conformance-product-submission"},
 
 		MetadataFolder: path.Join(os.Getenv("KO_DATA_PATH"), "conformance-testdata"),
 		buffer:         *bytes.NewBuffer(nil),
@@ -264,7 +263,7 @@ func (s *PRSuite) isIncludedInItsFileList(file string) error {
 			return nil
 		}
 	}
-	s.MissingFiles = append(s.MissingFiles, file)
+	s.Labels = append(s.Labels, "missing-file-"+file)
 	return fmt.Errorf("missing file '%v'", file)
 }
 
@@ -540,16 +539,17 @@ func (s *PRSuite) theTestsMustPassAndBeSuccessful() error {
 		return err
 	}
 	if success == false {
+		s.Labels = append(s.Labels, "evidence-missing")
 		return fmt.Errorf("it appears that there failures in the e2e.log")
 	}
-	s.E2eLogSuccess = true
+	s.Labels = append(s.Labels, "tests-verified-"+s.KubernetesReleaseVersion, "no-failed-tests-"+s.KubernetesReleaseVersion)
 	missingTests, err := s.GetMissingTestsFromPRSuite()
 	if err != nil {
 		return err
 	}
 	if len(missingTests) > 0 {
-		s.MissingTests = missingTests
-		sort.Strings(s.MissingTests)
+		s.Labels = append(s.Labels, "required-tests-missing")
+		sort.Strings(missingTests)
 		return fmt.Errorf("the following test(s) are missing: \n    - %v", strings.Join(missingTests, "\n    - "))
 	}
 	return nil
@@ -611,20 +611,8 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 
 	finalComment := fmt.Sprintf("All requirements (%v) have passed for the submission!", len(uniquelyNamedStepsRun))
 	// TODO use prSuite.Labels
-	labels = []string{"conformance-product-submission"}
-	for _, f := range s.MissingFiles {
-		labels = append(labels, "missing-file-"+f)
-	}
 	if s.KubernetesReleaseVersion != "" {
-		labels = append(labels, "release-"+s.KubernetesReleaseVersion)
-	}
-	if len(s.MissingTests) > 0 {
-		labels = append(labels, "required-tests-missing")
-	}
-	if s.E2eLogSuccess == true {
-		labels = append(labels, "tests-verified-"+s.KubernetesReleaseVersion, "no-failed-tests-"+s.KubernetesReleaseVersion)
-	} else {
-		labels = append(labels, "evidence-missing")
+		s.Labels = append(s.Labels, "release-"+s.KubernetesReleaseVersion)
 	}
 	if len(resultPrepares) > 0 {
 		finalComment = fmt.Sprintf("%v of %v requirements have passed. Please review the following:", len(uniquelyNamedStepsRun)-len(resultPrepares), len(uniquelyNamedStepsRun))
@@ -635,13 +623,13 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 			}
 		}
 		finalComment += "\n\n for a full list of requirements, please refer to the [_content of the PR_ section of the docs](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#contents-of-the-pr)."
-		labels = append(labels, "not-verifiable")
+		s.Labels = append(s.Labels, "not-verifiable")
 	} else {
-		labels = append(labels, "release-documents-checked")
+		s.Labels = append(s.Labels, "release-documents-checked")
 	}
 	finalComment += "\n"
 
-	return finalComment, labels, nil
+	return finalComment, s.Labels, nil
 }
 
 func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {

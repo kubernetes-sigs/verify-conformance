@@ -348,6 +348,62 @@ description: Something Kubernetes Engine, a distributed service that automates K
 				"product_logo_url":  "application/postscript",
 			},
 		},
+		{
+			PullRequestQuery: suite.PullRequestQuery{
+				Title:  "Conformance results for v1.23 Something (bad e2e.log)",
+				Number: 4,
+			},
+			Labels: []string{
+				"not-verifiable",
+			},
+			ProductYAMLURLDataTypes: map[string]string{
+				"vendor":            "string",
+				"name":              "string",
+				"version":           "string",
+				"type":              "string",
+				"description":       "string",
+				"website_url":       "text/html",
+				"repo_url":          "text/html",
+				"documentation_url": "text/html",
+				"product_logo_url":  "application/postscript",
+			},
+			SupportingFiles: []*suite.PullRequestFile{
+				&suite.PullRequestFile{
+					Name:     "v1.23/cool/README.md",
+					BaseName: "README.md",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
+					Contents: `# Conformance test for Something`,
+				},
+				&suite.PullRequestFile{
+					Name:     "v1.23/cool/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
+					Contents: `
+vendor: Something
+name: something - A Cool Kubernetes Engine
+version: v1.23.3
+website_url: https://something.kubernetes/engine
+repo_url: https://github.com/something/kubernetes-engine
+documentation_url: https://github.com/something/kubernetes-engine
+product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
+type: Installer
+description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
+`,
+				},
+				&suite.PullRequestFile{
+					Name:     "v1.23/cool/junit_01.xml",
+					BaseName: "junit_01.xml",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
+					Contents: testdataJunitXmlGood,
+				},
+				&suite.PullRequestFile{
+					Name:     "v1.23/cool/e2e.log",
+					BaseName: "e2e.log",
+					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
+					Contents: testdataE2eLogBad2,
+				},
+			},
+		},
 	}
 }
 

@@ -346,7 +346,7 @@ func (s *PRSuite) theTitleOfThePR() error {
 func (s *PRSuite) theTitleOfThePRMatches(match string) error {
 	pattern := regexp.MustCompile(match)
 	if pattern.MatchString(string(s.PR.Title)) != true {
-		return fmt.Errorf("title must be formatted like 'Conformance results for $KubernetesReleaseVersion $ProductName' (e.g: Conformance results for v1.23 CoolKubernetes)")
+		return fmt.Errorf("title must be formatted like 'Conformance results for $KubernetesReleaseVersion/$ProductName' (e.g: Conformance results for v1.23/CoolKubernetes)")
 	}
 	return nil
 }

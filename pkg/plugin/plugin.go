@@ -47,8 +47,9 @@ var (
 		"tests-verified-%v",
 	}
 	managedPRLabelTemplatesWithFileName = []string{"missing-file-%v"}
-	godogPaths                          = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
-	kubernetesLatestTxtURL              = "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
+	// TODO swap out for ldflag to override variable if built with Ko
+	godogPaths             = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
+	kubernetesLatestTxtURL = "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
 )
 
 type ProductYAMLField struct {
@@ -420,9 +421,18 @@ func removeSliceOfStringsFromStringSlice(originalSlice []string, removeSlice []s
 	return output
 }
 
+func isConformancePR(pr *suite.PullRequestQuery) bool {
+	return strings.Contains(strings.ToLower(string(pr.Title)), "conformance")
+}
+
 // handle checks a Conformance Certification PR to determine if the contents of the PR pass sanity checks.
 // Adds a comment to indicate whether or not the version in the PR title occurs in the supplied logs.
 func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) error {
+	if !isConformancePR(pr) {
+		log.Println("This PR (%v) is not a conformance PR", int(pr.Number))
+		return nil
+	}
+
 	godogFeaturePaths := GetGodogPaths()
 	prSuite, err := NewPRSuiteForPR(log, ghc, pr)
 	if err != nil {
@@ -431,10 +441,6 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 
 	prSuite.SetSubmissionMetadatafromFolderStructure()
 	prSuite.NewTestSuite(suite.PRSuiteOptions{Paths: godogFeaturePaths}).Run()
-	if prSuite.IsNotConformanceSubmission == true {
-		log.Println("This PR (%v) is not a conformance PR", int(prSuite.PR.Number))
-		return nil
-	}
 
 	finalComment, labels, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()
 	if err != nil {

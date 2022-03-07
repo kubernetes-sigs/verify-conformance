@@ -25,7 +25,6 @@ import (
 	"strconv"
 	"time"
 
-	// "cncf.io/infra/verify-conformance-release/plugin"
 	"cncf.io/infra/verify-conformance-release/pkg/plugin"
 
 	"github.com/sirupsen/logrus"

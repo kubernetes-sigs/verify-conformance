@@ -94,6 +94,25 @@ type JunitTestSuite struct {
 	TestSuite []JunitTestCase `xml:"testcase"`
 }
 
+type PRSuiteOptions struct {
+	Paths []string
+}
+
+type PRSuite struct {
+	PR                             *PullRequest
+	KubernetesReleaseVersion       string
+	KubernetesReleaseVersionLatest string
+	ProductName                    string
+	MissingFiles                   []string
+	MissingTests                   []string
+	E2eLogSuccess                  bool
+	E2eLogKubernetesReleaseVersion string
+
+	MetadataFolder string
+	Suite          godog.TestSuite
+	buffer         bytes.Buffer
+}
+
 func (s *PRSuite) GetRequiredTests() (tests map[string]bool, err error) {
 	versionSemver, err := semver.NewSemver(s.KubernetesReleaseVersion)
 	if err != nil {
@@ -204,26 +223,6 @@ func (s *PRSuite) DetermineE2eLogSucessful() (success bool, err error) {
 	return false, nil
 }
 
-type PRSuiteOptions struct {
-	Paths []string
-}
-
-type PRSuite struct {
-	PR                             *PullRequest
-	KubernetesReleaseVersion       string
-	KubernetesReleaseVersionLatest string
-	ProductName                    string
-	MissingFiles                   []string
-	MissingTests                   []string
-	E2eLogSuccess                  bool
-	E2eLogKubernetesReleaseVersion string
-	IsNotConformanceSubmission     bool
-
-	MetadataFolder string
-	Suite          godog.TestSuite
-	buffer         bytes.Buffer
-}
-
 func NewPRSuite(PR *PullRequest) *PRSuite {
 	return &PRSuite{
 		PR: PR,
@@ -252,17 +251,6 @@ func (s *PRSuite) SetMetadataFolder(path string) *PRSuite {
 	return s
 }
 
-func (s *PRSuite) aConformanceProductSubmissionPR() error {
-	if s.PR == nil {
-		return fmt.Errorf("unable to find retrieve PR information")
-	}
-	if strings.Contains(strings.ToLower(string(s.PR.Title)), "conformance") != true {
-		s.IsNotConformanceSubmission = true
-		return godog.ErrPending
-	}
-	return nil
-}
-
 func (s *PRSuite) thePRTitleIsNotEmpty() error {
 	if len(s.PR.Title) == 0 {
 		return fmt.Errorf("title is empty")
@@ -282,17 +270,6 @@ func (s *PRSuite) isIncludedInItsFileList(file string) error {
 
 func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 	pattern := regexp.MustCompile(match)
-
-	anyProductFoldersFound := false
-	for _, file := range s.PR.SupportingFiles {
-		if matches := pattern.MatchString(path.Dir(file.Name)); matches == true {
-			anyProductFoldersFound = true
-		}
-	}
-	if anyProductFoldersFound == false {
-		s.IsNotConformanceSubmission = true
-		return godog.ErrPending
-	}
 	failureError := fmt.Errorf("your product submission PR be in folders like [KubernetesReleaseVersion]/[ProductName], e.g: v1.23/averycooldistro")
 	for _, file := range s.PR.SupportingFiles {
 		if matches := pattern.MatchString(path.Dir(file.Name)); matches != true {
@@ -312,16 +289,12 @@ func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 }
 
 func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
-	if len(s.PR.SupportingFiles) == 0 {
-		return godog.ErrPending
-	}
 	paths := []string{}
 	for _, file := range s.PR.SupportingFiles {
 		filePath := path.Dir(file.Name)
 		if filePath == "." {
 			continue
 		}
-
 		foundInPaths := false
 		for _, p := range paths {
 			if p == filePath {
@@ -332,9 +305,8 @@ func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
 			paths = append(paths, filePath)
 		}
 	}
-
 	if len(paths) != 1 {
-		return fmt.Errorf("Will use '%v'. Please remove the following: '%v'", paths[0], strings.Join(paths[1:], ", "))
+		return fmt.Errorf("there should be a single set of products in the submission. We found %v. %v", len(paths), strings.Join(paths, ", "))
 	}
 
 	return nil
@@ -363,9 +335,6 @@ func (s *PRSuite) theFilesInThePR() error {
 }
 
 func (s *PRSuite) aFile(fileName string) error {
-	if s.ProductName == "" || s.KubernetesReleaseVersion == "" {
-		return godog.ErrPending
-	}
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
 		return fmt.Errorf("missing required file '%v'", fileName)
@@ -459,9 +428,6 @@ func (s *PRSuite) thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolder
 }
 
 func (s *PRSuite) aListOfLabelsInThePR() error {
-	if s.KubernetesReleaseVersion == "" {
-		return godog.ErrPending
-	}
 	if len(s.PR.Labels) == 0 {
 		return fmt.Errorf("there are no labels found")
 	}
@@ -535,7 +501,7 @@ func (s *PRSuite) theReleaseVersionMatchesTheReleaseVersionInTheTitle() error {
 
 func (s *PRSuite) theReleaseVersion() error {
 	if s.KubernetesReleaseVersion == "" {
-		return godog.ErrPending
+		return fmt.Errorf("unable to find a Kubernetes release version in the title")
 	}
 	return nil
 }
@@ -590,9 +556,6 @@ func (s *PRSuite) theTestsMustPassAndBeSuccessful() error {
 }
 
 func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, labels []string, err error) {
-	if s.IsNotConformanceSubmission == true {
-		return "", []string{}, nil
-	}
 	cukeFeatures := []types.CukeFeatureJSON{}
 	err = json.Unmarshal([]byte(s.buffer.String()), &cukeFeatures)
 	if err != nil {
@@ -647,6 +610,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 	}
 
 	finalComment := fmt.Sprintf("All requirements (%v) have passed for the submission!", len(uniquelyNamedStepsRun))
+	// TODO use prSuite.Labels
 	labels = []string{"conformance-product-submission"}
 	for _, f := range s.MissingFiles {
 		labels = append(labels, "missing-file-"+f)
@@ -681,7 +645,6 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 }
 
 func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
-	ctx.Step(`^a conformance product submission PR$`, s.aConformanceProductSubmissionPR)
 	ctx.Step(`^the PR title is not empty$`, s.thePRTitleIsNotEmpty)
 	ctx.Step(`^"([^"]*)" is included in its file list$`, s.isIncludedInItsFileList)
 	ctx.Step(`^the files in the PR`, s.theFilesInThePR)

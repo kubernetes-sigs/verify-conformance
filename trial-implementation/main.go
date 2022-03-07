@@ -22,12 +22,6 @@ func GetPRs() []suite.PullRequest {
 	return []suite.PullRequest{
 		{
 			PullRequestQuery: suite.PullRequestQuery{
-				Title:  "Update docs",
-				Number: 0,
-			},
-		},
-		{
-			PullRequestQuery: suite.PullRequestQuery{
 				Title:  "Conformance results for v1.23 Cool (passing but without labels yet)",
 				Number: 1,
 			},

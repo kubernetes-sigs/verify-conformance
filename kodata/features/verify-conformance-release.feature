@@ -1,9 +1,10 @@
-# Behaviour
+# verify-conformance-release
 
-Feature: A cool
+# The behaviour of the bot is described here, in [[https://cucumber.io/docs/gherkin/][Gherkin]].  Each scenario is a requirement a PR must meet to qualify for conformance.
 
-  Background:
-    Given a conformance product submission PR
+# Note: the line immediately beneath the scenario is the comment posted to the PR if the requirement is not met.
+
+Feature: verify conformance product submission PR
 
   Scenario: PR title is not empty
     it seems that there is no title set
@@ -32,7 +33,7 @@ Feature: A cool
     Then file folder structure matches "(v1.[0-9]{2})/(.*)"
     # $1 is the release version of Kubernetes
     # $2 is the product name
-    # example: v1.23/coolthing/some.file
+    # example: v1.23/coolthing
 
   Scenario: submission is only one product
     the submission seems to contain files of multiple Kubernetes release versions or products. Each Kubernetes release version and products should be submitted in a separate PRs

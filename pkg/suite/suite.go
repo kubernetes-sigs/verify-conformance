@@ -661,9 +661,6 @@ func (s *PRSuite) theTestsMatch() error {
 	if err != nil {
 		return err
 	}
-	if len(junitTests) != len(e2eTests) {
-		return fmt.Errorf("the amount of tests in e2e.log (%v) doesn't match the amount of tests in junit_01.xml (%v)", len(junitTests), len(e2eTests))
-	}
 	missingTests := []string{}
 	for _, e2eTest := range e2eTests {
 		foundInJunitTests := false
@@ -677,7 +674,10 @@ func (s *PRSuite) theTestsMatch() error {
 		}
 	}
 	if len(missingTests) > 0 {
-		return fmt.Errorf("there appears to be %v tests in e2e.log that aren't in junit_01.xml: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - "))
+		return fmt.Errorf("there appears to be %v test(s) in e2e.log that are skipped or missing from junit_01.xml: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - "))
+	}
+	if len(junitTests) != len(e2eTests) {
+		return fmt.Errorf("the amount of tests in e2e.log (%v) doesn't match the amount of tests in junit_01.xml (%v)", len(junitTests), len(e2eTests))
 	}
 	return nil
 }

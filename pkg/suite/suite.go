@@ -541,8 +541,9 @@ func (s *PRSuite) theTestsMustPassAndBeSuccessful() error {
 	if success == false {
 		s.Labels = append(s.Labels, "evidence-missing")
 		return fmt.Errorf("it appears that there failures in the e2e.log")
+	} else {
+		s.Labels = append(s.Labels, "no-failed-tests-"+s.KubernetesReleaseVersion)
 	}
-	s.Labels = append(s.Labels, "tests-verified-"+s.KubernetesReleaseVersion, "no-failed-tests-"+s.KubernetesReleaseVersion)
 	missingTests, err := s.GetMissingTestsFromPRSuite()
 	if err != nil {
 		return err
@@ -551,6 +552,8 @@ func (s *PRSuite) theTestsMustPassAndBeSuccessful() error {
 		s.Labels = append(s.Labels, "required-tests-missing")
 		sort.Strings(missingTests)
 		return fmt.Errorf("the following test(s) are missing: \n    - %v", strings.Join(missingTests, "\n    - "))
+	} else {
+		s.Labels = append(s.Labels, "tests-verified-"+s.KubernetesReleaseVersion)
 	}
 	return nil
 }

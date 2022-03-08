@@ -15,9 +15,8 @@ Feature: verify conformance product submission PR
   Scenario: submission contains all required files
     there seems to be some required files missing (https://github.com/cncf/k8s-conformance/blob/master/instructions.md#contents-of-the-pr)
 
-    Given a conformance product submission PR
-    Then <file> is included in its file list
-    And <file> is not empty
+    Given <file> is included in its file list
+    Then <file> is not empty
 
     Examples:
       | file           |

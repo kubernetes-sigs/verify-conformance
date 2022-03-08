@@ -274,17 +274,18 @@ func (s *PRSuite) thePRTitleIsNotEmpty() error {
 	return nil
 }
 
-func (s *PRSuite) isIncludedInItsFileList(file string) error {
+func (s *PRSuite) isIncludedInItsFileList(fileName string) error {
 	foundFile := false
 	for _, f := range s.PR.SupportingFiles {
-		if strings.ToLower(f.BaseName) == strings.ToLower(file) {
+		if strings.ToLower(f.BaseName) == strings.ToLower(fileName) {
 			foundFile = true
 			break
 		}
 	}
-	if foundFile != true {
-		s.Labels = append(s.Labels, "missing-file-"+file)
-		return fmt.Errorf("missing file '%v'", file)
+	if foundFile == false {
+		s.Labels = append(s.Labels, "missing-file-"+fileName)
+		s.MissingFiles = append(s.MissingFiles, fileName)
+		return fmt.Errorf("missing file '%v'", fileName)
 	}
 	return nil
 }

@@ -236,7 +236,7 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 	for _, f := range productYAMLRequiredFieldDateTypes {
 		uri := productYAML[f.Field]
 		if uri == "" {
-			log.Println("field '%v' is empty in PRODUCT.yaml, not resolving URL", f.Field)
+			log.Printf("field '%v' is empty in PRODUCT.yaml, not resolving URL\n", f.Field)
 			continue
 		}
 		u, err := url.Parse(uri)
@@ -434,7 +434,7 @@ func isConformancePR(pr *suite.PullRequestQuery) bool {
 // Adds a comment to indicate whether or not the version in the PR title occurs in the supplied logs.
 func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) error {
 	if !isConformancePR(pr) {
-		log.Println("This PR (%v) is not a conformance PR", int(pr.Number))
+		log.Printf("This PR (%v) is not a conformance PR\n", int(pr.Number))
 		return nil
 	}
 
@@ -452,7 +452,7 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 		return err
 	}
 	if finalComment == "" && len(labels) == 0 {
-		log.Println("There is nothing to comment on PR (%v)", int(prSuite.PR.Number))
+		log.Printf("There is nothing new to comment on PR (%v)\n", int(prSuite.PR.Number))
 		return nil
 	}
 

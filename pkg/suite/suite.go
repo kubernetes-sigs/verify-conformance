@@ -325,7 +325,6 @@ func (s *PRSuite) thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolder
 		return err
 	}
 	releaseVersionSegements := releaseVersion.Segments()
-	fmt.Println("e2elog version", s.E2eLogKubernetesReleaseVersion, s.KubernetesReleaseVersion)
 	if !(e2elogVersionSegments[0] == releaseVersionSegements[0] ||
 		e2elogVersionSegments[1] == releaseVersionSegements[1]) {
 		return fmt.Errorf("the Kubernetes release version in file 'e2e.log' (%v) doesn't match the same version in the folder structure (%v)", s.E2eLogKubernetesReleaseVersion, s.KubernetesReleaseVersion)

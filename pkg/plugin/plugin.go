@@ -294,6 +294,9 @@ func labelIsVersionLabel(label, version string) bool {
 
 func labelIsFileLabel(label string, missingFiles []string) bool {
 	for _, ml := range managedPRLabelTemplatesWithFileName {
+		if strings.Contains(label, strings.ReplaceAll(ml, "%v", "")) == true {
+			return true
+		}
 		for _, f := range missingFiles {
 			if fmt.Sprintf(ml, f) == label {
 				return true

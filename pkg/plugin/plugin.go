@@ -23,6 +23,8 @@ import (
 	"cncf.io/infra/verify-conformance-release/pkg/suite"
 )
 
+// TODO ensure that templated labels can be removed
+
 const (
 	PluginName = "verify-conformance-release"
 )

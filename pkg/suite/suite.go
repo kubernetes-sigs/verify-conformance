@@ -21,6 +21,8 @@ import (
 	"cncf.io/infra/verify-conformance-release/pkg/common"
 )
 
+// TODO ensure file checking
+
 var (
 	lastSupportingVersions = 3
 )

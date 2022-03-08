@@ -9,6 +9,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/cucumber/godog"
@@ -149,7 +150,7 @@ func (s *PRSuite) GetRequiredTests() (tests map[string]bool, err error) {
 	return tests, nil
 }
 
-func (s *PRSuite) GetSubmittedConformanceTests() (tests []string, err error) {
+func (s *PRSuite) GetJunitSubmittedConformanceTests() (tests []string, err error) {
 	file := s.GetFileByFileName("junit_01.xml")
 	if file == nil {
 		return []string{}, fmt.Errorf("unable to find file junit_01.xml")
@@ -175,12 +176,12 @@ func (s *PRSuite) GetSubmittedConformanceTests() (tests []string, err error) {
 	return tests, nil
 }
 
-func (s *PRSuite) GetMissingTestsFromPRSuite() (missingTests []string, err error) {
+func (s *PRSuite) GetMissingJunitTestsFromPRSuite() (missingTests []string, err error) {
 	requiredTests, err := s.GetRequiredTests()
 	if err != nil {
 		return []string{}, err
 	}
-	submittedTests, err := s.GetSubmittedConformanceTests()
+	submittedTests, err := s.GetJunitSubmittedConformanceTests()
 	if err != nil {
 		return []string{}, err
 	}
@@ -201,10 +202,10 @@ func (s *PRSuite) GetMissingTestsFromPRSuite() (missingTests []string, err error
 	return missingTests, nil
 }
 
-func (s *PRSuite) DetermineE2eLogSucessful() (success bool, err error) {
+func (s *PRSuite) DetermineE2eLogSucessful() (success bool, passed int, err error) {
 	file := s.GetFileByFileName("e2e.log")
 	if file == nil {
-		return false, fmt.Errorf("unable to find file e2e.log")
+		return false, 0, fmt.Errorf("unable to find file e2e.log")
 	}
 	fileLines := strings.Split(file.Contents, "\n")
 	lastLinesAmount := len(fileLines) - 10
@@ -212,13 +213,27 @@ func (s *PRSuite) DetermineE2eLogSucessful() (success bool, err error) {
 		lastLinesAmount = len(fileLines)
 	}
 	fileLast10Lines := fileLines[lastLinesAmount:]
-	patternComplete := regexp.MustCompile(`^SUCCESS! -- [1-9][0-9]+ Passed \| 0 Failed \| 0 Pending \| [0-9]+ Skipped$`)
+	patternComplete := regexp.MustCompile(`^SUCCESS! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
+	matchingLine := ""
 	for _, line := range fileLast10Lines {
 		if patternComplete.MatchString(line) == true {
-			return true, nil
+			matchingLine = line
 		}
 	}
-	return false, nil
+	if matchingLine == "" {
+		return false, 0, fmt.Errorf("unable to determine test results (passed, failed, pending, skipped) from e2e.log")
+	}
+	allIndexes := patternComplete.FindAllSubmatchIndex([]byte(matchingLine), -1)
+	for _, loc := range allIndexes {
+		passed, err = strconv.Atoi(matchingLine[loc[2]:loc[3]])
+		if err != nil {
+			return false, 0, fmt.Errorf("failed to parse successful tests")
+		}
+		// failed := string(file.Name[loc[4]:loc[5]])
+		// pending := string(file.Name[loc[6]:loc[7]])
+		// skipped := string(file.Name[loc[8]:loc[9]])
+	}
+	return true, passed, nil
 }
 
 func NewPRSuite(PR *PullRequest) *PRSuite {
@@ -258,13 +273,18 @@ func (s *PRSuite) thePRTitleIsNotEmpty() error {
 }
 
 func (s *PRSuite) isIncludedInItsFileList(file string) error {
+	foundFile := false
 	for _, f := range s.PR.SupportingFiles {
 		if strings.ToLower(f.BaseName) == strings.ToLower(file) {
-			return nil
+			foundFile = true
+			break
 		}
 	}
-	s.Labels = append(s.Labels, "missing-file-"+file)
-	return fmt.Errorf("missing file '%v'", file)
+	if foundFile != true {
+		s.Labels = append(s.Labels, "missing-file-"+file)
+		return fmt.Errorf("missing file '%v'", file)
+	}
+	return nil
 }
 
 func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
@@ -533,18 +553,8 @@ func (s *PRSuite) itIsAValidAndSupportedRelease() error {
 	return nil
 }
 
-func (s *PRSuite) theTestsMustPassAndBeSuccessful() error {
-	success, err := s.DetermineE2eLogSucessful()
-	if err != nil {
-		return err
-	}
-	if success == false {
-		s.Labels = append(s.Labels, "evidence-missing")
-		return fmt.Errorf("it appears that there failures in the e2e.log")
-	} else {
-		s.Labels = append(s.Labels, "no-failed-tests-"+s.KubernetesReleaseVersion)
-	}
-	missingTests, err := s.GetMissingTestsFromPRSuite()
+func (s *PRSuite) allRequiredTestsInJunitXmlArePresent() error {
+	missingTests, err := s.GetMissingJunitTestsFromPRSuite()
 	if err != nil {
 		return err
 	}
@@ -552,8 +562,119 @@ func (s *PRSuite) theTestsMustPassAndBeSuccessful() error {
 		s.Labels = append(s.Labels, "required-tests-missing")
 		sort.Strings(missingTests)
 		return fmt.Errorf("the following test(s) are missing: \n    - %v", strings.Join(missingTests, "\n    - "))
-	} else {
-		s.Labels = append(s.Labels, "tests-verified-"+s.KubernetesReleaseVersion)
+	}
+	s.Labels = append(s.Labels, "tests-verified-"+s.KubernetesReleaseVersion)
+	return nil
+}
+
+type E2eLogTestPass struct {
+	Message   string `json:"msg"`
+	Total     int    `json:"total"`
+	Completed int    `json:"completed"`
+	Skipped   int    `json:"skipped"`
+	Failed    int    `json:"failed"`
+}
+
+func (s *PRSuite) collectPassedTestsFromE2elog() (tests []string, err error) {
+	file := s.GetFileByFileName("e2e.log")
+	if file == nil {
+		return []string{}, fmt.Errorf("unable to find file e2e.log")
+	}
+	fileLines := strings.Split(file.Contents, "\n")
+	for _, line := range fileLines {
+		if strings.Contains(line, "msg") == false {
+			continue
+		}
+		line = strings.ReplaceAll(line, "•", "")
+		var e2eLogTestPass E2eLogTestPass
+		err = json.Unmarshal([]byte(line), &e2eLogTestPass)
+		if err != nil {
+			continue
+		}
+		if !(strings.Contains(e2eLogTestPass.Message, "PASSED") == true ||
+			strings.Contains(e2eLogTestPass.Message, "[Conformance]") == true) {
+			continue
+		}
+		tests = append(tests, strings.ReplaceAll(e2eLogTestPass.Message, "PASSED ", ""))
+	}
+	return tests, nil
+}
+
+func (s *PRSuite) theTestsPassAndAreSuccessful() error {
+	success, passed, err := s.DetermineE2eLogSucessful()
+	if err != nil {
+		return err
+	}
+	if success == false {
+		s.Labels = append(s.Labels, "evidence-missing")
+		return fmt.Errorf("it appears that there failures in the e2e.log")
+	}
+	tests, err := s.collectPassedTestsFromE2elog()
+	if err != nil {
+		return err
+	}
+	if passed != len(tests) {
+		return fmt.Errorf("it appears that the amount of tests in e2e.log (%v) don't match the amount of tests passed (%v)", passed, len(tests))
+	}
+	s.Labels = append(s.Labels, "no-failed-tests-"+s.KubernetesReleaseVersion)
+	return nil
+}
+
+func (s *PRSuite) allRequiredTestsInE2eLogArePresent() error {
+	e2etests, err := s.collectPassedTestsFromE2elog()
+	if err != nil {
+		return err
+	}
+	requiredTests, err := s.GetRequiredTests()
+	if err != nil {
+		return err
+	}
+
+	for _, submittedTest := range e2etests {
+		if _, found := requiredTests[submittedTest]; found != true {
+			continue
+		}
+		requiredTests[submittedTest] = true
+	}
+	missingTests := []string{}
+	for test, found := range requiredTests {
+		if found == true {
+			continue
+		}
+		missingTests = append(missingTests, test)
+	}
+	if len(missingTests) > 0 {
+		return fmt.Errorf("there appears to be %v tests missing from e2e.log: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - "))
+	}
+	return nil
+}
+
+func (s *PRSuite) theTestsMatch() error {
+	e2eTests, err := s.collectPassedTestsFromE2elog()
+	if err != nil {
+		return err
+	}
+	junitTests, err := s.GetJunitSubmittedConformanceTests()
+	if err != nil {
+		return err
+	}
+	if len(junitTests) != len(e2eTests) {
+		return fmt.Errorf("the amount of tests in e2e.log (%v) doesn't match the amount of tests in junit_01.xml (%v)", len(junitTests), len(e2eTests))
+	}
+	missingTests := []string{}
+	for _, e2eTest := range e2eTests {
+		foundInJunitTests := false
+		for _, junitTest := range junitTests {
+			if e2eTest == junitTest {
+				foundInJunitTests = true
+			}
+		}
+		if foundInJunitTests != true {
+			missingTests = append(missingTests, e2eTest)
+		}
+	}
+	if len(missingTests) > 0 {
+		return fmt.Errorf("there appears to be %v tests in e2e.log that aren't in junit_01.xml: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - "))
 	}
 	return nil
 }
@@ -643,7 +764,7 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the title of the PR$`, s.theTitleOfThePR)
 	ctx.Step(`^the title of the PR matches "([^"]*)"$`, s.theTitleOfThePRMatches)
 	ctx.Step(`^the yaml file "([^"]*)" contains the required and non-empty "([^"]*)"$`, s.theYamlFileContainsTheRequiredAndNonEmptyField)
-	ctx.Step(`^a "([^"]*)" file$`, s.aFile)
+	ctx.Step(`^a[n]? "([^"]*)" file$`, s.aFile)
 	ctx.Step(`^"([^"]*)" is not empty$`, s.isNotEmpty)
 	ctx.Step(`^a line of the file "([^"]*)" matches "([^"]*)"$`, s.aLineOfTheFileMatches)
 	ctx.Step(`^a list of labels in the PR$`, s.aListOfLabelsInThePR)
@@ -653,6 +774,9 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the release version matches the release version in the title$`, s.theReleaseVersionMatchesTheReleaseVersionInTheTitle)
 	ctx.Step(`^the release version$`, s.theReleaseVersion)
 	ctx.Step(`^it is a valid and supported release$`, s.itIsAValidAndSupportedRelease)
-	ctx.Step(`^the tests must pass and be successful$`, s.theTestsMustPassAndBeSuccessful)
+	ctx.Step(`^the tests pass and are successful$`, s.theTestsPassAndAreSuccessful)
 	ctx.Step(`^that version matches the same Kubernetes release version as in the folder structure$`, s.thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolderStructure)
+	ctx.Step(`^all required tests in junit_01.xml are present$`, s.allRequiredTestsInJunitXmlArePresent)
+	ctx.Step(`^all required tests in e2e.log are present$`, s.allRequiredTestsInE2eLogArePresent)
+	ctx.Step(`^the tests match$`, s.theTestsMatch)
 }

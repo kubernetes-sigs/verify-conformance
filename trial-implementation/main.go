@@ -427,14 +427,14 @@ func main() {
 		fmt.Println("Labels:", strings.Join(labels, ", "))
 		fmt.Println(finalComment)
 
-		tests, err := prSuite.GetMissingTestsFromPRSuite()
+		tests, err := prSuite.GetMissingJunitTestsFromPRSuite()
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
 		fmt.Printf("missing tests: %#v\n", tests)
 
-		success, err := prSuite.DetermineE2eLogSucessful()
+		success, _, err := prSuite.DetermineE2eLogSucessful()
 		if err != nil {
 			fmt.Println(err)
 			continue

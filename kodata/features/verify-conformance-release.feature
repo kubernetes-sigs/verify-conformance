@@ -80,7 +80,7 @@ Feature: verify conformance product submission PR
   Scenario: the e2e.log output contains the Kubernetes release version
     it seems the e2e.log does not contain the Kubernetes release version that match the submission title
 
-    Given a "e2e.log" file
+    Given an "e2e.log" file
     Then a line of the file "e2e.log" matches "^.*e2e test version: (v1.[0-9]{2}(.[0-9]{1,2})?)$"
     And that version matches the same Kubernetes release version as in the folder structure
     # $1 is the release version of Kubernetes
@@ -94,9 +94,22 @@ Feature: verify conformance product submission PR
     And the files in the PR
     Then it is a valid and supported release
 
-  Scenario: all required conformance tests in the junit_01 and e2e.log pass and are successful
-    it appears that some tests in the product submission appear to not pass
+  Scenario: all required conformance tests in the junit_01.xml are present
+    it appears that some tests are missing from the product submission
 
-    Given a "e2e.log" file
+    Given a "junit_01.xml" file
+    Then all required tests in junit_01.xml are present
+
+  Scenario: all tests pass in e2e.log
+    it appears that some tests failed in the product submission
+
+    Given an "e2e.log" file
+    Then the tests pass and are successful
+    And all required tests in e2e.log are present
+
+  Scenario: the tests in junit_01.xml and e2e.log match
+    it appears that there is a mismatch of tests in junit_01.xml and e2e.log
+
+    Given an "e2e.log" file
     And a "junit_01.xml" file
-    Then the tests must pass and be successful
+    Then the tests match

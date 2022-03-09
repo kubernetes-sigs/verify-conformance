@@ -561,9 +561,9 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		orgs = append(orgs, org)
 		fmt.Fprintf(&queryOpenPRs, " repo:\"%s\"", repo)
 	}
-	for _, org := range orgs {
-		fmt.Fprintf(&queryOpenPRs, " org:\"%s\"", org)
-	}
+	// for _, org := range orgs {
+	// 	fmt.Fprintf(&queryOpenPRs, " org:\"%s\"", org)
+	// }
 
 	prs := []suite.PullRequestQuery{}
 	for _, org := range orgs {

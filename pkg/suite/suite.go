@@ -748,7 +748,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 				finalComment += "\n  - " + h
 			}
 		}
-		finalComment += "\n\n for a full list of requirements, please refer to the [_content of the PR_ section of the docs](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#contents-of-the-pr)."
+		finalComment += "\n\n for a full list of requirements, please refer to these sections of the docs: [_content of the PR_](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#contents-of-the-pr), and [_requirements_](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#requirements)."
 		s.Labels = append(s.Labels, "not-verifiable")
 	} else {
 		s.Labels = append(s.Labels, "release-documents-checked")

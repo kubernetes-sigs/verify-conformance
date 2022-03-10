@@ -257,7 +257,7 @@ func (s *PRSuite) GetFileByFileName(fileName string) *PullRequestFile {
 	return nil
 }
 
-func (s *PRSuite) theYamlFileContainsTheRequiredAndNonEmptyFieldWhereNotOptional(fileName, fieldName, optional string) error {
+func (s *PRSuite) theYamlFileContainsTheRequiredAndNonEmptyField(fileName, fieldName string) error {
 	var parsedContent map[string]*interface{}
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
@@ -267,7 +267,7 @@ func (s *PRSuite) theYamlFileContainsTheRequiredAndNonEmptyFieldWhereNotOptional
 	if err != nil {
 		return fmt.Errorf("unable to read file '%v'", fileName)
 	}
-	if parsedContent[fieldName] == nil && optional == "false" {
+	if parsedContent[fieldName] == nil {
 		return fmt.Errorf("missing or empty field '%v' in file '%v'", fieldName, fileName)
 	}
 	return nil
@@ -353,11 +353,8 @@ func (s *PRSuite) theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShoul
 	return nil
 }
 
-func (s *PRSuite) ifIsSetToUrlTheContentOfTheUrlInTheValueOfMatchesItsWhereNot(contentType, field, dataType, optional string) error {
-	if contentType != "url" {
-		return nil
-	}
-	if s.PR.ProductYAMLURLDataTypes[field] == "" && optional == "true" {
+func (s *PRSuite) theContentOfTheUrlInTheValueOfMatches(field, dataType string) error {
+	if s.PR.ProductYAMLURLDataTypes[field] == "" {
 		return nil
 	}
 	foundDataType := false
@@ -768,13 +765,13 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^file folder structure matches "([^"]*)"$`, s.fileFolderStructureMatchesRegex)
 	ctx.Step(`^the title of the PR$`, s.theTitleOfThePR)
 	ctx.Step(`^the title of the PR matches "([^"]*)"$`, s.theTitleOfThePRMatches)
-	ctx.Step(`^the yaml file "([^"]*)" contains the required and non-empty "([^"]*)" where not "([^"]*)"$`, s.theYamlFileContainsTheRequiredAndNonEmptyFieldWhereNotOptional)
 	ctx.Step(`^a[n]? "([^"]*)" file$`, s.aFile)
 	ctx.Step(`^"([^"]*)" is not empty$`, s.isNotEmpty)
 	ctx.Step(`^a line of the file "([^"]*)" matches "([^"]*)"$`, s.aLineOfTheFileMatches)
 	ctx.Step(`^a list of labels in the PR$`, s.aListOfLabelsInThePR)
 	ctx.Step(`^the label prefixed with "([^"]*)" and ending with Kubernetes release version should be present$`, s.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent)
-	ctx.Step(`^if "([^"]*)" is set to url, the content of the url in the value of "([^"]*)" matches it\'s "([^"]*)" where not "([^"]*)"$`, s.ifIsSetToUrlTheContentOfTheUrlInTheValueOfMatchesItsWhereNot)
+	ctx.Step(`^the yaml file "([^"]*)" contains the required and non-empty "([^"]*)"$`, s.theYamlFileContainsTheRequiredAndNonEmptyField)
+	ctx.Step(`^the content of the url in the value of "([^"]*)" matches it\'s "([^"]*)"$`, s.theContentOfTheUrlInTheValueOfMatches)
 	ctx.Step(`^there is only one path of folders$`, s.thereIsOnlyOnePathOfFolders)
 	ctx.Step(`^the release version matches the release version in the title$`, s.theReleaseVersionMatchesTheReleaseVersionInTheTitle)
 	ctx.Step(`^the release version$`, s.theReleaseVersion)

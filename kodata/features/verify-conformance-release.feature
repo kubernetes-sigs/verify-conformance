@@ -47,24 +47,34 @@ Feature: verify conformance product submission PR
     And the title of the PR
     Then the release version matches the release version in the title
 
-  Scenario: the PRODUCT.yaml metadata contains required fields
+  Scenario: the PRODUCT.yaml metadata contains all required fields
     it appears that the PRODUCT.yaml file does not contain all the required fields (https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml)
 
     Given a "PRODUCT.yaml" file
-    Then the yaml file "PRODUCT.yaml" contains the required and non-empty <field> where not <optional>
-    And if <contentType> is set to url, the content of the url in the value of <field> matches it's <dataType> where not <optional>
+    Then the yaml file "PRODUCT.yaml" contains the required and non-empty <field>
 
     Examples:
-      | field               | contentType | dataType                           | optional |
-      | "vendor"            | "info"      | "string"                           | "false"  |
-      | "name"              | "info"      | "string"                           | "false"  |
-      | "version"           | "info"      | "string"                           | "false"  |
-      | "type"              | "info"      | "string"                           | "false"  |
-      | "description"       | "info"      | "string"                           | "false"  |
-      | "website_url"       | "url"       | "text/html"                        | "false"  |
-      | "repo_url"          | "url"       | "text/html"                        | "true"   |
-      | "documentation_url" | "url"       | "text/html"                        | "false"  |
-      | "product_logo_url"  | "url"       | "image/svg application/postscript" | "true"   |
+      | field               |
+      | "vendor"            |
+      | "name"              |
+      | "version"           |
+      | "type"              |
+      | "description"       |
+      | "website_url"       |
+      | "documentation_url" |
+
+  Scenario: the URL fields in the PRODUCT.yaml resolve to their specified data types
+    it appears that the PRODUCT.yaml file does not contain all the required fields (https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml)
+
+    Given a "PRODUCT.yaml" file
+    Then the content of the url in the value of <field> matches it's <dataType>
+
+    Examples:
+      | field               | dataType                           |
+      | "website_url"       | "text/html"                        |
+      | "repo_url"          | "text/html"                        |
+      | "documentation_url" | "text/html"                        |
+      | "product_logo_url"  | "image/svg application/postscript" |
 
   Scenario: title of product submission contains Kubernetes release version and product name
     the submission title is missing either a Kubernetes release version (v1.xx) or product name

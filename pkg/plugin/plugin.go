@@ -381,7 +381,7 @@ func updateComments(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQu
 		}
 		botComments = append(botComments, c)
 	}
-	if len(comments) > 0 {
+	if len(botComments) > 0 {
 		if botComments[len(botComments)-1].Body == comment {
 			log.Printf("warning: nothing new to add in PR (%v)\n", int(pr.Number))
 			return nil

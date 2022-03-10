@@ -51,20 +51,20 @@ Feature: verify conformance product submission PR
     it appears that the PRODUCT.yaml file does not contain all the required fields (https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml)
 
     Given a "PRODUCT.yaml" file
-    Then the yaml file "PRODUCT.yaml" contains the required and non-empty <field>
-    And if <contentType> is set to url, the content of the url in the value of <field> matches it's <dataType>
+    Then the yaml file "PRODUCT.yaml" contains the required and non-empty <field> where not <optional>
+    And if <contentType> is set to url, the content of the url in the value of <field> matches it's <dataType> where not <optional>
 
     Examples:
-      | field               | contentType | dataType                           |
-      | "vendor"            | "info"      | "string"                           |
-      | "name"              | "info"      | "string"                           |
-      | "version"           | "info"      | "string"                           |
-      | "type"              | "info"      | "string"                           |
-      | "description"       | "info"      | "string"                           |
-      | "website_url"       | "url"       | "text/html"                        |
-      | "repo_url"          | "url"       | "text/html"                        |
-      | "documentation_url" | "url"       | "text/html"                        |
-      | "product_logo_url"  | "url"       | "image/svg application/postscript" |
+      | field               | contentType | dataType                           | optional |
+      | "vendor"            | "info"      | "string"                           | "false"  |
+      | "name"              | "info"      | "string"                           | "false"  |
+      | "version"           | "info"      | "string"                           | "false"  |
+      | "type"              | "info"      | "string"                           | "false"  |
+      | "description"       | "info"      | "string"                           | "false"  |
+      | "website_url"       | "url"       | "text/html"                        | "false"  |
+      | "repo_url"          | "url"       | "text/html"                        | "true"   |
+      | "documentation_url" | "url"       | "text/html"                        | "false"  |
+      | "product_logo_url"  | "url"       | "image/svg application/postscript" | "true"   |
 
   Scenario: title of product submission contains Kubernetes release version and product name
     the submission title is missing either a Kubernetes release version (v1.xx) or product name

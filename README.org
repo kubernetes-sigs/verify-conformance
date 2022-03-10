@@ -64,7 +64,7 @@ Feature: verify conformance product submission PR
       | "documentation_url" |
 
   Scenario: the URL fields in the PRODUCT.yaml resolve to their specified data types
-    it appears that the PRODUCT.yaml file does not contain all the required fields (https://github.com/cncf/k8s-conformance/blob/master/instructions.md#productyaml)
+    it appears that URL(s) in the PRODUCT.yaml don't resolve to the correct data type
 
     Given a "PRODUCT.yaml" file
     Then the content of the url in the value of <field> matches it's <dataType>

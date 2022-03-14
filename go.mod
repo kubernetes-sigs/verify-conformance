@@ -5,6 +5,7 @@ go 1.17
 replace (
 	cloud.google.com/go => cloud.google.com/go v0.100.2
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v14.2.0+incompatible
+	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/golang/lint => golang.org/x/lint v0.0.0-20190301231843-5614ed5bae6f
 	golang.org/x/lint => golang.org/x/lint v0.0.0-20190409202823-959b441ac422
 	k8s.io/api => k8s.io/api v0.23.4
@@ -17,9 +18,11 @@ replace (
 
 require (
 	github.com/cucumber/godog v0.12.4
+	github.com/hashicorp/go-version v1.4.0
 	github.com/shurcooL/githubv4 v0.0.0-20210725200734-83ba7b4c9228
 	github.com/sirupsen/logrus v1.8.1
 	k8s.io/test-infra v0.0.0-20220221213801-8b6a2593f334
+	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
@@ -78,7 +81,6 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.0 // indirect
 	github.com/hashicorp/go-memdb v1.3.0 // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.6 // indirect
-	github.com/hashicorp/go-version v1.4.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
@@ -132,5 +134,4 @@ require (
 	sigs.k8s.io/controller-runtime v0.10.3 // indirect
 	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
-	sigs.k8s.io/yaml v1.3.0 // indirect
 )

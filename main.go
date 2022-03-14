@@ -89,9 +89,6 @@ func main() {
 	if o.github.TokenPath != "" {
 		secrets = append(secrets, o.github.TokenPath)
 	}
-	if o.github.AppID != "" {
-		secrets = append(secrets, o.github.AppID)
-	}
 	if o.github.AppPrivateKeyPath != "" {
 		secrets = append(secrets, o.github.AppPrivateKeyPath)
 	}

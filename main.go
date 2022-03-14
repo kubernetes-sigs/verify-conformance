@@ -85,7 +85,21 @@ func main() {
 	logrus.SetLevel(logrus.InfoLevel)
 	log := logrus.StandardLogger().WithField("plugin", "verify-conformance-release")
 
-	if err := secret.Add(o.github.TokenPath, o.webhookSecretFile); err != nil {
+	secrets := []string{}
+	if o.github.TokenPath != "" {
+		secrets = append(secrets, o.github.TokenPath)
+	}
+	if o.github.AppID != "" {
+		secrets = append(secrets, o.github.AppID)
+	}
+	if o.github.AppPrivateKeyPath != "" {
+		secrets = append(secrets, o.github.AppPrivateKeyPath)
+	}
+	if o.webhookSecretFile != "" {
+		secrets = append(secrets, o.webhookSecretFile)
+	}
+	log.Println("secrets: %v", secrets)
+	if err := secret.Add(secrets...); err != nil {
 		logrus.WithError(err).Fatal("Error starting test-infra/prow/config/secret agent.")
 	}
 

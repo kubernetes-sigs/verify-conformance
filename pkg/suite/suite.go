@@ -24,7 +24,7 @@ import (
 // TODO ensure file checking
 
 var (
-	lastSupportingVersions = 3
+	lastSupportingVersions = 2
 )
 
 type ResultPrepare struct {

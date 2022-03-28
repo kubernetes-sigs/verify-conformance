@@ -1,3 +1,4 @@
+defaultBaseImage: ghcr.io/cncf-infra/prow-config/base-image
 builds:
   - id: verify-conformance-release
     dir: .

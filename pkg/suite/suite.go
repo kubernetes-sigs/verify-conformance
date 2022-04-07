@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -353,6 +354,27 @@ func (s *PRSuite) theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShoul
 	return nil
 }
 
+func (s *PRSuite) theContentOfTheUrlInTheValueOfIsAValidURL(field string) error {
+	if s.PR.ProductYAMLURLDataTypes[field] == "" {
+		return nil
+	}
+	fileName := "PRODUCT.yaml"
+	var parsedContent map[string]string
+	file := s.GetFileByFileName(fileName)
+	if file == nil {
+		return fmt.Errorf("missing required file '%v'", fileName)
+	}
+	err := yaml.Unmarshal([]byte(file.Contents), &parsedContent)
+	if err != nil {
+		return fmt.Errorf("unable to read file '%v'", fileName)
+	}
+	_, err = url.ParseRequestURI(parsedContent[field])
+	if err != nil {
+		return fmt.Errorf("URL for field '%v' in PRODUCT.yaml is not a valid URL, %v", field, err)
+	}
+	return nil
+}
+
 func (s *PRSuite) theContentOfTheUrlInTheValueOfMatches(field, dataType string) error {
 	if s.PR.ProductYAMLURLDataTypes[field] == "" {
 		return nil
@@ -681,6 +703,10 @@ func (s *PRSuite) theTestsMatch() error {
 	return nil
 }
 
+func aPRTitle() error {
+	return godog.ErrPending
+}
+
 func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, labels []string, err error) {
 	cukeFeatures := []types.CukeFeatureJSON{}
 	err = json.Unmarshal([]byte(s.buffer.String()), &cukeFeatures)
@@ -771,6 +797,7 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a list of labels in the PR$`, s.aListOfLabelsInThePR)
 	ctx.Step(`^the label prefixed with "([^"]*)" and ending with Kubernetes release version should be present$`, s.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent)
 	ctx.Step(`^the yaml file "([^"]*)" contains the required and non-empty "([^"]*)"$`, s.theYamlFileContainsTheRequiredAndNonEmptyField)
+	ctx.Step(`^the content of the url in the value of "([^"]*)" is a valid URL$`, s.theContentOfTheUrlInTheValueOfIsAValidURL)
 	ctx.Step(`^the content of the url in the value of "([^"]*)" matches it\'s "([^"]*)"$`, s.theContentOfTheUrlInTheValueOfMatches)
 	ctx.Step(`^there is only one path of folders$`, s.thereIsOnlyOnePathOfFolders)
 	ctx.Step(`^the release version matches the release version in the title$`, s.theReleaseVersionMatchesTheReleaseVersionInTheTitle)
@@ -781,4 +808,5 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^all required tests in junit_01.xml are present$`, s.allRequiredTestsInJunitXmlArePresent)
 	ctx.Step(`^all required tests in e2e.log are present$`, s.allRequiredTestsInE2eLogArePresent)
 	ctx.Step(`^the tests match$`, s.theTestsMatch)
+	ctx.Step(`^a PR title$`, aPRTitle)
 }

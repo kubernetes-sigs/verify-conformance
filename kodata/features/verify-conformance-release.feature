@@ -63,6 +63,19 @@ Feature: verify conformance product submission PR
       | "website_url"       |
       | "documentation_url" |
 
+  Scenario: the URL fields in the PRODUCT.yaml are valid URLs
+    it appears that URL(s) in the PRODUCT.yaml aren't correctly formatted URLs
+
+    Given a "PRODUCT.yaml" file
+    Then the content of the url in the value of <field> is a valid URL
+
+    Examples:
+      | field               |
+      | "website_url"       |
+      | "repo_url"          |
+      | "documentation_url" |
+      | "product_logo_url"  |
+
   Scenario: the URL fields in the PRODUCT.yaml resolve to their specified data types
     it appears that URL(s) in the PRODUCT.yaml don't resolve to the correct data type
 

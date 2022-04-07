@@ -244,6 +244,9 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		if err != nil {
 			return &suite.PRSuite{}, fmt.Errorf("failed to parse url '%v' of the field '%v' in PRODUCT.yaml in PR (%v), %v", uri, pr.Number, err)
 		}
+		if u.Scheme == "" {
+			u.Scheme = "https"
+		}
 		req, err := http.NewRequest(http.MethodHead, u.String(), nil)
 		if err != nil {
 			return &suite.PRSuite{}, fmt.Errorf("failed to prepare new request for URL (%v) for PR (%v), %v", u, pr.Number, err)

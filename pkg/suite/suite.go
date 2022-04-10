@@ -562,17 +562,23 @@ func (s *PRSuite) DetermineE2eLogSucessful() (success bool, passed int, err erro
 		lastLinesAmount = len(fileLines)
 	}
 	fileLast10Lines := fileLines[lastLinesAmount:]
+	var pattern *regexp.Regexp
 	patternComplete := regexp.MustCompile(`^SUCCESS! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
+	patternCompleteWithFlaked := regexp.MustCompile(`^SUCCESS! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Flaked \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
 	matchingLine := ""
 	for _, line := range fileLast10Lines {
 		if patternComplete.MatchString(line) == true {
 			matchingLine = line
+			pattern = patternComplete
+		} else if patternCompleteWithFlaked.MatchString(line) == true {
+			matchingLine = line
+			pattern = patternCompleteWithFlaked
 		}
 	}
 	if matchingLine == "" {
-		return false, 0, fmt.Errorf("unable to determine test results (passed, failed, pending, skipped) from e2e.log")
+		return false, 0, fmt.Errorf("unable to determine test results (passed, failed, flaked, pending, skipped) from e2e.log")
 	}
-	allIndexes := patternComplete.FindAllSubmatchIndex([]byte(matchingLine), -1)
+	allIndexes := pattern.FindAllSubmatchIndex([]byte(matchingLine), -1)
 	for _, loc := range allIndexes {
 		passed, err = strconv.Atoi(matchingLine[loc[2]:loc[3]])
 		if err != nil {

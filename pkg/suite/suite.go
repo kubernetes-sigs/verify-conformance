@@ -563,8 +563,8 @@ func (s *PRSuite) DetermineE2eLogSucessful() (success bool, passed int, err erro
 	}
 	fileLast10Lines := fileLines[lastLinesAmount:]
 	var pattern *regexp.Regexp
-	patternComplete := regexp.MustCompile(`^SUCCESS! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
-	patternCompleteWithFlaked := regexp.MustCompile(`^SUCCESS! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Flaked \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
+	patternComplete := regexp.MustCompile(`^(SUCCESS|FAIL)! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
+	patternCompleteWithFlaked := regexp.MustCompile(`^(SUCCESS|FAIL)! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Flaked \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
 	matchingLine := ""
 	for _, line := range fileLast10Lines {
 		if patternComplete.MatchString(line) == true {
@@ -580,7 +580,7 @@ func (s *PRSuite) DetermineE2eLogSucessful() (success bool, passed int, err erro
 	}
 	allIndexes := pattern.FindAllSubmatchIndex([]byte(matchingLine), -1)
 	for _, loc := range allIndexes {
-		passed, err = strconv.Atoi(matchingLine[loc[2]:loc[3]])
+		passed, err = strconv.Atoi(matchingLine[loc[4]:loc[5]])
 		if err != nil {
 			return false, 0, fmt.Errorf("failed to parse successful tests")
 		}

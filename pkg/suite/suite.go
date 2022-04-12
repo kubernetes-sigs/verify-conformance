@@ -213,7 +213,7 @@ func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
 		}
 	}
 	if len(paths) != 1 {
-		return fmt.Errorf("there should be a single set of products in the submission. We found %v. %v", len(paths), strings.Join(paths, ", "))
+		return fmt.Errorf("there should be a single set of products in the submission. We found %v product submissions: %v", len(paths), strings.Join(paths, ", "))
 	}
 
 	return nil

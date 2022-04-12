@@ -297,6 +297,9 @@ func labelIsManaged(input string) bool {
 
 func labelIsVersionLabel(label, version string) bool {
 	for _, ml := range managedPRLabelTemplatesWithVersion {
+		if strings.Contains(label, strings.ReplaceAll(ml, "%v", "")) == true {
+			return true
+		}
 		if fmt.Sprintf(ml, version) == label {
 			return true
 		}

@@ -240,9 +240,14 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 			log.Printf("field '%v' is empty in PRODUCT.yaml, not resolving URL\n", f.Field)
 			continue
 		}
-		u, err := url.Parse(uri)
+		if prSuite.PR.ProductYAMLURLDataTypes == nil {
+			prSuite.PR.ProductYAMLURLDataTypes = map[string]string{}
+		}
+		prSuite.PR.ProductYAMLURLDataTypes[f.Field] = ""
+		u, err := url.ParseRequestURI(uri)
 		if err != nil {
-			return &suite.PRSuite{}, fmt.Errorf("failed to parse url '%v' of the field '%v' in PRODUCT.yaml in PR (%v), %v", uri, pr.Number, err)
+			log.Printf("failed to parse url '%v' of the field '%v' in PRODUCT.yaml in PR (%v) as it is not a valid URL, %v", uri, pr.Number, err)
+			continue
 		}
 		if u.Scheme == "" {
 			u.Scheme = "https"
@@ -261,9 +266,6 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		}
 		contentType := resp.Header.Get("Content-Type")
 		log.Printf("%v: %v -> %v = %v\n", pr.Number, f.Field, u.String(), contentType)
-		if prSuite.PR.ProductYAMLURLDataTypes == nil {
-			prSuite.PR.ProductYAMLURLDataTypes = map[string]string{}
-		}
 		prSuite.PR.ProductYAMLURLDataTypes[f.Field] = contentType
 	}
 

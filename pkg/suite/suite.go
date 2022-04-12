@@ -154,7 +154,7 @@ func (s *PRSuite) SetMetadataFolder(path string) *PRSuite {
 
 func (s *PRSuite) thePRTitleIsNotEmpty() error {
 	if len(s.PR.Title) == 0 {
-		return fmt.Errorf("title is empty")
+		return common.SafeError(fmt.Errorf("title is empty"))
 	}
 	return nil
 }
@@ -170,7 +170,7 @@ func (s *PRSuite) isIncludedInItsFileList(fileName string) error {
 	if foundFile == false {
 		s.Labels = append(s.Labels, "missing-file-"+fileName)
 		s.MissingFiles = append(s.MissingFiles, fileName)
-		return fmt.Errorf("missing file '%v'", fileName)
+		return common.SafeError(fmt.Errorf("missing file '%v'", fileName))
 	}
 	return nil
 }
@@ -180,7 +180,7 @@ func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 	failureError := fmt.Errorf("your product submission PR be in folders like [KubernetesReleaseVersion]/[ProductName], e.g: v1.23/averycooldistro")
 	for _, file := range s.PR.SupportingFiles {
 		if matches := pattern.MatchString(path.Dir(file.Name)); matches != true {
-			return fmt.Errorf("file '%v' not allowed. %v", file.Name, failureError)
+			return common.SafeError(fmt.Errorf("file '%v' not allowed. %v", file.Name, failureError))
 		}
 		allIndexes := pattern.FindAllSubmatchIndex([]byte(path.Dir(file.Name)), -1)
 		for _, loc := range allIndexes {
@@ -213,7 +213,7 @@ func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
 		}
 	}
 	if len(paths) != 1 {
-		return fmt.Errorf("there should be a single set of products in the submission. We found %v product submissions: %v", len(paths), strings.Join(paths, ", "))
+		return common.SafeError(fmt.Errorf("there should be a single set of products in the submission. We found %v product submissions: %v", len(paths), strings.Join(paths, ", ")))
 	}
 
 	return nil
@@ -221,7 +221,7 @@ func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
 
 func (s *PRSuite) theTitleOfThePR() error {
 	if s.PR.Title == "" {
-		return fmt.Errorf("title is empty")
+		return common.SafeError(fmt.Errorf("title is empty"))
 	}
 	return nil
 }
@@ -229,14 +229,14 @@ func (s *PRSuite) theTitleOfThePR() error {
 func (s *PRSuite) theTitleOfThePRMatches(match string) error {
 	pattern := regexp.MustCompile(match)
 	if pattern.MatchString(string(s.PR.Title)) != true {
-		return fmt.Errorf("title must be formatted like 'Conformance results for [KubernetesReleaseVersion]/[ProductName]' (e.g: Conformance results for v1.23/CoolKubernetes)")
+		return common.SafeError(fmt.Errorf("title must be formatted like 'Conformance results for [KubernetesReleaseVersion]/[ProductName]' (e.g: Conformance results for v1.23/CoolKubernetes)"))
 	}
 	return nil
 }
 
 func (s *PRSuite) theFilesInThePR() error {
 	if len(s.PR.SupportingFiles) == 0 {
-		return fmt.Errorf("there were no files found in the submission")
+		return common.SafeError(fmt.Errorf("there were no files found in the submission"))
 	}
 	return nil
 }
@@ -244,7 +244,7 @@ func (s *PRSuite) theFilesInThePR() error {
 func (s *PRSuite) aFile(fileName string) error {
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
-		return fmt.Errorf("missing required file '%v'", fileName)
+		return common.SafeError(fmt.Errorf("missing required file '%v'", fileName))
 	}
 	return nil
 }
@@ -262,14 +262,14 @@ func (s *PRSuite) theYamlFileContainsTheRequiredAndNonEmptyField(fileName, field
 	var parsedContent map[string]*interface{}
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
-		return fmt.Errorf("missing required file '%v'", fileName)
+		return common.SafeError(fmt.Errorf("missing required file '%v'", fileName))
 	}
 	err := yaml.Unmarshal([]byte(file.Contents), &parsedContent)
 	if err != nil {
-		return fmt.Errorf("unable to read file '%v'", fileName)
+		return common.SafeError(fmt.Errorf("unable to read file '%v'", fileName))
 	}
 	if parsedContent[fieldName] == nil {
-		return fmt.Errorf("missing or empty field '%v' in file '%v'", fieldName, fileName)
+		return common.SafeError(fmt.Errorf("missing or empty field '%v' in file '%v'", fieldName, fileName))
 	}
 	return nil
 }
@@ -277,10 +277,10 @@ func (s *PRSuite) theYamlFileContainsTheRequiredAndNonEmptyField(fileName, field
 func (s *PRSuite) isNotEmpty(fileName string) error {
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
-		return fmt.Errorf("unable to find file '%v'", fileName)
+		return common.SafeError(fmt.Errorf("unable to find file '%v'", fileName))
 	}
 	if file.Contents == "" {
-		return fmt.Errorf("file '%v' is empty", fileName)
+		return common.SafeError(fmt.Errorf("file '%v' is empty", fileName))
 	}
 	return nil
 }
@@ -289,7 +289,7 @@ func (s *PRSuite) aLineOfTheFileMatches(fileName, match string) error {
 	pattern := regexp.MustCompile(match)
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
-		return fmt.Errorf("unable to find file '%v'", fileName)
+		return common.SafeError(fmt.Errorf("unable to find file '%v'", fileName))
 	}
 	lines := strings.Split(file.Contents, "\n")
 	var matchingLine string
@@ -301,7 +301,7 @@ lineLoop:
 		}
 	}
 	if matchingLine == "" {
-		return fmt.Errorf("the file '%v' does not contain a release version of Kubernetes in it", fileName)
+		return common.SafeError(fmt.Errorf("the file '%v' does not contain a release version of Kubernetes in it", fileName))
 	}
 	allIndexes := pattern.FindAllSubmatchIndex([]byte(matchingLine), -1)
 	for _, loc := range allIndexes {
@@ -328,14 +328,14 @@ func (s *PRSuite) thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolder
 	releaseVersionSegements := releaseVersion.Segments()
 	if !(e2elogVersionSegments[0] == releaseVersionSegements[0] ||
 		e2elogVersionSegments[1] == releaseVersionSegements[1]) {
-		return fmt.Errorf("the Kubernetes release version in file 'e2e.log' (%v) doesn't match the same version in the folder structure (%v)", s.E2eLogKubernetesReleaseVersion, s.KubernetesReleaseVersion)
+		return common.SafeError(fmt.Errorf("the Kubernetes release version in file 'e2e.log' (%v) doesn't match the same version in the folder structure (%v)", s.E2eLogKubernetesReleaseVersion, s.KubernetesReleaseVersion))
 	}
 	return nil
 }
 
 func (s *PRSuite) aListOfLabelsInThePR() error {
 	if len(s.PR.Labels) == 0 {
-		return fmt.Errorf("there are no labels found")
+		return common.SafeError(fmt.Errorf("there are no labels found"))
 	}
 	return nil
 }
@@ -349,28 +349,28 @@ func (s *PRSuite) theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShoul
 		}
 	}
 	if foundLabel != true {
-		return fmt.Errorf("required label '%v' not found", labelWithReleaseAttached)
+		return common.SafeError(fmt.Errorf("required label '%v' not found", labelWithReleaseAttached))
 	}
 	return nil
 }
 
 func (s *PRSuite) theContentOfTheUrlInTheValueOfIsAValidURL(field string) error {
-	if s.PR.ProductYAMLURLDataTypes[field] == "" {
-		return nil
-	}
 	fileName := "PRODUCT.yaml"
 	var parsedContent map[string]string
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
-		return fmt.Errorf("missing required file '%v'", fileName)
+		return common.SafeError(fmt.Errorf("missing required file '%v'", fileName))
 	}
 	err := yaml.Unmarshal([]byte(file.Contents), &parsedContent)
 	if err != nil {
-		return fmt.Errorf("unable to read file '%v'", fileName)
+		return common.SafeError(fmt.Errorf("unable to read file '%v'", fileName))
+	}
+	if parsedContent[field] == "" {
+		return nil
 	}
 	_, err = url.ParseRequestURI(parsedContent[field])
 	if err != nil {
-		return fmt.Errorf("URL for field '%v' in PRODUCT.yaml is not a valid URL, %v", field, err)
+		return common.SafeError(fmt.Errorf("URL for field '%v' in PRODUCT.yaml is not a valid URL, %v", field, err))
 	}
 	return nil
 }
@@ -387,7 +387,7 @@ func (s *PRSuite) theContentOfTheUrlInTheValueOfMatches(field, dataType string) 
 		}
 	}
 	if foundDataType == false {
-		return fmt.Errorf("URL field '%v' in PRODUCT.yaml resolving content type '%v' must be (%v)", field, s.PR.ProductYAMLURLDataTypes[field], strings.Join(strings.Split(dataType, " "), ", or "))
+		return common.SafeError(fmt.Errorf("URL field '%v' in PRODUCT.yaml resolving content type '%v' must be (%v)", field, s.PR.ProductYAMLURLDataTypes[field], strings.Join(strings.Split(dataType, " "), ", or ")))
 	}
 	return nil
 }
@@ -421,14 +421,14 @@ func (s *PRSuite) theReleaseVersionMatchesTheReleaseVersionInTheTitle() error {
 		}
 	}
 	if titleReleaseVersion != s.KubernetesReleaseVersion {
-		return fmt.Errorf("Kubernetes release version in the title (%v) and folder structure (%v) don't match", titleReleaseVersion, s.KubernetesReleaseVersion)
+		return common.SafeError(fmt.Errorf("Kubernetes release version in the title (%v) and folder structure (%v) don't match", titleReleaseVersion, s.KubernetesReleaseVersion))
 	}
 	return nil
 }
 
 func (s *PRSuite) theReleaseVersion() error {
 	if s.KubernetesReleaseVersion == "" {
-		return fmt.Errorf("unable to find a Kubernetes release version in the title")
+		return common.SafeError(fmt.Errorf("unable to find a Kubernetes release version in the title"))
 	}
 	return nil
 }
@@ -437,12 +437,12 @@ func (s *PRSuite) itIsAValidAndSupportedRelease() error {
 	latestVersion, err := semver.NewSemver(s.KubernetesReleaseVersionLatest)
 	if err != nil {
 		fmt.Printf("error with go-version parsing latestVersion '%v': %v\n", s.KubernetesReleaseVersionLatest, err)
-		return fmt.Errorf("unable to parse latest release version")
+		return common.SafeError(fmt.Errorf("unable to parse latest release version"))
 	}
 	currentVersion, err := semver.NewSemver(s.KubernetesReleaseVersion)
 	if err != nil {
 		fmt.Printf("error with go-version parsing currentVersion '%v': %v\n", currentVersion, err)
-		return fmt.Errorf("unable to parse latest release version")
+		return common.SafeError(fmt.Errorf("unable to parse latest release version"))
 	}
 	latestVersionSegments := latestVersion.Segments()
 	latestVersionSegments[1] -= lastSupportingVersions
@@ -450,13 +450,13 @@ func (s *PRSuite) itIsAValidAndSupportedRelease() error {
 	oldestSupportedVersion, err := semver.NewSemver(oldestVersion)
 	if err != nil {
 		fmt.Printf("error with go-version parsing oldest release version '%v': %v\n", latestVersionSegments, err)
-		return fmt.Errorf("unable to parse oldest supported release version")
+		return common.SafeError(fmt.Errorf("unable to parse oldest supported release version"))
 	}
 
 	if currentVersion.GreaterThan(latestVersion) {
-		return fmt.Errorf("unable to use version '%v' because it is newer than the current supported release (%v)", s.KubernetesReleaseVersion, s.KubernetesReleaseVersionLatest)
+		return common.SafeError(fmt.Errorf("unable to use version '%v' because it is newer than the current supported release (%v)", s.KubernetesReleaseVersion, s.KubernetesReleaseVersionLatest))
 	} else if currentVersion.LessThan(oldestSupportedVersion) {
-		return fmt.Errorf("unable to use version '%v' because it is older than the last currently supported release (%v)", s.KubernetesReleaseVersion, oldestVersion)
+		return common.SafeError(fmt.Errorf("unable to use version '%v' because it is older than the last currently supported release (%v)", s.KubernetesReleaseVersion, oldestVersion))
 	}
 	return nil
 }
@@ -599,7 +599,7 @@ func (s *PRSuite) allRequiredTestsInJunitXmlArePresent() error {
 	if len(missingTests) > 0 {
 		s.Labels = append(s.Labels, "required-tests-missing")
 		sort.Strings(missingTests)
-		return fmt.Errorf("the following test(s) are missing: \n    - %v", strings.Join(missingTests, "\n    - "))
+		return common.SafeError(fmt.Errorf("the following test(s) are missing: \n    - %v", strings.Join(missingTests, "\n    - ")))
 	}
 	s.Labels = append(s.Labels, "tests-verified-"+s.KubernetesReleaseVersion)
 	return nil
@@ -637,14 +637,14 @@ func (s *PRSuite) theTestsPassAndAreSuccessful() error {
 	}
 	if success == false {
 		s.Labels = append(s.Labels, "evidence-missing")
-		return fmt.Errorf("it appears that there failures in the e2e.log")
+		return common.SafeError(fmt.Errorf("it appears that there failures in the e2e.log"))
 	}
 	tests, err := s.collectPassedTestsFromE2elog()
 	if err != nil {
 		return err
 	}
 	if passed != len(tests) {
-		return fmt.Errorf("it appears that the amount of tests in e2e.log (%v) don't match the amount of tests passed (%v)", passed, len(tests))
+		return common.SafeError(fmt.Errorf("it appears that the amount of tests in e2e.log (%v) don't match the amount of tests passed (%v)", passed, len(tests)))
 	}
 	s.Labels = append(s.Labels, "no-failed-tests-"+s.KubernetesReleaseVersion)
 	return nil
@@ -674,7 +674,7 @@ func (s *PRSuite) allRequiredTestsInE2eLogArePresent() error {
 		missingTests = append(missingTests, test)
 	}
 	if len(missingTests) > 0 {
-		return fmt.Errorf("there appears to be %v tests missing from e2e.log: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - "))
+		return common.SafeError(fmt.Errorf("there appears to be %v tests missing from e2e.log: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - ")))
 	}
 	return nil
 }
@@ -701,10 +701,10 @@ func (s *PRSuite) theTestsMatch() error {
 		}
 	}
 	if len(missingTests) > 0 {
-		return fmt.Errorf("there appears to be %v test(s) in e2e.log that are skipped or missing from junit_01.xml: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - "))
+		return common.SafeError(fmt.Errorf("there appears to be %v test(s) in e2e.log that are skipped or missing from junit_01.xml: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - ")))
 	}
 	if len(junitTests) != len(e2eTests) {
-		return fmt.Errorf("the amount of tests in e2e.log (%v) doesn't match the amount of tests in junit_01.xml (%v)", len(junitTests), len(e2eTests))
+		return common.SafeError(fmt.Errorf("the amount of tests in e2e.log (%v) doesn't match the amount of tests in junit_01.xml (%v)", len(junitTests), len(e2eTests)))
 	}
 	return nil
 }

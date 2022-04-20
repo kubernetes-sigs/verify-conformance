@@ -246,7 +246,7 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		prSuite.PR.ProductYAMLURLDataTypes[f.Field] = ""
 		u, err := url.ParseRequestURI(uri)
 		if err != nil {
-			log.Printf("failed to parse url '%v' of the field '%v' in PRODUCT.yaml in PR (%v) as it is not a valid URL, %v", uri, pr.Number, err)
+			log.Printf("failed to parse url '%v' of the field '%v' in PRODUCT.yaml in PR (%v) as it is not a valid URL, %v", uri, f.Field, pr.Number, err)
 			continue
 		}
 		if u.Scheme == "" {
@@ -254,7 +254,8 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		}
 		req, err := http.NewRequest(http.MethodHead, u.String(), nil)
 		if err != nil {
-			return &suite.PRSuite{}, fmt.Errorf("failed to prepare new request for URL (%v) for PR (%v), %v", u, pr.Number, err)
+			log.Printf("failed to prepare new request for URL (%v) for PR (%v), %v", u, pr.Number, err)
+			continue
 		}
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -262,10 +263,11 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		client := &http.Client{Transport: tr}
 		resp, err := client.Do(req)
 		if err != nil {
-			return &suite.PRSuite{}, fmt.Errorf("failed to make a HEAD request to url '%v' from the field '%v' in PRODUCT.yaml in PR (%v), %v", u, pr.Number, err)
+			log.Printf("failed to make a HEAD request to url '%v' from the field '%v' in PRODUCT.yaml in PR (%v), %v", u, f.Field, pr.Number, err)
+			continue
 		}
 		contentType := resp.Header.Get("Content-Type")
-		log.Printf("%v: %v -> %v = %v\n", pr.Number, f.Field, u.String(), contentType)
+		log.Printf("%v: '%v' -> %v = '%v'\n", pr.Number, f.Field, u.String(), contentType)
 		prSuite.PR.ProductYAMLURLDataTypes[f.Field] = contentType
 	}
 

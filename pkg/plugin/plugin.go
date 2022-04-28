@@ -200,6 +200,12 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		prSuite.PR.Labels = append(prSuite.PR.Labels, l.Name)
 	}
 
+	content, _, err := fetchFileFromURI(kubernetesLatestTxtURL)
+	if err != nil {
+		return &suite.PRSuite{}, fmt.Errorf("unable to download the latest version info from '%v'", kubernetesLatestTxtURL)
+	}
+	prSuite.KubernetesReleaseVersionLatest = content
+
 	var productYAMLContent string
 	changes, err := ghc.GetPullRequestChanges(string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number))
 	if err != nil {
@@ -225,7 +231,8 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		}
 	}
 	if productYAMLContent == "" {
-		return &suite.PRSuite{}, fmt.Errorf("failed to find PRODUCT.yaml from the list of files in the PR (%v)", pr.Number)
+		log.Printf("failed to find PRODUCT.yaml from the list of files in the PR (%v)", pr.Number)
+		return prSuite, nil
 	}
 
 	productYAML := map[string]string{}
@@ -270,12 +277,6 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		log.Printf("%v: '%v' -> %v = '%v'\n", pr.Number, f.Field, u.String(), contentType)
 		prSuite.PR.ProductYAMLURLDataTypes[f.Field] = contentType
 	}
-
-	content, _, err := fetchFileFromURI(kubernetesLatestTxtURL)
-	if err != nil {
-		return &suite.PRSuite{}, fmt.Errorf("unable to download the latest version info from '%v'", kubernetesLatestTxtURL)
-	}
-	prSuite.KubernetesReleaseVersionLatest = content
 
 	return prSuite, nil
 }

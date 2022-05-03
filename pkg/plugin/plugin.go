@@ -238,7 +238,8 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 	productYAML := map[string]string{}
 	err = yaml.Unmarshal([]byte(productYAMLContent), &productYAML)
 	if err != nil {
-		return &suite.PRSuite{}, fmt.Errorf("failed to parse content of PRODUCT.yaml in PR (%v), %v", pr.Number, err)
+		log.Printf("failed to parse content of PRODUCT.yaml in PR (%v), %v", pr.Number, err)
+		return prSuite, nil
 	}
 
 	for _, f := range productYAMLRequiredFieldDateTypes {

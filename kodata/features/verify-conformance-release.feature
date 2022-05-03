@@ -17,13 +17,14 @@ Feature: verify conformance product submission PR
 
     Given <file> is included in its file list
     Then <file> is not empty
+    And <file> is valid <type>
 
     Examples:
-      | file           |
-      | "README.md"    |
-      | "PRODUCT.yaml" |
-      | "e2e.log"      |
-      | "junit_01.xml" |
+      | file           | type       |
+      | "README.md"    | "markdown" |
+      | "PRODUCT.yaml" | "yaml"     |
+      | "e2e.log"      | "text"     |
+      | "junit_01.xml" | "xml"      |
 
   Scenario: submission has files in structure of releaseversion/productname/
     the submission file directory does not seem to match the Kubernetes release version in the files

@@ -141,6 +141,7 @@ func (s *PRSuite) NewTestSuite(opts PRSuiteOptions) godog.TestSuite {
 			Format: "cucumber",
 			Output: &s.buffer,
 			Paths:  opts.Paths,
+			// TODO: add tags filtering
 		},
 		ScenarioInitializer: s.InitializeScenario,
 	}
@@ -709,8 +710,35 @@ func (s *PRSuite) theTestsMatch() error {
 	return nil
 }
 
+func IsValidYaml(input []byte) error {
+	var content map[string]interface{}
+	err := yaml.Unmarshal(input, &content)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *PRSuite) IsValid(fileName, fileType string) error {
+	file := s.GetFileByFileName(fileName)
+	if file == nil {
+		return common.SafeError(fmt.Errorf("unable to find file '%v'", fileName))
+	}
+	if file.Contents == "" {
+		return common.SafeError(fmt.Errorf("file '%v' is empty", fileName))
+	}
+	switch fileType {
+	case "yaml":
+		return common.SafeError(fmt.Errorf("failed to parse (%v) YAML, %v", fileName, IsValidYaml([]byte(file.Contents))))
+	// TODO: add xml parsing
+	default:
+		return nil
+	}
+	return nil
+}
+
 func aPRTitle() error {
-	return godog.ErrPending
+	return nil
 }
 
 func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, labels []string, err error) {
@@ -815,4 +843,5 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^all required tests in e2e.log are present$`, s.allRequiredTestsInE2eLogArePresent)
 	ctx.Step(`^the tests match$`, s.theTestsMatch)
 	ctx.Step(`^a PR title$`, aPRTitle)
+	ctx.Step(`^"([^"]*)" is valid "([^"]*)"`, s.IsValid)
 }

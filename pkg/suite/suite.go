@@ -729,7 +729,10 @@ func (s *PRSuite) IsValid(fileName, fileType string) error {
 	}
 	switch fileType {
 	case "yaml":
-		return common.SafeError(fmt.Errorf("failed to parse (%v) YAML, %v", fileName, IsValidYaml([]byte(file.Contents))))
+		if err := IsValidYaml([]byte(file.Contents)); err != nil {
+			return common.SafeError(fmt.Errorf("failed to parse (%v) YAML, %v", fileName, err))
+		}
+		return nil
 	// TODO: add xml parsing
 	default:
 		return nil

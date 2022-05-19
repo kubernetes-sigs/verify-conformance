@@ -111,7 +111,7 @@ Feature: verify conformance product submission PR
     # example: Feb 25 10:20:32.383: INFO: e2e test version: v1.23.0
 
   Scenario: the submission release version is a supported version of Kubernetes
-    the Kubenetes release version in this pull request does not qualify for conformance submission anymore (https://github.com/cncf/k8s-conformance/blob/master/terms-conditions/Certified_Kubernetes_Terms.md#qualifying-offerings-and-self-testing)
+    the Kubernetes release version in this pull request does not qualify for conformance submission anymore (https://github.com/cncf/k8s-conformance/blob/master/terms-conditions/Certified_Kubernetes_Terms.md#qualifying-offerings-and-self-testing)
 
     Given the release version
     And the files in the PR

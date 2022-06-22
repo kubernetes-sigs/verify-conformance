@@ -507,7 +507,7 @@ func (s *PRSuite) GetJunitSubmittedConformanceTests() (tests []string, err error
 	}
 	testSuite := JunitTestSuite{}
 	if err := xml.Unmarshal([]byte(file.Contents), &testSuite); err != nil {
-		return []string{}, fmt.Errorf("unable to parse junit_01.xml file, %v", err)
+		return []string{}, common.SafeError(fmt.Errorf("unable to parse junit_01.xml file, %v", err))
 	}
 	for _, testcase := range testSuite.TestSuite {
 		if testcase.Skipped != nil {

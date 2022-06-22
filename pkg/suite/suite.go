@@ -675,6 +675,7 @@ func (s *PRSuite) allRequiredTestsInE2eLogArePresent() error {
 		missingTests = append(missingTests, test)
 	}
 	if len(missingTests) > 0 {
+		sort.Strings(missingTests)
 		return common.SafeError(fmt.Errorf("there appears to be %v tests missing from e2e.log: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - ")))
 	}
 	return nil

@@ -316,6 +316,20 @@ lineLoop:
 	return nil
 }
 
+func (s *PRSuite) aListOfCommits() error {
+	if len(s.PR.Commits.Nodes) == 0 {
+		return common.SafeError(fmt.Errorf("no commits were found"))
+	}
+	return nil
+}
+
+func (s *PRSuite) thereIsOnlyOneCommit() error {
+	if len(s.PR.Commits.Nodes) > 1 {
+		return common.SafeError(fmt.Errorf("more than one commit was found, only one commit is allowed."))
+	}
+	return nil
+}
+
 func (s *PRSuite) thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolderStructure() error {
 	e2elogVersion, err := semver.NewSemver(s.E2eLogKubernetesReleaseVersion)
 	if err != nil {
@@ -848,4 +862,6 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the tests match$`, s.theTestsMatch)
 	ctx.Step(`^a PR title$`, aPRTitle)
 	ctx.Step(`^"([^"]*)" is valid "([^"]*)"`, s.IsValid)
+	ctx.Step(`^a list of commits$`, s.aListOfCommits)
+	ctx.Step(`^there is only one commit$`, s.thereIsOnlyOneCommit)
 }

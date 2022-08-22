@@ -136,6 +136,12 @@ Feature: verify conformance product submission PR
     Given an "e2e.log" file
     And a "junit_01.xml" file
     Then the tests match
+
+  Scenario: there is only one commit
+    it appears that there is not exactly one commit. Please rebase and squash with `git rebase -i HEAD` (https://git-scm.com/docs/git-rebase)
+
+    Given a list of commits
+    Then there is only one commit
 #+end_src
 
 * Prepare conformance metadata

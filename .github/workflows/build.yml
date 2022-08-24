@@ -1,7 +1,15 @@
 name: Image build
 
 on:
-  push
+  push:
+    paths:
+      - internal/**
+      - kodata/**
+      - pkg/**
+      - .ko.yaml
+      - go.mod
+      - go.sum
+      - .github/workflows/build.yml
 
   # Run tests for any PRs.
   # pull_request:

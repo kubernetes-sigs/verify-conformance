@@ -150,12 +150,12 @@ K8S_LATEST_VERSION=$(curl -L -s https://storage.googleapis.com/kubernetes-releas
 K8S_LATEST_MINOR_VERSION=$(awk '{split($1,array, "."); print array[2]}' <<< $K8S_LATEST_VERSION)
 SETS=($(seq 15 $K8S_LATEST_MINOR_VERSION) master)
 rm -r ./kodata/conformance-testdata/
-mkdir -p ./kodata/conformance-testdata/{v1.{15..24},master}/
+mkdir -p ./kodata/conformance-testdata/{v1.{15..25},master}/
 
 MANIFESTS=(
   https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.{15..17}.yaml
   https://raw.githubusercontent.com/cncf-infra/prow-config/master/tests/conformance-1.18.yaml
-  https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.{19..24}/test/conformance/testdata/conformance.yaml
+  https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.{19..25}/test/conformance/testdata/conformance.yaml
   https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml
 )
 

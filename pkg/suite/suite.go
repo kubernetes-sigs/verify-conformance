@@ -16,6 +16,7 @@ import (
 	"github.com/cucumber/godog"
 	semver "github.com/hashicorp/go-version"
 	githubql "github.com/shurcooL/githubv4"
+	sonobuoyresults "github.com/vmware-tanzu/sonobuoy/pkg/client/results"
 	"sigs.k8s.io/yaml"
 
 	"cncf.io/infra/verify-conformance-release/internal/types"
@@ -103,6 +104,28 @@ type JunitTestCase struct {
 
 type JunitTestSuite struct {
 	TestSuite []JunitTestCase `xml:"testcase"`
+}
+
+type JunitTestSuitev125 struct {
+	Name      string          `xml:"name,attr"`
+	Package   string          `xml:"package,attr"`
+	Tests     int             `xml:"tests,attr"`
+	Disabled  int             `xml:"xml,attr"`
+	Errors    int             `xml:"errors,attr"`
+	Failures  int             `xml:"failures,attr"`
+	Time      string          `xml:"time,attr"`
+	Timestamp string          `xml:"timestamp,attr"`
+	TestCase  []JunitTestCase `xml:"testcase"`
+}
+
+type JunitTestSuitesv125 struct {
+	XMLName   xml.Name           `xml:"testsuites"`
+	Tests     int                `xml:"tests,attr"`
+	Disabled  int                `xml:"xml,attr"`
+	Errors    int                `xml:"errors,attr"`
+	Failures  int                `xml:"failures,attr"`
+	Time      float64            `xml:"time,attr"`
+	TestSuite JunitTestSuitev125 `xml:"testsuite"`
 }
 
 type PRSuiteOptions struct {
@@ -519,22 +542,50 @@ func (s *PRSuite) GetJunitSubmittedConformanceTests() (tests []string, err error
 	if file == nil {
 		return []string{}, fmt.Errorf("unable to find file junit_01.xml")
 	}
-	testSuite := JunitTestSuite{}
-	if err := xml.Unmarshal([]byte(file.Contents), &testSuite); err != nil {
-		return []string{}, common.SafeError(fmt.Errorf("unable to parse junit_01.xml file, %v", err))
+	version, err := semver.NewVersion(s.E2eLogKubernetesReleaseVersion)
+	if err != nil {
+		fmt.Printf("semver error: %#v", err)
+		return []string{}, fmt.Errorf("unable to find target version for this submission")
 	}
-	for _, testcase := range testSuite.TestSuite {
-		if testcase.Skipped != nil {
-			continue
+	constraint, _ := semver.NewConstraint(">=v1.25.0")
+	if constraint.Check(version) {
+		junit := sonobuoyresults.JUnitTestSuites{}
+		if err := xml.Unmarshal([]byte(file.Contents), &junit); err != nil {
+			return []string{}, common.SafeError(fmt.Errorf("unable to parse junit_01.xml file, %v", err))
 		}
-		if strings.Contains(testcase.Name, "[Conformance]") == false {
-			continue
+		for _, suite := range junit.Suites {
+			for _, testcase := range suite.TestCases {
+				if testcase.SkipMessage != nil {
+					continue
+				}
+				if strings.Contains(testcase.Name, "[Conformance]") == false {
+					continue
+				}
+				testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
+				testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
+				testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
+				testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
+				tests = append(tests, testcase.Name)
+			}
 		}
-		testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
-		testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
-		testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
-		testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
-		tests = append(tests, testcase.Name)
+	} else {
+		testSuite := JunitTestSuite{}
+		if err := xml.Unmarshal([]byte(file.Contents), &testSuite); err != nil {
+			return []string{}, common.SafeError(fmt.Errorf("unable to parse junit_01.xml file, %v", err))
+		}
+		for _, testcase := range testSuite.TestSuite {
+			if testcase.Skipped != nil {
+				continue
+			}
+			if strings.Contains(testcase.Name, "[Conformance]") == false {
+				continue
+			}
+			testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
+			testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
+			testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
+			testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
+			tests = append(tests, testcase.Name)
+		}
 	}
 
 	return tests, nil
@@ -551,6 +602,7 @@ func (s *PRSuite) GetMissingJunitTestsFromPRSuite() (missingTests []string, err 
 	}
 
 	for _, submittedTest := range submittedTests {
+		submittedTest = strings.TrimPrefix(submittedTest, "[It] ")
 		if _, found := requiredTests[submittedTest]; found != true {
 			continue
 		}
@@ -572,16 +624,16 @@ func (s *PRSuite) DetermineE2eLogSucessful() (success bool, passed int, err erro
 		return false, 0, fmt.Errorf("unable to find file e2e.log")
 	}
 	fileLines := strings.Split(file.Contents, "\n")
-	lastLinesAmount := len(fileLines) - 10
+	lastLinesAmount := len(fileLines) - 100
 	if lastLinesAmount < 0 {
 		lastLinesAmount = len(fileLines)
 	}
-	fileLast10Lines := fileLines[lastLinesAmount:]
+	fileLast100Lines := fileLines[lastLinesAmount:]
 	var pattern *regexp.Regexp
 	patternComplete := regexp.MustCompile(`^(SUCCESS|FAIL)! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
 	patternCompleteWithFlaked := regexp.MustCompile(`^(SUCCESS|FAIL)! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Flaked \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
 	matchingLine := ""
-	for _, line := range fileLast10Lines {
+	for _, line := range fileLast100Lines {
 		if patternComplete.MatchString(line) == true {
 			matchingLine = line
 			pattern = patternComplete
@@ -708,7 +760,7 @@ func (s *PRSuite) theTestsMatch() error {
 	for _, e2eTest := range e2eTests {
 		foundInJunitTests := false
 		for _, junitTest := range junitTests {
-			if e2eTest == junitTest {
+			if e2eTest == strings.TrimPrefix(junitTest, "[It] ") {
 				foundInJunitTests = true
 			}
 		}

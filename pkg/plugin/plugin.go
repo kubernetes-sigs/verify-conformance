@@ -461,7 +461,8 @@ func isConformancePR(pr *suite.PullRequestQuery) bool {
 }
 
 func updateStatus(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery, prSuite *suite.PRSuite, state string) error {
-	currentLatestHasStatusSuccess := false
+	var description string
+	currentLatestHasCurrentStatus := false
 commitLoop:
 	for _, commit := range pr.Commits.Nodes {
 		if string(commit.Commit.Oid) != string(pr.HeadRefOID) {
@@ -469,22 +470,28 @@ commitLoop:
 		}
 		for _, context := range commit.Commit.Status.Contexts {
 			if strings.EqualFold(string(context.Context), "verify-conformance") {
-				currentLatestHasStatusSuccess = strings.EqualFold(string(context.State), string(githubql.StatusStateSuccess))
+				currentLatestHasCurrentStatus = strings.EqualFold(string(context.State), string(githubql.StatusStateSuccess))
 				break commitLoop
 			}
 		}
 	}
-	if currentLatestHasStatusSuccess == true {
+	if currentLatestHasCurrentStatus == true {
 		return nil
+	}
+	switch state {
+	case "success":
+		description = "All checks are passing"
+		break
+	case "failure":
+		description = "Please check failing requirements and update accordingly"
 	}
 	return ghc.CreateStatus(
 		string(pr.Repository.Owner.Login), string(pr.Repository.Name), string(pr.HeadRefOID),
 		github.Status{
-			Context:   "verify-conformance",
-			State:     state,
-			TargetURL: "https://github.com/cncf/k8s-conformance",
+			Context:     "verify-conformance",
+			State:       state,
+			Description: description,
 		})
-	return nil
 }
 
 // handle checks a Conformance Certification PR to determine if the contents of the PR pass sanity checks.

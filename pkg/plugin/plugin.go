@@ -60,6 +60,8 @@ type ProductYAMLField struct {
 }
 
 type githubClient interface {
+	CreateStatus(string, string, string, github.Status) error
+	GetCombinedStatus(org, repo, ref string) (*github.CombinedStatus, error)
 	GetIssueLabels(org, repo string, number int) ([]github.Label, error)
 	CreateComment(org, repo string, number int, comment string) error
 	ListIssueCommentsWithContext(ctx context.Context, org, repo string, number int) ([]github.IssueComment, error)
@@ -73,8 +75,9 @@ type githubClient interface {
 }
 
 type PullRequest struct {
-	Number githubql.Int
-	Author struct {
+	Number     githubql.Int
+	HeadRefOID githubql.String
+	Author     struct {
 		Login githubql.String
 	}
 	Repository struct {
@@ -97,7 +100,13 @@ type PullRequest struct {
 	Commits struct {
 		Nodes []struct {
 			Commit struct {
-				Oid githubql.String
+				Oid    githubql.String
+				Status struct {
+					Contexts []struct {
+						Context githubql.String
+						State   githubql.String
+					}
+				}
 			}
 		}
 	} `graphql:"commits(first:5)"`
@@ -451,6 +460,33 @@ func isConformancePR(pr *suite.PullRequestQuery) bool {
 	return strings.Contains(strings.ToLower(string(pr.Title)), "conformance")
 }
 
+func updateStatus(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery, prSuite *suite.PRSuite, state string) error {
+	currentLatestHasStatusSuccess := false
+commitLoop:
+	for _, commit := range pr.Commits.Nodes {
+		if string(commit.Commit.Oid) != string(pr.HeadRefOID) {
+			continue
+		}
+		for _, context := range commit.Commit.Status.Contexts {
+			if strings.EqualFold(string(context.Context), "verify-conformance") {
+				currentLatestHasStatusSuccess = strings.EqualFold(string(context.State), string(githubql.StatusStateSuccess))
+				break commitLoop
+			}
+		}
+	}
+	if currentLatestHasStatusSuccess == true {
+		return nil
+	}
+	return ghc.CreateStatus(
+		string(pr.Repository.Owner.Login), string(pr.Repository.Name), string(pr.HeadRefOID),
+		github.Status{
+			Context:   "verify-conformance",
+			State:     state,
+			TargetURL: "https://github.com/cncf/k8s-conformance",
+		})
+	return nil
+}
+
 // handle checks a Conformance Certification PR to determine if the contents of the PR pass sanity checks.
 // Adds a comment to indicate whether or not the version in the PR title occurs in the supplied logs.
 func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) error {
@@ -468,7 +504,7 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 	prSuite.SetSubmissionMetadatafromFolderStructure()
 	prSuite.NewTestSuite(suite.PRSuiteOptions{Paths: godogFeaturePaths}).Run()
 
-	finalComment, labels, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()
+	finalComment, labels, state, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()
 	if err != nil {
 		return err
 	}
@@ -491,6 +527,10 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 	fmt.Println("RemovedLabels: ", removedLabels)
 
 	err = updateComments(log, ghc, pr, prSuite, finalComment)
+	if err != nil {
+		return err
+	}
+	err = updateStatus(log, ghc, pr, prSuite, state)
 	if err != nil {
 		return err
 	}

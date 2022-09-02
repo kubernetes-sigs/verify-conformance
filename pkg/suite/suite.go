@@ -35,8 +35,9 @@ type ResultPrepare struct {
 }
 
 type PullRequestQuery struct {
-	Number githubql.Int
-	Author struct {
+	Number     githubql.Int
+	HeadRefOID githubql.String
+	Author     struct {
 		Login githubql.String
 	}
 	Repository struct {
@@ -59,7 +60,13 @@ type PullRequestQuery struct {
 	Commits struct {
 		Nodes []struct {
 			Commit struct {
-				Oid githubql.String
+				Oid    githubql.String
+				Status struct {
+					Contexts []struct {
+						Context githubql.String
+						State   githubql.String
+					}
+				}
 			}
 		}
 	} `graphql:"commits(first:5)"`
@@ -811,11 +818,11 @@ func aPRTitle() error {
 	return nil
 }
 
-func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, labels []string, err error) {
+func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, labels []string, state string, err error) {
 	cukeFeatures := []types.CukeFeatureJSON{}
 	err = json.Unmarshal([]byte(s.buffer.String()), &cukeFeatures)
 	if err != nil {
-		return "", []string{}, err
+		return "", []string{}, "", err
 	}
 	uniquelyNamedStepsRun := []string{}
 	resultPrepares := []ResultPrepare{}
@@ -866,6 +873,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 	}
 
 	finalComment := fmt.Sprintf("All requirements (%v) have passed for the submission!", len(uniquelyNamedStepsRun))
+	state = "success"
 	// TODO use prSuite.Labels
 	if s.KubernetesReleaseVersion != "" {
 		s.Labels = append(s.Labels, "release-"+s.KubernetesReleaseVersion)
@@ -880,12 +888,13 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 		}
 		finalComment += "\n\n for a full list of requirements, please refer to these sections of the docs: [_content of the PR_](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#contents-of-the-pr), and [_requirements_](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#requirements)."
 		s.Labels = append(s.Labels, "not-verifiable")
+		state = "failure"
 	} else {
 		s.Labels = append(s.Labels, "release-documents-checked")
 	}
 	finalComment += "\n"
 
-	return finalComment, s.Labels, nil
+	return finalComment, s.Labels, state, nil
 }
 
 func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {

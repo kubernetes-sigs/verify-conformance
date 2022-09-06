@@ -824,6 +824,20 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 	if err != nil {
 		return "", []string{}, "", err
 	}
+	releaseVersion, err := semver.NewSemver(s.KubernetesReleaseVersion)
+	if err != nil {
+		return "", []string{}, "", err
+	}
+	releaseVersionLatest, err := semver.NewSemver(s.KubernetesReleaseVersionLatest)
+	if err != nil {
+		return "", []string{}, "", err
+	}
+	if releaseVersion.GreaterThanOrEqual(releaseVersionLatest) {
+		_, err = common.ReadFile(path.Join(s.MetadataFolder, s.KubernetesReleaseVersionLatest, "conformance.yaml"))
+		if err != nil {
+			return fmt.Sprintf("The release version %v is unable to be processed at this time; Please wait as this version may become available soon.", s.KubernetesReleaseVersion), append(labels, "conformance-product-submission", "unable-to-process"), "pending", nil
+		}
+	}
 	uniquelyNamedStepsRun := []string{}
 	resultPrepares := []ResultPrepare{}
 	for _, c := range cukeFeatures {

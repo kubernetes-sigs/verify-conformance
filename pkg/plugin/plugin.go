@@ -43,6 +43,7 @@ var (
 		"release-documents-checked",
 		"required-tests-missing",
 		"evidence-missing",
+		"unable-to-process",
 	}
 	managedPRLabelTemplatesWithVersion = []string{
 		"release-%v",

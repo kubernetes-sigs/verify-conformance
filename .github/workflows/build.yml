@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: "^1.17.3"
-      - uses: imjasonh/setup-ko@v0.4
+      - uses: imjasonh/setup-ko@v0.6
       - name: Build push verify-conformance-release image to GHCR
         env:
           REGISTRY: ghcr.io/cncf-infra/verify-conformance

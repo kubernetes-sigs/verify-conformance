@@ -32,7 +32,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
         - name: verify-conformance-release
-          image: ko.local/verify-conformance-release:latest
+          image: ko://cncf.io/infra/verify-conformance-release
           imagePullPolicy: IfNotPresent
           args:
             - --dry-run=true

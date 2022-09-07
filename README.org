@@ -216,8 +216,8 @@ configmap/vcr-config created
 #+end_example
 
 Install the plugin
-#+begin_src shell
-kubectl -n prow apply -f verify-conformance-release-deployment-dev-temp.yaml
+#+begin_src tmate :window prow-config
+ko apply --local -B -f verify-conformance-release-deployment-dev-temp.yaml -- -n prow
 #+end_src
 
 #+RESULTS:

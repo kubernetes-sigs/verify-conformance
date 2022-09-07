@@ -833,7 +833,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 		return "", []string{}, "", err
 	}
 	if releaseVersion.GreaterThanOrEqual(releaseVersionLatest) {
-		_, err = common.ReadFile(path.Join(s.MetadataFolder, s.KubernetesReleaseVersionLatest, "conformance.yaml"))
+		_, err = common.ReadFile(path.Join(s.MetadataFolder, s.KubernetesReleaseVersion, "conformance.yaml"))
 		if err != nil {
 			return fmt.Sprintf("The release version %v is unable to be processed at this time; Please wait as this version may become available soon.", s.KubernetesReleaseVersion), append(labels, "conformance-product-submission", "unable-to-process"), "pending", nil
 		}

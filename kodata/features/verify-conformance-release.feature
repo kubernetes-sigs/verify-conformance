@@ -1,9 +1,3 @@
-# verify-conformance-release
-
-# The behaviour of the bot is described here, in [[https://cucumber.io/docs/gherkin/][Gherkin]].  Each scenario is a requirement a PR must meet to qualify for conformance.
-
-# Note: the line immediately beneath the scenario is the comment posted to the PR if the requirement is not met.
-
 Feature: verify conformance product submission PR
 
   Scenario: PR title is not empty

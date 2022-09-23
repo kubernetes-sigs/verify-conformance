@@ -208,7 +208,7 @@ func (s *PRSuite) isIncludedInItsFileList(fileName string) error {
 
 func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 	pattern := regexp.MustCompile(match)
-	failureError := fmt.Errorf("your product submission PR be in folders like [KubernetesReleaseVersion]/[ProductName], e.g: v1.23/averycooldistro")
+	failureError := fmt.Errorf("your product submission PR must be in folders structured like [KubernetesReleaseVersion]/[ProductName], e.g: v1.23/averycooldistro")
 	for _, file := range s.PR.SupportingFiles {
 		if matches := pattern.MatchString(path.Dir(file.Name)); matches != true {
 			return common.SafeError(fmt.Errorf("file '%v' not allowed. %v", file.Name, failureError))
@@ -355,7 +355,7 @@ func (s *PRSuite) aListOfCommits() error {
 
 func (s *PRSuite) thereIsOnlyOneCommit() error {
 	if len(s.PR.Commits.Nodes) > 1 {
-		return common.SafeError(fmt.Errorf("more than one commit was found, only one commit is allowed."))
+		return common.SafeError(fmt.Errorf("more than one commit was found; only one commit is allowed."))
 	}
 	return nil
 }
@@ -466,7 +466,7 @@ func (s *PRSuite) theReleaseVersionMatchesTheReleaseVersionInTheTitle() error {
 		}
 	}
 	if titleReleaseVersion != s.KubernetesReleaseVersion {
-		return common.SafeError(fmt.Errorf("Kubernetes release version in the title (%v) and folder structure (%v) don't match", titleReleaseVersion, s.KubernetesReleaseVersion))
+		return common.SafeError(fmt.Errorf("the Kubernetes release version in the title (%v) and folder structure (%v) don't match", titleReleaseVersion, s.KubernetesReleaseVersion))
 	}
 	return nil
 }
@@ -711,14 +711,14 @@ func (s *PRSuite) theTestsPassAndAreSuccessful() error {
 	}
 	if success == false {
 		s.Labels = append(s.Labels, "evidence-missing")
-		return common.SafeError(fmt.Errorf("it appears that there failures in the e2e.log"))
+		return common.SafeError(fmt.Errorf("it appears that there are failures in the e2e.log"))
 	}
 	tests, err := s.collectPassedTestsFromE2elog()
 	if err != nil {
 		return err
 	}
 	if passed != len(tests) {
-		return common.SafeError(fmt.Errorf("it appears that the amount of tests in e2e.log (%v) don't match the amount of tests passed (%v)", passed, len(tests)))
+		return common.SafeError(fmt.Errorf("it appears that the amount of tests in e2e.log (%v) doesn't match the amount of tests passed (%v)", passed, len(tests)))
 	}
 	s.Labels = append(s.Labels, "no-failed-tests-"+s.KubernetesReleaseVersion)
 	return nil

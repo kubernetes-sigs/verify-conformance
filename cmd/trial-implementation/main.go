@@ -58,6 +58,7 @@ documentation_url: https://github.com/cool/kubernetes-engine
 product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
 type: Installer
 description: Cool Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
+contact_email_address: cool@k8s.io
 `,
 				},
 				&suite.PullRequestFile{
@@ -117,6 +118,7 @@ documentation_url: https://github.com/something/kubernetes-engine
 product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
 type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
+contact_email_address: cool@k8s.io
 `,
 				},
 				&suite.PullRequestFile{
@@ -171,6 +173,7 @@ documentation_url: https://github.com/something/kubernetes-engine
 product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
 type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
+contact_email_address: cool@k8s.io
 `,
 				},
 				&suite.PullRequestFile{
@@ -218,6 +221,7 @@ repo_url: https://github.com/something/kubernetes-engine
 product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
 type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
+contact_email_address: cool@k8s.io
 `,
 				},
 				&suite.PullRequestFile{
@@ -315,6 +319,7 @@ documentation_url: https://github.com/something/kubernetes-engine
 product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
 type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
+contact_email_address: cool@k8s.io
 `,
 				},
 				&suite.PullRequestFile{
@@ -388,6 +393,7 @@ documentation_url: https://github.com/something/kubernetes-engine
 product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
 type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
+contact_email_address: coolk8s.io
 `,
 				},
 				&suite.PullRequestFile{
@@ -445,6 +451,7 @@ repo_url: https://github.com/something/kubernetes-engine
 documentation_url: https://github.com/something/kubernetes-engine
 type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
+contact_email_address: cool@k8s.io
 `,
 				},
 				&suite.PullRequestFile{
@@ -502,6 +509,7 @@ documentation_url: https://github.com/something/kubernetes-engine
 type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
 product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
+contact_email_address: cool@k8s.io
 `,
 				},
 				&suite.PullRequestFile{
@@ -556,6 +564,7 @@ documentation_url: https://github.com/cool/kubernetes-engine
 product_logo_url: https://github.com/cool/kubernetes-engine
 type: Installer
 description: Cool Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
+contact_email_address: cool@k8s.io
 `,
 				},
 				&suite.PullRequestFile{
@@ -584,7 +593,7 @@ func main() {
 		prSuite.KubernetesReleaseVersionLatest = latest
 		prSuite.NewTestSuite(suite.PRSuiteOptions{Paths: []string{"../../kodata/features"}}).Run()
 
-		finalComment, labels, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()
+		finalComment, labels, state, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()
 		if err != nil {
 			fmt.Println(err)
 			continue
@@ -593,6 +602,7 @@ func main() {
 		fmt.Println("PR title:", prSuite.PR.Title)
 		fmt.Println("Release Version:", prSuite.KubernetesReleaseVersion)
 		fmt.Println("Labels:", strings.Join(labels, ", "))
+		fmt.Println("State:", state)
 		fmt.Println(finalComment)
 
 		tests, err := prSuite.GetMissingJunitTestsFromPRSuite()

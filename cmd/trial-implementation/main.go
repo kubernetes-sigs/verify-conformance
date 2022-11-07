@@ -393,7 +393,7 @@ documentation_url: https://github.com/something/kubernetes-engine
 product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.svg
 type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
-contact_email_address: coolk8s.io
+contact_email_address: bademailk8s.io
 `,
 				},
 				&suite.PullRequestFile{

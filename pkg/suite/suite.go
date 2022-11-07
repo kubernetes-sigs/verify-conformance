@@ -427,8 +427,6 @@ func (s *PRSuite) theContentOfTheInTheValueOfIsAValid(fieldType string, field st
 			return common.SafeError(fmt.Errorf("Email field '%v' in PRODUCT.yaml is not a valid address, %v", field, err))
 		}
 		break
-	default:
-		return common.SafeError(fmt.Errorf("Unknown specified fieldType for field validation '%v' for '%v'; this error should never occur", fieldType, field))
 	}
 	return nil
 }
@@ -819,9 +817,7 @@ func (s *PRSuite) IsValid(fileName, fileType string) error {
 		if err := IsValidYaml([]byte(file.Contents)); err != nil {
 			return common.SafeError(fmt.Errorf("failed to parse (%v) YAML, %v", fileName, err))
 		}
-	// TODO: add xml parsing
-	default:
-		return common.SafeError(fmt.Errorf("Unknown file type '%v'; this error should never occur", fileType))
+		// TODO: add xml parsing
 	}
 	return nil
 }

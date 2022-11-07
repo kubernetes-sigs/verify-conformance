@@ -60,7 +60,7 @@ Feature: verify conformance product submission PR
       | "contact_email_address" |
 
   Scenario: the URL and email fields in the PRODUCT.yaml are valid
-    it appears that field(s) in the PRODUCT.yaml aren't correctly format
+    it appears that field(s) in the PRODUCT.yaml aren't correctly formatted
 
     Given a "PRODUCT.yaml" file
     Then the content of the <type> in the value of <field> is a valid <type>

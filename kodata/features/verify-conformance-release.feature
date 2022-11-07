@@ -49,27 +49,29 @@ Feature: verify conformance product submission PR
     Then the yaml file "PRODUCT.yaml" contains the required and non-empty <field>
 
     Examples:
-      | field               |
-      | "vendor"            |
-      | "name"              |
-      | "version"           |
-      | "type"              |
-      | "description"       |
-      | "website_url"       |
-      | "documentation_url" |
+      | field                   |
+      | "vendor"                |
+      | "name"                  |
+      | "version"               |
+      | "type"                  |
+      | "description"           |
+      | "website_url"           |
+      | "documentation_url"     |
+      | "contact_email_address" |
 
-  Scenario: the URL fields in the PRODUCT.yaml are valid URLs
-    it appears that URL(s) in the PRODUCT.yaml aren't correctly formatted URLs
+  Scenario: the URL and email fields in the PRODUCT.yaml are valid
+    it appears that field(s) in the PRODUCT.yaml aren't correctly formatted
 
     Given a "PRODUCT.yaml" file
-    Then the content of the url in the value of <field> is a valid URL
+    Then the content of the <type> in the value of <field> is a valid <type>
 
     Examples:
-      | field               |
-      | "website_url"       |
-      | "repo_url"          |
-      | "documentation_url" |
-      | "product_logo_url"  |
+      | field                   | type        |
+      | "website_url"           | "URL"       |
+      | "repo_url"              | "URL"       |
+      | "documentation_url"     | "URL"       |
+      | "product_logo_url"      | "URL"       |
+      | "contact_email_address" | "email"     |
 
   Scenario: the URL fields in the PRODUCT.yaml resolve to their specified data types
     it appears that URL(s) in the PRODUCT.yaml don't resolve to the correct data type

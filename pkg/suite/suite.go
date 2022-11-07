@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"net/mail"
 	"net/url"
 	"os"
 	"path"
@@ -399,7 +400,7 @@ func (s *PRSuite) theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShoul
 	return nil
 }
 
-func (s *PRSuite) theContentOfTheUrlInTheValueOfIsAValidURL(field string) error {
+func (s *PRSuite) theContentOfTheInTheValueOfIsAValid(fieldType string, field string) error {
 	fileName := "PRODUCT.yaml"
 	var parsedContent map[string]string
 	file := s.GetFileByFileName(fileName)
@@ -413,9 +414,21 @@ func (s *PRSuite) theContentOfTheUrlInTheValueOfIsAValidURL(field string) error 
 	if parsedContent[field] == "" {
 		return nil
 	}
-	_, err = url.ParseRequestURI(parsedContent[field])
-	if err != nil {
-		return common.SafeError(fmt.Errorf("URL for field '%v' in PRODUCT.yaml is not a valid URL, %v", field, err))
+	switch fieldType {
+	case "URL":
+		_, err = url.ParseRequestURI(parsedContent[field])
+		if err != nil {
+			return common.SafeError(fmt.Errorf("URL for field '%v' in PRODUCT.yaml is not a valid URL, %v", field, err))
+		}
+		break
+	case "email":
+		_, err = mail.ParseAddress(parsedContent[field])
+		if err != nil {
+			return common.SafeError(fmt.Errorf("Email field '%v' in PRODUCT.yaml is not a valid address, %v", field, err))
+		}
+		break
+	default:
+		return common.SafeError(fmt.Errorf("Unknown specified fieldType for field validation '%v' for '%v'; this error should never occur", fieldType, field))
 	}
 	return nil
 }
@@ -806,10 +819,9 @@ func (s *PRSuite) IsValid(fileName, fileType string) error {
 		if err := IsValidYaml([]byte(file.Contents)); err != nil {
 			return common.SafeError(fmt.Errorf("failed to parse (%v) YAML, %v", fileName, err))
 		}
-		return nil
 	// TODO: add xml parsing
 	default:
-		return nil
+		return common.SafeError(fmt.Errorf("Unknown file type '%v'; this error should never occur", fileType))
 	}
 	return nil
 }
@@ -924,7 +936,7 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a list of labels in the PR$`, s.aListOfLabelsInThePR)
 	ctx.Step(`^the label prefixed with "([^"]*)" and ending with Kubernetes release version should be present$`, s.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent)
 	ctx.Step(`^the yaml file "([^"]*)" contains the required and non-empty "([^"]*)"$`, s.theYamlFileContainsTheRequiredAndNonEmptyField)
-	ctx.Step(`^the content of the url in the value of "([^"]*)" is a valid URL$`, s.theContentOfTheUrlInTheValueOfIsAValidURL)
+	ctx.Step(`^the content of the "([^"]*)" in the value of "([^"]*)" is a valid .*$`, s.theContentOfTheInTheValueOfIsAValid)
 	ctx.Step(`^the content of the url in the value of "([^"]*)" matches it\'s "([^"]*)"$`, s.theContentOfTheUrlInTheValueOfMatches)
 	ctx.Step(`^there is only one path of folders$`, s.thereIsOnlyOnePathOfFolders)
 	ctx.Step(`^the release version matches the release version in the title$`, s.theReleaseVersionMatchesTheReleaseVersionInTheTitle)

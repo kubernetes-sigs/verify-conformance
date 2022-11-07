@@ -427,8 +427,6 @@ func (s *PRSuite) theContentOfTheInTheValueOfIsAValid(fieldType string, field st
 			return common.SafeError(fmt.Errorf("Email field '%v' in PRODUCT.yaml is not a valid address, %v", field, err))
 		}
 		break
-	default:
-		return common.SafeError(fmt.Errorf("Unknown specified fieldType for field validation '%v' for '%v'; this error should never occur", fieldType, field))
 	}
 	return nil
 }

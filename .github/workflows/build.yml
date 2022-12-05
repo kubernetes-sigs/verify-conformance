@@ -16,6 +16,10 @@ on:
   # Run tests for any PRs.
   # pull_request:
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   push_verify_release:
     # Ensure test job passes before pushing image.
@@ -32,11 +36,10 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-southeast-2
           role-to-assume: arn:aws:iam::928655657136:role/verify-conformance-ci
           role-duration-seconds: 3600
+          role-session-name: verify-conformance-ci-{{ env.GITHUB_ACTION }}
       - name: get kubeconfig
         run: |
           aws eks list-clusters \

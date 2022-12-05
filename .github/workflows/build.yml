@@ -36,6 +36,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-southeast-2
           role-to-assume: arn:aws:iam::928655657136:role/verify-conformance-ci
+          role-duration-seconds: 3600
       - name: get kubeconfig
         run: |
           aws eks list-clusters \

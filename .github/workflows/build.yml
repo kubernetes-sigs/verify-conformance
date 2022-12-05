@@ -39,7 +39,7 @@ jobs:
           aws-region: ap-southeast-2
           role-to-assume: arn:aws:iam::928655657136:role/verify-conformance-ci
           role-duration-seconds: 3600
-          role-session-name: verify-conformance-ci-{{ env.GITHUB_ACTION }}
+          role-session-name: verify-conformance-ci-github-actions-build-{{ env.GITHUB_RUN_ID }}
       - name: get kubeconfig
         run: |
           aws eks list-clusters \

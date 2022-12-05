@@ -24,6 +24,7 @@ import (
 	"cncf.io/infra/verify-conformance-release/pkg/suite"
 )
 
+// TODO be fully conformant
 // TODO ensure that templated labels can be removed
 
 const (

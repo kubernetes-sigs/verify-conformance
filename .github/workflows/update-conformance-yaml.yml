@@ -28,7 +28,7 @@ jobs:
           ./hack/generate-conformanceyaml.sh
       - name: commit and push if there are changes
         run: |
-          if git status --porcelain | grep --regexp='kodata/conformance-testdata/v.*/conformance[.]yaml$'; then
+          if git status --porcelain | grep --regexp='kodata/conformance-testdata/v.*/$'; then
             echo changes detected
           else
             exit 0

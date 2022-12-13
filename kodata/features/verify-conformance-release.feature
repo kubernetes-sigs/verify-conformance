@@ -126,6 +126,15 @@ Feature: verify conformance product submission PR
     Then the tests pass and are successful
     And all required tests are present
 
+# DEPRECATED
+  Scenario: the tests in junit_01.xml and e2e.log match
+    it appears that there is a mismatch of tests in junit_01.xml and e2e.log
+
+    Given an "e2e.log" file
+    And a "junit_01.xml" file
+    Then the tests match
+    And all required tests are present
+
   Scenario: there is only one commit
     it appears that there is not exactly one commit. Please rebase and squash with `git rebase -i HEAD` (https://git-scm.com/docs/git-rebase)
 

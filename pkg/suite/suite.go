@@ -781,7 +781,7 @@ func (s *PRSuite) theTestsPassAndAreSuccessful() error {
 	}
 	if success == false {
 		s.Labels = append(s.Labels, "evidence-missing")
-		return common.SafeError(fmt.Errorf("it appears that there are failures in the e2e.log"))
+		return common.SafeError(fmt.Errorf("it appears that there are failures in some tests"))
 	}
 	s.Labels = append(s.Labels, "no-failed-tests-"+s.KubernetesReleaseVersion)
 	return nil

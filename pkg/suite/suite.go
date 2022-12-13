@@ -707,8 +707,7 @@ func (s *PRSuite) determineSuccessfulTestsv125AndAbove() (success bool, passed i
 	if hasFailure == true {
 		return false, passed, tests, nil
 	}
-	success = true
-	return success, passed, tests, nil
+	return true, passed, tests, nil
 }
 
 func (s *PRSuite) DetermineSuccessfulTests() (success bool, passed int, tests []string, err error) {

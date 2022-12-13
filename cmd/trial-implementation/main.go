@@ -612,11 +612,11 @@ func main() {
 		}
 		fmt.Printf("missing tests: %#v\n", tests)
 
-		success, _, err := prSuite.DetermineE2eLogSucessful()
+		success, _, tests, err := prSuite.DetermineSuccessfulTests()
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
-		fmt.Printf("passed test suite: %v\n", success)
+		fmt.Printf("passed test suite: %v, ran %v tests\n", success, len(tests))
 	}
 }

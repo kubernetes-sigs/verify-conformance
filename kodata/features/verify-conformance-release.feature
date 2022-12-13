@@ -119,19 +119,12 @@ Feature: verify conformance product submission PR
     Given a "junit_01.xml" file
     Then all required tests in junit_01.xml are present
 
-  Scenario: all tests pass in e2e.log
+  Scenario: all tests pass
     it appears that some tests failed in the product submission
 
     Given an "e2e.log" file
     Then the tests pass and are successful
-    And all required tests in e2e.log are present
-
-  Scenario: the tests in junit_01.xml and e2e.log match
-    it appears that there is a mismatch of tests in junit_01.xml and e2e.log
-
-    Given an "e2e.log" file
-    And a "junit_01.xml" file
-    Then the tests match
+    And all required tests are present
 
   Scenario: there is only one commit
     it appears that there is not exactly one commit. Please rebase and squash with `git rebase -i HEAD` (https://git-scm.com/docs/git-rebase)

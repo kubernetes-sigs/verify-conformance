@@ -12,7 +12,7 @@ on:
       - .ko.yaml
       - go.mod
       - go.sum
-      - .github/workflows/build.yml
+      - .github/workflows/build.yml # test that this works
 
   # Run tests for any PRs.
   # pull_request:

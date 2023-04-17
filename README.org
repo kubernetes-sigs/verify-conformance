@@ -85,7 +85,7 @@ go run .
 
 * Running the plugin locally
 
-The plugin can be run locally as follows, when run locally the plugin interacts with GitHub but by default does not make any changes
+When run locally the plugin interacts with GitHub but by default does not make any changes
 if you want to apply changes to the PR inspected then you can pass in the flag, dry-run=false
 
 #+BEGIN_SRC shell

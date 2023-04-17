@@ -42,3 +42,5 @@ jobs:
           git push origin "${NEW_BRANCH}"
           gh pr create --title "Update conformance yaml ${TIMESTAMP}" --body "updates conformance yaml for ${TIMESTAMP}"
           gh pr merge --merge --auto "${NEW_BRANCH}"
+      - uses: gautamkrishnar/keepalive-workflow@v1 
+

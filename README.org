@@ -4,7 +4,7 @@ The behaviour of the bot is described here, in [[https://cucumber.io/docs/gherki
 
 Note: the line immediately beneath the scenario is the comment posted to the PR if the requirement is not met.
 
-See the feature scenarios, [[./kodata/features/verify-conformance-release.feature][here]].
+See the feature scenarios, [[./kodata/features/verify-conformance-release.feature][in ./kodata/features]].
 
 * Build locally
 #+begin_src tmate :window prow-config

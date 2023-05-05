@@ -55,6 +55,7 @@ jobs:
         run: |
           ko resolve --base-import-paths -f config/ > ./deploy/release.yaml
       - id: sign-images-and-attest-sbom
+        if: ${{ github.event_name == 'release' }}
         env:
           COSIGN_YES: "true"
           IMAGE: ${{ steps.build.outputs.images }}

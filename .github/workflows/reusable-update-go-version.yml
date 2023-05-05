@@ -1,0 +1,76 @@
+name: reusable update go version
+on:
+  workflow_call:
+    inputs:
+      modfile:
+        type: string
+        default: go.mod
+        required: false
+        description: |
+          the reference to the Go mod file in the local path.
+          e.g:
+            - ./go.mod
+            - ./app/go.mod
+            - ./cmd/app/go.mod
+
+          please note: it is recommended to only have one go.mod per repo, so this field shouldn't need to be changed.
+      autoMerge:
+        type: boolean
+        default: false
+        required: false
+        description: |
+          by default, the action will only create a PR based on the out of date version. when autoMerge is set to `true`, it will also merge the PR which is generated after it is created. Affectively ensuring a project is always using the latest stable Go.
+jobs:
+  update-go-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: configure system
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          gh auth login --with-token < <(echo ${{ secrets.GITHUB_TOKEN }})
+          gh auth status
+      - id: setup-go
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+        with:
+          go-version: stable
+      - id: run-info
+        name: collect job run info
+        run: |
+          VERSION="$(echo ${{ steps.setup-go.outputs.go-version }} | grep -Eo --color=never '([0-9].[0-9]{2})')"
+          echo "go-version=$VERSION" >> $GITHUB_OUTPUT
+      - name: edit Go version to latest
+        run: |
+          go mod edit -go=${{ steps.run-info.outputs.go-version }} ${{ inputs.modfile }}
+      - name: determine changes
+        id: determine-changes
+        run: |
+          if git diff --name-only --diff-filter=ACMRT | grep ${{ inputs.modfile }}; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+          fi
+      - name: determine if there is an existing PR
+        id: existing-pr
+        if: ${{ steps.determine-changes.outputs.changes == 'true' }}
+        run: |
+          EXISTING_PR="$(gh pr list --json title,labels,body --jq '.' --label update-go-version --search "Update Go version to ${{ steps.run-info.outputs.go-version }}" | jq -r .[].title)"
+          if [ "${EXISTING_PR}" = "Update Go version to ${{ steps.run-info.outputs.go-version }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
+      - name: create PR
+        if: ${{ steps.determine-changes.outputs.changes == 'true' && steps.existing-pr.outputs.exists != 'true' }}
+        id: create-pr
+        run: |
+          TIMESTAMP="$(date +%Y-%m-%d-%H-%M)"
+          NEW_BRANCH="update-go-version-to-${{ steps.run-info-outputs.go-version }}-${TIMESTAMP}"
+          echo "new-branch=$NEW_BRANCH" >> $GITHUB_OUTPUT
+          git add ${{ inputs.modfile }}
+          git branch "${NEW_BRANCH}"
+          git checkout "${NEW_BRANCH}"
+          git commit -s -m "update Go version to ${{ steps.run-info.outputs.go-version }} for ${{ inputs.modfile }}"
+          git push origin "${NEW_BRANCH}"
+          gh pr create --title "Update Go version to ${{ steps.run-info.outputs.go-version }} in ${{ inputs.modfile }}" --body "Updates the base version of Go required for this project to ${{ steps.run-info.outputs.go-version }} for ${{ inputs.modfile }}" --label update-go-version
+      - name: merge PR
+        if: ${{ inputs.autoMerge && steps.determine-changes.outputs.changes == 'true' && steps.existing-pr.outputs.exists != 'true' }}
+        run: |
+          gh pr merge --merge --auto ${{ steps.create-pr.outputs.new-branch }}

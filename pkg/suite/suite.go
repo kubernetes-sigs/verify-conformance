@@ -709,23 +709,7 @@ func (s *PRSuite) determineSuccessfulTestsv125AndAbove() (success bool, passed i
 }
 
 func (s *PRSuite) DetermineSuccessfulTests() (success bool, passed int, tests []string, err error) {
-	version, err := semver.NewVersion(s.E2eLogKubernetesReleaseVersion)
-	if err != nil {
-		return false, 0, []string{}, err
-	}
-	constraint, _ := semver.NewConstraint(">=v1.25.0")
-	if constraint.Check(version) {
-		success, passed, tests, err = s.determineSuccessfulTestsv125AndAbove()
-		if err != nil {
-			return false, 0, []string{}, err
-		}
-		return success, passed, tests, nil
-	}
-	success, passed, err = s.determineSuccessfulTestsBelowv125()
-	if err != nil {
-		return false, 0, []string{}, err
-	}
-	tests, err = s.collectPassedTestsFromE2elog()
+	success, passed, tests, err = s.determineSuccessfulTestsv125AndAbove()
 	if err != nil {
 		return false, 0, []string{}, err
 	}
@@ -811,46 +795,6 @@ func (s *PRSuite) allRequiredTestsInArePresent() error {
 	if len(missingTests) > 0 {
 		sort.Strings(missingTests)
 		return common.SafeError(fmt.Errorf("there appears to be %v tests missing: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - ")))
-	}
-	return nil
-}
-
-// TODO remove this test before release of v1.27
-// DEPRECATED
-func (s *PRSuite) theTestsMatch() error {
-	version, err := semver.NewVersion(s.E2eLogKubernetesReleaseVersion)
-	if err != nil {
-		return err
-	}
-	constraint, _ := semver.NewConstraint(">=v1.25.0")
-	if constraint.Check(version) {
-		return nil
-	}
-	e2eTests, err := s.collectPassedTestsFromE2elog()
-	if err != nil {
-		return err
-	}
-	junitTests, err := s.GetJunitSubmittedConformanceTests()
-	if err != nil {
-		return err
-	}
-	missingTests := []string{}
-	for _, e2eTest := range e2eTests {
-		foundInJunitTests := false
-		for _, junitTest := range junitTests {
-			if e2eTest == strings.TrimPrefix(junitTest, "[It] ") {
-				foundInJunitTests = true
-			}
-		}
-		if !foundInJunitTests {
-			missingTests = append(missingTests, e2eTest)
-		}
-	}
-	if len(missingTests) > 0 {
-		return common.SafeError(fmt.Errorf("there appears to be %v test(s) in e2e.log that are skipped or missing from junit_01.xml: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - ")))
-	}
-	if len(junitTests) != len(e2eTests) {
-		return common.SafeError(fmt.Errorf("the amount of tests in e2e.log (%v) doesn't match the amount of tests in junit_01.xml (%v)", len(junitTests), len(e2eTests)))
 	}
 	return nil
 }
@@ -1001,7 +945,6 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the tests pass and are successful$`, s.theTestsPassAndAreSuccessful)
 	ctx.Step(`^that version matches the same Kubernetes release version as in the folder structure$`, s.thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolderStructure)
 	ctx.Step(`^all required tests in junit_01.xml are present$`, s.allRequiredTestsInJunitXmlArePresent)
-	ctx.Step(`^the tests match$`, s.theTestsMatch)
 	ctx.Step(`^all required tests are present$`, s.allRequiredTestsInArePresent)
 	ctx.Step(`^a PR title$`, aPRTitle)
 	ctx.Step(`^"([^"]*)" is valid "([^"]*)"`, s.IsValid)

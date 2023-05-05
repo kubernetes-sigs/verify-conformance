@@ -11,7 +11,6 @@ import (
 	"path"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/cucumber/godog"
@@ -647,46 +646,6 @@ func (s *PRSuite) GetMissingJunitTestsFromPRSuite() (missingTests []string, err 
 	return missingTests, nil
 }
 
-func (s *PRSuite) determineSuccessfulTestsBelowv125() (success bool, passed int, err error) {
-	file := s.GetFileByFileName("e2e.log")
-	if file == nil {
-		return false, 0, fmt.Errorf("unable to find file e2e.log")
-	}
-	fileLines := strings.Split(file.Contents, "\n")
-	lastLinesAmount := len(fileLines) - 100
-	if lastLinesAmount < 0 {
-		lastLinesAmount = len(fileLines)
-	}
-	fileLast100Lines := fileLines[lastLinesAmount:]
-	var pattern *regexp.Regexp
-	patternComplete := regexp.MustCompile(`^(SUCCESS|FAIL)! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
-	patternCompleteWithFlaked := regexp.MustCompile(`^(SUCCESS|FAIL)! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Flaked \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
-	matchingLine := ""
-	for _, line := range fileLast100Lines {
-		if patternComplete.MatchString(line) {
-			matchingLine = line
-			pattern = patternComplete
-		} else if patternCompleteWithFlaked.MatchString(line) {
-			matchingLine = line
-			pattern = patternCompleteWithFlaked
-		}
-	}
-	if matchingLine == "" {
-		return false, 0, fmt.Errorf("unable to determine test results (passed, failed, flaked, pending, skipped) from e2e.log")
-	}
-	allIndexes := pattern.FindAllSubmatchIndex([]byte(matchingLine), -1)
-	for _, loc := range allIndexes {
-		passed, err = strconv.Atoi(matchingLine[loc[4]:loc[5]])
-		if err != nil {
-			return false, 0, fmt.Errorf("failed to parse successful tests")
-		}
-		// failed := string(file.Name[loc[4]:loc[5]])
-		// pending := string(file.Name[loc[6]:loc[7]])
-		// skipped := string(file.Name[loc[8]:loc[9]])
-	}
-	return true, passed, nil
-}
-
 func (s *PRSuite) determineSuccessfulTestsv125AndAbove() (success bool, passed int, tests []string, err error) {
 	junitTests, err := s.getJunitSubmittedConformanceTests()
 	if err != nil {
@@ -728,31 +687,6 @@ func (s *PRSuite) allRequiredTestsInJunitXmlArePresent() error {
 	}
 	s.Labels = append(s.Labels, "tests-verified-"+s.KubernetesReleaseVersion)
 	return nil
-}
-
-func (s *PRSuite) collectPassedTestsFromE2elog() (tests []string, err error) {
-	file := s.GetFileByFileName("e2e.log")
-	if file == nil {
-		return []string{}, fmt.Errorf("unable to find file e2e.log")
-	}
-	fileLines := strings.Split(file.Contents, "\n")
-	for _, line := range fileLines {
-		if !strings.Contains(line, "msg") {
-			continue
-		}
-		line = strings.ReplaceAll(line, "•", "")
-		var e2eLogTestPass E2eLogTestPass
-		err = json.Unmarshal([]byte(line), &e2eLogTestPass)
-		if err != nil {
-			continue
-		}
-		if !(strings.Contains(e2eLogTestPass.Message, "PASSED") ||
-			strings.Contains(e2eLogTestPass.Message, "[Conformance]")) {
-			continue
-		}
-		tests = append(tests, strings.ReplaceAll(e2eLogTestPass.Message, "PASSED ", ""))
-	}
-	return tests, nil
 }
 
 func (s *PRSuite) theTestsPassAndAreSuccessful() error {

@@ -1,0 +1,33 @@
+name: reusable golangci lint
+on:
+  workflow_call:
+    inputs:
+      config:
+        type: string
+        required: false
+        description: |
+          a .golangci.yml configuration file.
+          Warning: setting this field will override an existing config
+jobs:
+  golangci:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - id: run-info
+        name: collect job run info
+        run: |
+          echo "go-version=$(go list -f {{.GoVersion}} -m)" >> $GITHUB_OUTPUT
+      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+        with:
+          go-version: ${{ steps.run-info.outputs.go-version }}
+          cache: false
+      - name: write .golangci.yml
+        if: ${{ inputs.config }}
+        run: |
+          echo "Using config:"
+          echo '${{ inputs.config }}' | tee .golangci.yml
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@08e2f20817b15149a52b5b3ebe7de50aff2ba8c5 # v3.4.0
+        with:
+          version: v1.52.2

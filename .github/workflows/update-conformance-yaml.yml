@@ -7,7 +7,7 @@ on:
     paths:
       - hack/generate-conformanceyaml.sh
 jobs:
-  dumper:
+  update-conformance-yaml:
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -1,5 +1,4 @@
 name: update-conformance-yaml
-
 on:
   workflow_dispatch: {}
   schedule:
@@ -7,7 +6,6 @@ on:
   push:
     paths:
       - hack/generate-conformanceyaml.sh
-
 jobs:
   dumper:
     runs-on: ubuntu-latest
@@ -16,7 +14,7 @@ jobs:
       pull-requests: write
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: configure system
         run: |
           git config user.name 'github-actions[bot]'
@@ -42,5 +40,4 @@ jobs:
           git push origin "${NEW_BRANCH}"
           gh pr create --title "Update conformance yaml ${TIMESTAMP}" --body "updates conformance yaml for ${TIMESTAMP}"
           gh pr merge --merge --auto "${NEW_BRANCH}"
-      - uses: gautamkrishnar/keepalive-workflow@v1 
-
+      - uses: gautamkrishnar/keepalive-workflow@790c7f09285a59b09bb578c85e271c6ff2af97c4 # 1.1.0

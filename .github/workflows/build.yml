@@ -2,20 +2,8 @@ name: Image build
 
 on:
   workflow_dispatch: {}
-  push:
-    branches:
-      - main
-    paths:
-      - 'internal/**'
-      - 'kodata/**'
-      - 'pkg/**'
-      - .ko.yaml
-      - go.mod
-      - go.sum
-      - .github/workflows/build.yml # test that this works
-
-  # Run tests for any PRs.
-  # pull_request:
+  push: {}
+  pull_request: {}
 
 permissions:
   id-token: write

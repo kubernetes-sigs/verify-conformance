@@ -1,15 +1,12 @@
 name: release
-
 on:
   workflow_dispatch: {}
   release:
     types: [published]
-
 permissions:
   id-token: write
   contents: write
   packages: write
-
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -28,7 +25,7 @@ jobs:
           cache-dependency-path: go.sum
       - uses: sigstore/cosign-installer@001a7d424cbd4db4044e5bffd9481cbb5b451635 # v3.0.3
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@e1e17a757e536f70e52b5a12b2e8d1d1c60e04ef # v2
+        uses: aws-actions/configure-aws-credentials@2b225b5275d2d624ea40ffd55ecd0bae1d98845f # v2.0.0
         with:
           aws-region: ap-southeast-2
           role-to-assume: arn:aws:iam::928655657136:role/verify-conformance-ci

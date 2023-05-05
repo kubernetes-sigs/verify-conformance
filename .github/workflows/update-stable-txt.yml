@@ -1,4 +1,4 @@
-name: update-conformance-yaml
+name: update-stable-txt
 on:
   workflow_dispatch: {}
   schedule:
@@ -7,7 +7,7 @@ on:
     paths:
       - hack/update-stable-txt.sh
 jobs:
-  dumper:
+  update-stable-txt:
     runs-on: ubuntu-latest
     permissions:
       contents: write

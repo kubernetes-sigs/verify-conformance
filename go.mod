@@ -21,6 +21,7 @@ require (
 	github.com/hashicorp/go-version v1.4.0
 	github.com/shurcooL/githubv4 v0.0.0-20210725200734-83ba7b4c9228
 	github.com/sirupsen/logrus v1.8.1
+	github.com/vmware-tanzu/sonobuoy v0.56.10
 	k8s.io/test-infra v0.0.0-20220221213801-8b6a2593f334
 	sigs.k8s.io/yaml v1.3.0
 )
@@ -100,7 +101,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tektoncd/pipeline v0.14.1-0.20200710073957-5eeb17f81999 // indirect
 	github.com/trivago/tgo v1.0.7 // indirect
-	github.com/vmware-tanzu/sonobuoy v0.56.10 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go4.org v0.0.0-20201209231011-d4a079459e60 // indirect
 	gocloud.dev v0.19.0 // indirect
@@ -110,7 +110,7 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/text v0.3.8 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect

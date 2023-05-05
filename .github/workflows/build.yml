@@ -1,17 +1,11 @@
-name: Image build
+name: go build
 
 on:
   workflow_dispatch: {}
-  push: {}
   pull_request: {}
 
-permissions:
-  id-token: write
-  contents: read
-  packages: write
-
 jobs:
-  push_verify_release:
+  go-build:
     # Ensure test job passes before pushing image.
     # needs: test
 
@@ -20,65 +14,12 @@ jobs:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - id: run-info
         name: collect job run info
-        env:
-          KO_DOCKER_REPO: ghcr.io/${{ github.repository }}
         run: |
           echo "go-version=$(go list -f {{.GoVersion}} -m)" >> $GITHUB_OUTPUT
-          echo "ko-docker-repo=${KO_DOCKER_REPO,,}" >> $GITHUB_OUTPUT
       - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version: ${{ steps.run-info.outputs.go-version }}
           cache-dependency-path: go.sum
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@e1e17a757e536f70e52b5a12b2e8d1d1c60e04ef # v2
-        with:
-          aws-region: ap-southeast-2
-          role-to-assume: arn:aws:iam::928655657136:role/verify-conformance-ci
-          role-duration-seconds: 3600
-          role-session-name: verify-conformance-ci-gha-build
-      - name: get kubeconfig
-        run: |
-          aws eks list-clusters \
-            --region ap-southeast-2
-          aws eks \
-            update-kubeconfig \
-            --region ap-southeast-2 \
-            --name prow-cncf-io-eks
-      - uses: ko-build/setup-ko@ace48d793556083a76f1e3e6068850c1f4a369aa # v0.6
       - id: build-binary
         run: |
           go build -o /dev/null .
-      - id: build-release
-        if: ${{ github.event_name == 'release' }}
-        env:
-          KO_DOCKER_REPO: ${{ steps.run-info.outputs.ko-docker-repo }}
-        run: |
-          ko resolve --base-import-paths -f config/ > ./deploy/release.yaml
-      - id: sign-images-and-attest-sbom
-        if: ${{ github.event_name == 'release' }}
-        env:
-          COSIGN_YES: "true"
-          IMAGE: ${{ steps.build.outputs.images }}
-        run: |
-          for IMAGE in $(yq -N '. | select(.kind == "Deployment") | .spec.template.spec.containers[].image' ./deploy/release.yaml | xargs); do
-            cosign sign $IMAGE -y --recursive
-            cosign download sbom $IMAGE > /tmp/sbom-spdx.json
-            cosign attest --predicate /tmp/sbom-spdx.json $IMAGE -y --recursive
-          done
-      - id: release
-        if: ${{ github.event_name == 'release' }}
-        env:
-          GITHUB_TOKEN: ${{ github.TOKEN }}
-        run: |
-          gh release upload ${{ github.event.release.tag_name }} ./deploy/release.yaml --clobber
-      - name: Build push verify-conformance-release image to GHCR
-        if: ${{ github.event_name == 'release' }}
-        env:
-          KO_DOCKER_REPO: ${{ steps.run-info.outputs.ko-docker-repo }}
-        run: |
-          kubectl apply -f ./deploy/release.yaml
-      - name: watch rollout
-        if: ${{ github.event_name == 'release' }}
-        run: |
-          kubectl -n prow rollout status deployment verify-conformance-release
-          kubectl -n prow get pod -l app=verify-conformance-release

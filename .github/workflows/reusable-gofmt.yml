@@ -1,0 +1,19 @@
+name: reusable gofmt
+on:
+  workflow_call: {}
+jobs:
+  go-fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - id: run-info
+        name: collect job run info
+        run: |
+          echo "go-version=$(go list -f {{.GoVersion}} -m)" >> $GITHUB_OUTPUT
+      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+        with:
+          go-version: ${{ steps.run-info.outputs.go-version }}
+          cache-dependency-path: go.sum
+      - name: gofmt
+        id: gofmt
+        run: find . -name "*.go" | grep -E -v vendor | xargs gofmt -s -l -d -e

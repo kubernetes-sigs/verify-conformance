@@ -7,10 +7,10 @@ on:
 
 jobs:
   gofmt:
-    uses: cncf-infra/verify-conformance/.github/workflows/reusable-gofmt.yml
+    uses: cncf-infra/verify-conformance/.github/workflows/reusable-gofmt.yml@main
   golangci-lint:
-    uses: cncf-infra/verify-conformance/.github/workflows/reusable-golangci-lint.yml
+    uses: cncf-infra/verify-conformance/.github/workflows/reusable-golangci-lint.yml@main
   go-test:
-    uses: cncf-infra/verify-conformance/.github/workflows/reusable-go-test.yml
+    uses: cncf-infra/verify-conformance/.github/workflows/reusable-go-test.yml@main
   go-vet:
-    uses: cncf-infra/verify-conformance/.github/workflows/reusable-go-vet.yml
+    uses: cncf-infra/verify-conformance/.github/workflows/reusable-go-vet.yml@main

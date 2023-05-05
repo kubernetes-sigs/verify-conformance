@@ -31,11 +31,12 @@ jobs:
           STABLE="$(<./kodata/metadata/stable.txt)"
           if [[ "STABLE" =~ ^v[0-9]\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
             echo "valid=true" >> $GITHUB_OUTPUT
+          fi
       - name: determine changes
         if: ${{ steps.check.outputs.valid == 'true' }}
         id: determine-changes
         run: |
-          if git diff --name-only --diff-filter=ACMRT | grep E 'kodata/metadata/stable.txt$'; then
+          if git diff --name-only --diff-filter=ACMRT | grep -E 'kodata/metadata/stable.txt$'; then
             echo "changes=true" >> $GITHUB_OUTPUT
           fi
       - name: commit and push if there are changes

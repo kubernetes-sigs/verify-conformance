@@ -21,6 +21,7 @@ import (
 	"k8s.io/test-infra/prow/plugins"
 	"sigs.k8s.io/yaml"
 
+	"cncf.io/infra/verify-conformance-release/pkg/common"
 	"cncf.io/infra/verify-conformance-release/pkg/suite"
 )
 
@@ -53,8 +54,7 @@ var (
 	}
 	managedPRLabelTemplatesWithFileName = []string{"missing-file-%v"}
 	// TODO swap out for ldflag to override variable if built with Ko
-	godogPaths             = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
-	kubernetesLatestTxtURL = "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
+	godogPaths = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
 )
 
 type ProductYAMLField struct {
@@ -201,6 +201,14 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string, 
 	return ret, nil
 }
 
+func GetStableTxt() (string, error) {
+	content, err := common.ReadFile(path.Join(os.Getenv("KO_DATA_PATH"), "metadata", "stable.txt"))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(content, "\n"), nil
+}
+
 func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) (prSuite *suite.PRSuite, err error) {
 	prSuite = suite.NewPRSuite(&suite.PullRequest{PullRequestQuery: *pr})
 	issueLabels, err := ghc.GetIssueLabels(string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number))
@@ -211,11 +219,11 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		prSuite.PR.Labels = append(prSuite.PR.Labels, l.Name)
 	}
 
-	content, _, err := fetchFileFromURI(kubernetesLatestTxtURL)
+	stableTxt, err := GetStableTxt()
 	if err != nil {
-		return &suite.PRSuite{}, fmt.Errorf("unable to download the latest version info from '%v'", kubernetesLatestTxtURL)
+		return &suite.PRSuite{}, fmt.Errorf("unable to read latest version info")
 	}
-	prSuite.KubernetesReleaseVersionLatest = content
+	prSuite.KubernetesReleaseVersionLatest = stableTxt
 
 	var productYAMLContent string
 	changes, err := ghc.GetPullRequestChanges(string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number))

@@ -1,0 +1,53 @@
+name: update-conformance-yaml
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 0 * * *"
+  push:
+    paths:
+      - hack/update-stable-txt.sh
+
+jobs:
+  dumper:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: configure system
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          gh auth login --with-token < <(echo ${{ secrets.GITHUB_TOKEN }})
+          gh auth status
+      - name: produce tag dump
+        run: |
+          ./hack/update-stable-txt.sh
+      - name: check stable.txt format
+        id: check
+        run: |
+          STABLE="$(<./kodata/metadata/stable.txt)"
+          if [[ "STABLE" =~ ^v[0-9]\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
+            echo "valid=true" >> $GITHUB_OUTPUT
+      - name: determine changes
+        if: ${{ steps.check.outputs.valid == 'true' }}
+        id: determine-changes
+        run: |
+          if git diff --name-only --diff-filter=ACMRT | grep E 'kodata/metadata/stable.txt$'; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+          fi
+      - name: commit and push if there are changes
+        if: ${{ steps.determine-changes.outputs.changes == 'true' }}
+        run: |
+          STABLE="$(<./kodata/metadata/stable.txt)"
+          TIMESTAMP="$(git log -n1 --pretty='format:%cd' --date=format:'%Y-%m-%d-%H-%M')"
+          NEW_BRANCH="new-stable-kubernetes-version-$STABLE-released-${TIMESTAMP}"
+          git add ./kodata/metadata/stable.txt
+          git branch "${NEW_BRANCH}"
+          git checkout "${NEW_BRANCH}"
+          git commit -s -m "update Kubernetes stable.txt to $STABLE for ${TIMESTAMP}"
+          git push origin "${NEW_BRANCH}"
+          gh pr create --title "Update stable.txt to $STABLE ${TIMESTAMP}" --body "updates stable.txt to $STABLE for ${TIMESTAMP}"
+          gh pr merge --merge --auto "${NEW_BRANCH}"

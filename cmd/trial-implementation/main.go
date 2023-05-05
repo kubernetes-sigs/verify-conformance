@@ -12,7 +12,6 @@ var (
 	latest                  = "v1.23.4"
 	testdataJunitXmlGood, _ = common.ReadFile("./testdata/junit_01-good.xml")
 	testdataJunitXmlBad1, _ = common.ReadFile("./testdata/junit_01-bad1.xml")
-	testdataJunitXmlBad2, _ = common.ReadFile("./testdata/junit_01-bad2.xml")
 	testdataE2eLogGood, _   = common.ReadFile("./testdata/e2e-good.log")
 	testdataE2eLogBad1, _   = common.ReadFile("./testdata/e2e-bad1.log")
 	testdataE2eLogBad2, _   = common.ReadFile("./testdata/e2e-bad2.log")
@@ -38,13 +37,13 @@ func GetPRs() []suite.PullRequest {
 				"product_logo_url":  "image/svg",
 			},
 			SupportingFiles: []*suite.PullRequestFile{
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/README.md",
 					BaseName: "README.md",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Cool`,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
@@ -61,13 +60,13 @@ description: Cool Kubernetes Engine, a distributed service that automates Kubern
 contact_email_address: cool@k8s.io
 `,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: testdataJunitXmlGood,
 				},
-				&suite.PullRequestFile{
+				{
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
 					BaseName: "e2e.log",
 					Name:     "v1.23/cool/e2e.log",
@@ -98,13 +97,13 @@ contact_email_address: cool@k8s.io
 				"product_logo_url":  "application/postscript",
 			},
 			SupportingFiles: []*suite.PullRequestFile{
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/README.md",
 					BaseName: "README.md",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Something`,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
@@ -121,13 +120,13 @@ description: Something Kubernetes Engine, a distributed service that automates K
 contact_email_address: cool@k8s.io
 `,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: testdataJunitXmlGood,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
@@ -153,13 +152,13 @@ contact_email_address: cool@k8s.io
 				"product_logo_url":  "image/svg",
 			},
 			SupportingFiles: []*suite.PullRequestFile{
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/README.MD",
 					BaseName: "README.MD",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Something`,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
@@ -176,13 +175,13 @@ description: Something Kubernetes Engine, a distributed service that automates K
 contact_email_address: cool@k8s.io
 `,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: testdataJunitXmlGood,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
@@ -208,7 +207,7 @@ contact_email_address: cool@k8s.io
 				"product_logo_url":  "image/gif",
 			},
 			SupportingFiles: []*suite.PullRequestFile{
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.19/cool-metal/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/PRODUCT.yaml",
@@ -224,19 +223,19 @@ description: Something Kubernetes Engine, a distributed service that automates K
 contact_email_address: cool@k8s.io
 `,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.19/cool-metal/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/junit_01.xml",
 					Contents: ``,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.19/cool-metal/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/e2e.log",
 					Contents: testdataE2eLogBad1,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.19/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/PRODUCT.yaml",
@@ -251,19 +250,19 @@ type: Installer
 description: Something Kubernetes Engine, a distributed service that automates Kubernetes cluster management.
 `,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.19/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/junit_01.xml",
 					Contents: testdataJunitXmlBad1,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.19/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.19/cke/e2e.log",
 					Contents: testdataE2eLogBad1,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "recipe.org",
 					BaseName: "recipe.org",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/recipe.org",
@@ -299,13 +298,13 @@ description: Something Kubernetes Engine, a distributed service that automates K
 				"product_logo_url":  "application/postscript",
 			},
 			SupportingFiles: []*suite.PullRequestFile{
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.18/cool/README.md",
 					BaseName: "README.md",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.18/cke/README.md",
 					Contents: `# Conformance test for Something`,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.18/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.18/cke/PRODUCT.yaml",
@@ -322,13 +321,13 @@ description: Something Kubernetes Engine, a distributed service that automates K
 contact_email_address: cool@k8s.io
 `,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.18/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.18/cke/junit_01.xml",
 					Contents: testdataJunitXmlGood,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.18/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.18/cke/e2e.log",
@@ -373,13 +372,13 @@ contact_email_address: cool@k8s.io
 				"product_logo_url":  "application/postscript",
 			},
 			SupportingFiles: []*suite.PullRequestFile{
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/README.md",
 					BaseName: "README.md",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Something`,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
@@ -396,13 +395,13 @@ description: Something Kubernetes Engine, a distributed service that automates K
 contact_email_address: bademailk8s.io
 `,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: testdataJunitXmlGood,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
@@ -432,13 +431,13 @@ contact_email_address: bademailk8s.io
 				"documentation_url": "text/html",
 			},
 			SupportingFiles: []*suite.PullRequestFile{
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/README.md",
 					BaseName: "README.md",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Something`,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
@@ -454,13 +453,13 @@ description: Something Kubernetes Engine, a distributed service that automates K
 contact_email_address: cool@k8s.io
 `,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: testdataJunitXmlGood,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
@@ -490,13 +489,13 @@ contact_email_address: cool@k8s.io
 				"product_logo_url":  "application/postscript",
 			},
 			SupportingFiles: []*suite.PullRequestFile{
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/README.md",
 					BaseName: "README.md",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Something`,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
@@ -512,13 +511,13 @@ product_logo_url: https://github.com/cybozu-go/cke/blob/main/logo/cybozu_logo.sv
 contact_email_address: cool@k8s.io
 `,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: testdataJunitXmlGood,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
@@ -544,13 +543,13 @@ contact_email_address: cool@k8s.io
 				"product_logo_url":  "text/html",
 			},
 			SupportingFiles: []*suite.PullRequestFile{
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/README.md",
 					BaseName: "README.md",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/README.md",
 					Contents: `# Conformance test for Cool`,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/PRODUCT.yaml",
@@ -567,13 +566,13 @@ description: Cool Kubernetes Engine, a distributed service that automates Kubern
 contact_email_address: cool@k8s.io
 `,
 				},
-				&suite.PullRequestFile{
+				{
 					Name:     "v1.23/cool/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/junit_01.xml",
 					Contents: testdataJunitXmlGood,
 				},
-				&suite.PullRequestFile{
+				{
 					BlobURL:  "https://github.com/cncf-infra/k8s-conformance/raw/2c154f2bd6f0796c4d65f5b623c347b6cc042e59/v1.23/cke/e2e.log",
 					BaseName: "e2e.log",
 					Name:     "v1.23/cool/e2e.log",

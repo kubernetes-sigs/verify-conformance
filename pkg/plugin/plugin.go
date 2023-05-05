@@ -5,7 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -156,7 +156,7 @@ func fetchFileFromURI(uri string) (content string, resp *http.Response, err erro
 		return "", nil, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", nil, err
 	}
@@ -295,7 +295,7 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 
 func GetGodogPaths() (paths []string) {
 	for _, p := range godogPaths {
-		if _, err := os.Stat(p); os.IsNotExist(err) == true {
+		if _, err := os.Stat(p); os.IsNotExist(err) {
 			continue
 		}
 		paths = append(paths, p)
@@ -314,7 +314,7 @@ func labelIsManaged(input string) bool {
 
 func labelIsVersionLabel(label, version string) bool {
 	for _, ml := range managedPRLabelTemplatesWithVersion {
-		if strings.Contains(label, strings.ReplaceAll(ml, "%v", "")) == true {
+		if strings.Contains(label, strings.ReplaceAll(ml, "%v", "")) {
 			return true
 		}
 		if fmt.Sprintf(ml, version) == label {
@@ -326,7 +326,7 @@ func labelIsVersionLabel(label, version string) bool {
 
 func labelIsFileLabel(label string, missingFiles []string) bool {
 	for _, ml := range managedPRLabelTemplatesWithFileName {
-		if strings.Contains(label, strings.ReplaceAll(ml, "%v", "")) == true {
+		if strings.Contains(label, strings.ReplaceAll(ml, "%v", "")) {
 			return true
 		}
 		for _, f := range missingFiles {
@@ -345,7 +345,7 @@ labels:
 		isInVersionLabel := labelIsVersionLabel(l, prSuite.KubernetesReleaseVersion)
 		isInMissingFileLabel := labelIsFileLabel(l, prSuite.MissingFiles)
 		log.Printf("label '%v', isManagedLabel %v, isInVersionLabel %v, isInMissingFileLabel %v\n", l, isManagedLabel, isInVersionLabel, isInMissingFileLabel)
-		if isInVersionLabel == false && isInMissingFileLabel == false && isManagedLabel == false {
+		if !isInVersionLabel && !isInMissingFileLabel && !isManagedLabel {
 			continue labels
 		}
 		foundInLabels := false
@@ -354,7 +354,7 @@ labels:
 				foundInLabels = true
 			}
 		}
-		if foundInLabels == true {
+		if foundInLabels {
 			continue labels
 		}
 		if err := githubClient.AddLabel(ghc, string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number), l); err != nil {
@@ -370,7 +370,7 @@ prLabels:
 		isInVersionLabel := labelIsVersionLabel(prl, prSuite.KubernetesReleaseVersion)
 		isInMissingFileLabel := labelIsFileLabel(prl, prSuite.MissingFiles)
 		log.Printf("label '%v', isManagedLabel %v, isInVersionLabel %v, isInMissingFileLabel %v\n", prl, isManagedLabel, isInVersionLabel, isInMissingFileLabel)
-		if isInVersionLabel == false && isInMissingFileLabel == false && isManagedLabel == false {
+		if !isInVersionLabel && !isInMissingFileLabel && !isManagedLabel {
 			continue prLabels
 		}
 
@@ -380,7 +380,7 @@ prLabels:
 				foundInLabels = true
 			}
 		}
-		if foundInLabels == true {
+		if foundInLabels {
 			continue prLabels
 		}
 		// log.Printf("Will remove label '%v'", prl)
@@ -405,7 +405,7 @@ func updateComments(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQu
 	}
 	botComments := []github.IssueComment{}
 	for _, c := range comments {
-		if botUserChecker(c.User.Login) != true {
+		if !botUserChecker(c.User.Login) {
 			continue
 		}
 		if c.Body == "" {
@@ -477,13 +477,12 @@ commitLoop:
 			}
 		}
 	}
-	if currentLatestHasCurrentStatus == true {
+	if currentLatestHasCurrentStatus {
 		return nil
 	}
 	switch state {
 	case "success":
 		description = "All checks are passing"
-		break
 	case "failure":
 		description = "Please check failing requirements and update accordingly"
 	}
@@ -602,7 +601,8 @@ func HandleIssueCommentEvent(log *logrus.Entry, ghc githubClient, ice *github.Is
 //
 // Each PR is checked in turn, we check
 //   - for the presence of a Release Version in the PR title
-//- then we take that version and verify that the e2e test logs refer to that same release version.
+//
+// - then we take that version and verify that the e2e test logs refer to that same release version.
 //
 // if all is in order then we add the verifiable label and a release-Vx.y label
 // if there is an inconsistency we add a comment that explains the problem

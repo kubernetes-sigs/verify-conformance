@@ -71,7 +71,9 @@ func gatherOptions() options {
 	for _, group := range []flagutil.OptionGroup{&o.github} {
 		group.AddFlags(fs)
 	}
-	fs.Parse(os.Args[1:])
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		logrus.WithError(err).Fatal("error parsing args[1:]")
+	}
 	return o
 }
 
@@ -95,7 +97,6 @@ func main() {
 	if o.webhookSecretFile != "" {
 		secrets = append(secrets, o.webhookSecretFile)
 	}
-	log.Println("secrets: %v", secrets)
 	if err := secret.Add(secrets...); err != nil {
 		logrus.WithError(err).Fatal("Error starting test-infra/prow/config/secret agent.")
 	}
@@ -109,7 +110,9 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting GitHub client.")
 	}
-	githubClient.Throttle(360, 360)
+	if err := githubClient.Throttle(360, 360); err != nil {
+		logrus.WithError(err).Fatal("Error throttling GitHub client")
+	}
 
 	server := &Server{
 		tokenGenerator: secret.GetTokenGenerator(o.webhookSecretFile),

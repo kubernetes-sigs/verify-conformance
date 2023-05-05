@@ -26,6 +26,7 @@ jobs:
         with:
           go-version: ${{ steps.run-info.outputs.go-version }}
           cache-dependency-path: go.sum
+      - uses: sigstore/cosign-installer@001a7d424cbd4db4044e5bffd9481cbb5b451635 # v3.0.3
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@e1e17a757e536f70e52b5a12b2e8d1d1c60e04ef # v2
         with:

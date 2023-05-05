@@ -12,7 +12,6 @@ var (
 	latest                  = "v1.23.4"
 	testdataJunitXmlGood, _ = common.ReadFile("./testdata/junit_01-good.xml")
 	testdataJunitXmlBad1, _ = common.ReadFile("./testdata/junit_01-bad1.xml")
-	testdataJunitXmlBad2, _ = common.ReadFile("./testdata/junit_01-bad2.xml")
 	testdataE2eLogGood, _   = common.ReadFile("./testdata/e2e-good.log")
 	testdataE2eLogBad1, _   = common.ReadFile("./testdata/e2e-bad1.log")
 	testdataE2eLogBad2, _   = common.ReadFile("./testdata/e2e-bad2.log")

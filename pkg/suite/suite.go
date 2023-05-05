@@ -194,12 +194,12 @@ func (s *PRSuite) thePRTitleIsNotEmpty() error {
 func (s *PRSuite) isIncludedInItsFileList(fileName string) error {
 	foundFile := false
 	for _, f := range s.PR.SupportingFiles {
-		if strings.ToLower(f.BaseName) == strings.ToLower(fileName) {
+		if strings.EqualFold(f.BaseName, fileName) {
 			foundFile = true
 			break
 		}
 	}
-	if foundFile == false {
+	if !foundFile {
 		s.Labels = append(s.Labels, "missing-file-"+fileName)
 		s.MissingFiles = append(s.MissingFiles, fileName)
 		return common.SafeError(fmt.Errorf("missing file '%v'", fileName))
@@ -211,7 +211,7 @@ func (s *PRSuite) fileFolderStructureMatchesRegex(match string) error {
 	pattern := regexp.MustCompile(match)
 	failureError := fmt.Errorf("your product submission PR must be in folders structured like [KubernetesReleaseVersion]/[ProductName], e.g: v1.23/averycooldistro")
 	for _, file := range s.PR.SupportingFiles {
-		if matches := pattern.MatchString(path.Dir(file.Name)); matches != true {
+		if matches := pattern.MatchString(path.Dir(file.Name)); !matches {
 			return common.SafeError(fmt.Errorf("file '%v' not allowed. %v", file.Name, failureError))
 		}
 		allIndexes := pattern.FindAllSubmatchIndex([]byte(path.Dir(file.Name)), -1)
@@ -240,7 +240,7 @@ func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
 				foundInPaths = true
 			}
 		}
-		if foundInPaths == false {
+		if !foundInPaths {
 			paths = append(paths, filePath)
 		}
 	}
@@ -260,7 +260,7 @@ func (s *PRSuite) theTitleOfThePR() error {
 
 func (s *PRSuite) theTitleOfThePRMatches(match string) error {
 	pattern := regexp.MustCompile(match)
-	if pattern.MatchString(string(s.PR.Title)) != true {
+	if !pattern.MatchString(string(s.PR.Title)) {
 		return common.SafeError(fmt.Errorf("title must be formatted like 'Conformance results for [KubernetesReleaseVersion]/[ProductName]' (e.g: Conformance results for v1.23/CoolKubernetes)"))
 	}
 	return nil
@@ -283,7 +283,7 @@ func (s *PRSuite) aFile(fileName string) error {
 
 func (s *PRSuite) GetFileByFileName(fileName string) *PullRequestFile {
 	for _, f := range s.PR.SupportingFiles {
-		if strings.ToLower(f.BaseName) == strings.ToLower(fileName) {
+		if strings.EqualFold(f.BaseName, fileName) {
 			return f
 		}
 	}
@@ -327,7 +327,7 @@ func (s *PRSuite) aLineOfTheFileMatches(fileName, match string) error {
 	var matchingLine string
 lineLoop:
 	for _, line := range lines {
-		if pattern.MatchString(line) == true {
+		if !pattern.MatchString(line) {
 			matchingLine = line
 			break lineLoop
 		}
@@ -394,7 +394,7 @@ func (s *PRSuite) theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShoul
 			foundLabel = true
 		}
 	}
-	if foundLabel != true {
+	if !foundLabel {
 		return common.SafeError(fmt.Errorf("required label '%v' not found", labelWithReleaseAttached))
 	}
 	return nil
@@ -420,13 +420,11 @@ func (s *PRSuite) theContentOfTheInTheValueOfIsAValid(fieldType string, field st
 		if err != nil {
 			return common.SafeError(fmt.Errorf("URL for field '%v' in PRODUCT.yaml is not a valid URL, %v", field, err))
 		}
-		break
 	case "email":
 		_, err = mail.ParseAddress(parsedContent[field])
 		if err != nil {
 			return common.SafeError(fmt.Errorf("Email field '%v' in PRODUCT.yaml is not a valid address, %v", field, err))
 		}
-		break
 	}
 	return nil
 }
@@ -437,12 +435,12 @@ func (s *PRSuite) theContentOfTheUrlInTheValueOfMatches(field, dataType string) 
 	}
 	foundDataType := false
 	for _, dt := range strings.Split(dataType, " ") {
-		foundDataType = strings.Contains(s.PR.ProductYAMLURLDataTypes[field], dt) == true
-		if foundDataType == true {
+		foundDataType = strings.Contains(s.PR.ProductYAMLURLDataTypes[field], dt)
+		if foundDataType {
 			break
 		}
 	}
-	if foundDataType == false {
+	if !foundDataType {
 		return common.SafeError(fmt.Errorf("URL field '%v' in PRODUCT.yaml resolving content type '%v' must be (%v)", field, s.PR.ProductYAMLURLDataTypes[field], strings.Join(strings.Split(dataType, " "), ", or ")))
 	}
 	return nil
@@ -540,14 +538,14 @@ func (s *PRSuite) GetRequiredTests() (tests map[string]bool, err error) {
 			if err != nil {
 				return map[string]bool{}, err
 			}
-			if versionSemver.GreaterThanOrEqual(testVersionSemver) == true {
+			if versionSemver.GreaterThanOrEqual(testVersionSemver) {
 				foundInTestVersions = true
 			}
-			if foundInTestVersions == true {
+			if foundInTestVersions {
 				break testSupportedVersions
 			}
 		}
-		if foundInTestVersions != true {
+		if !foundInTestVersions {
 			continue
 		}
 		tests[test.Codename] = false
@@ -576,7 +574,7 @@ func (s *PRSuite) getJunitSubmittedConformanceTests() (tests []sonobuoyresults.J
 				if testcase.SkipMessage != nil {
 					continue
 				}
-				if strings.Contains(testcase.Name, "[Conformance]") == false {
+				if !strings.Contains(testcase.Name, "[Conformance]") {
 					continue
 				}
 				testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
@@ -595,7 +593,7 @@ func (s *PRSuite) getJunitSubmittedConformanceTests() (tests []sonobuoyresults.J
 			if testcase.Skipped != nil {
 				continue
 			}
-			if strings.Contains(testcase.Name, "[Conformance]") == false {
+			if !strings.Contains(testcase.Name, "[Conformance]") {
 				continue
 			}
 			testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
@@ -634,13 +632,13 @@ func (s *PRSuite) GetMissingJunitTestsFromPRSuite() (missingTests []string, err 
 
 	for _, submittedTest := range submittedTests {
 		submittedTest = strings.TrimPrefix(submittedTest, "[It] ")
-		if _, found := requiredTests[submittedTest]; found != true {
+		if _, found := requiredTests[submittedTest]; !found {
 			continue
 		}
 		requiredTests[submittedTest] = true
 	}
 	for test, found := range requiredTests {
-		if found == true {
+		if found {
 			continue
 		}
 		missingTests = append(missingTests, test)
@@ -665,10 +663,10 @@ func (s *PRSuite) determineSuccessfulTestsBelowv125() (success bool, passed int,
 	patternCompleteWithFlaked := regexp.MustCompile(`^(SUCCESS|FAIL)! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Flaked \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
 	matchingLine := ""
 	for _, line := range fileLast100Lines {
-		if patternComplete.MatchString(line) == true {
+		if patternComplete.MatchString(line) {
 			matchingLine = line
 			pattern = patternComplete
-		} else if patternCompleteWithFlaked.MatchString(line) == true {
+		} else if patternCompleteWithFlaked.MatchString(line) {
 			matchingLine = line
 			pattern = patternCompleteWithFlaked
 		}
@@ -704,7 +702,7 @@ func (s *PRSuite) determineSuccessfulTestsv125AndAbove() (success bool, passed i
 		testName := strings.TrimPrefix(t.Name, "[It] ")
 		tests = append(tests, testName)
 	}
-	if hasFailure == true {
+	if hasFailure {
 		return false, passed, tests, nil
 	}
 	return true, passed, tests, nil
@@ -721,7 +719,7 @@ func (s *PRSuite) DetermineSuccessfulTests() (success bool, passed int, tests []
 		if err != nil {
 			return false, 0, []string{}, err
 		}
-		return true, passed, tests, nil
+		return success, passed, tests, nil
 	}
 	success, passed, err = s.determineSuccessfulTestsBelowv125()
 	if err != nil {
@@ -731,7 +729,7 @@ func (s *PRSuite) DetermineSuccessfulTests() (success bool, passed int, tests []
 	if err != nil {
 		return false, 0, []string{}, err
 	}
-	return true, passed, tests, nil
+	return success, passed, tests, nil
 }
 
 func (s *PRSuite) allRequiredTestsInJunitXmlArePresent() error {
@@ -755,7 +753,7 @@ func (s *PRSuite) collectPassedTestsFromE2elog() (tests []string, err error) {
 	}
 	fileLines := strings.Split(file.Contents, "\n")
 	for _, line := range fileLines {
-		if strings.Contains(line, "msg") == false {
+		if !strings.Contains(line, "msg") {
 			continue
 		}
 		line = strings.ReplaceAll(line, "•", "")
@@ -764,8 +762,8 @@ func (s *PRSuite) collectPassedTestsFromE2elog() (tests []string, err error) {
 		if err != nil {
 			continue
 		}
-		if !(strings.Contains(e2eLogTestPass.Message, "PASSED") == true ||
-			strings.Contains(e2eLogTestPass.Message, "[Conformance]") == true) {
+		if !(strings.Contains(e2eLogTestPass.Message, "PASSED") ||
+			strings.Contains(e2eLogTestPass.Message, "[Conformance]")) {
 			continue
 		}
 		tests = append(tests, strings.ReplaceAll(e2eLogTestPass.Message, "PASSED ", ""))
@@ -778,7 +776,7 @@ func (s *PRSuite) theTestsPassAndAreSuccessful() error {
 	if err != nil {
 		return err
 	}
-	if success == false {
+	if !success {
 		s.Labels = append(s.Labels, "evidence-missing")
 		return common.SafeError(fmt.Errorf("it appears that there are failures in some tests"))
 	}
@@ -798,14 +796,14 @@ func (s *PRSuite) allRequiredTestsInArePresent() error {
 	}
 
 	for _, submittedTest := range tests {
-		if _, found := requiredTests[submittedTest]; found != true {
+		if _, found := requiredTests[submittedTest]; !found {
 			continue
 		}
 		requiredTests[submittedTest] = true
 	}
 	missingTests := []string{}
 	for test, found := range requiredTests {
-		if found == true {
+		if found {
 			continue
 		}
 		missingTests = append(missingTests, test)
@@ -844,7 +842,7 @@ func (s *PRSuite) theTestsMatch() error {
 				foundInJunitTests = true
 			}
 		}
-		if foundInJunitTests != true {
+		if !foundInJunitTests {
 			missingTests = append(missingTests, e2eTest)
 		}
 	}
@@ -890,7 +888,7 @@ func aPRTitle() error {
 
 func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, labels []string, state string, err error) {
 	cukeFeatures := []types.CukeFeatureJSON{}
-	err = json.Unmarshal([]byte(s.buffer.String()), &cukeFeatures)
+	err = json.Unmarshal(s.buffer.Bytes(), &cukeFeatures)
 	if err != nil {
 		return "", []string{}, "", err
 	}
@@ -921,7 +919,7 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 					foundNameInStepsRun = true
 				}
 			}
-			if foundNameInStepsRun == false {
+			if !foundNameInStepsRun {
 				uniquelyNamedStepsRun = append(uniquelyNamedStepsRun, e.Name)
 			}
 		steps:
@@ -945,11 +943,11 @@ func (s *PRSuite) GetLabelsAndCommentsFromSuiteResultsBuffer() (comment string, 
 						resultPrepares[ri].Hints = append(resultPrepares[ri].Hints, hint)
 					}
 				}
-				if foundExistingResultTitle == false {
+				if !foundExistingResultTitle {
 					resultPrepare.Hints = append(resultPrepare.Hints, hint)
 				}
 			}
-			if hasFails == true && foundExistingResultTitle == false {
+			if hasFails && !foundExistingResultTitle {
 				resultPrepare.Name = strings.TrimSpace(e.Description)
 				resultPrepares = append(resultPrepares, resultPrepare)
 			}

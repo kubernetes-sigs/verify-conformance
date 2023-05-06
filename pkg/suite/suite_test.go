@@ -23,7 +23,7 @@ func init() {
 
 func TestNewPRSuite(t *testing.T) {
 	for _, pr := range []*PullRequest{
-		&PullRequest{
+		{
 			PullRequestQuery: PullRequestQuery{
 				Number: githubql.Int(1),
 				Title:  githubql.String("Conformance results for SOMETHING/v1.27"),

@@ -136,6 +136,10 @@ func TestNewPRSuite(t *testing.T) {
 	}
 }
 
+func TestNewTestSuite(t *testing.T) {
+
+}
+
 func TestSetMetadataFolder(t *testing.T) {
 	newMetadataFolder := "abc/123/cool/test/path"
 	prSuite := NewPRSuite(&PullRequest{})
@@ -274,22 +278,24 @@ func TestIsIncludedInItsFileList(t *testing.T) {
 	}
 }
 
-func TestGetFileByFileName(t *testing.T) {
-	prSuite := NewPRSuite(&PullRequest{
-		PullRequestQuery: PullRequestQuery{
-			Title: githubql.String("Conformance results for v1.27/coolkube"),
-		},
-		SupportingFiles: []*PullRequestFile{
-			{
-				Name:     "v1.27/coolkube/junit_01.xml",
-				BaseName: "junit_01.xml",
-				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
-			},
-		},
-	})
-	if file := prSuite.GetFileByFileName("junit_01.xml"); file == nil {
-		t.Fatalf("error: file 'junit_01.xml' is empty and should not be")
-	}
+func TestFileFolderStructureMatchesRegex(t *testing.T) {
+
+}
+
+func TestThereIsOnlyOnePathOfFolders(t *testing.T) {
+
+}
+
+func TestTheTitleOfThePR(t *testing.T) {
+
+}
+
+func TestTheTitleOfThePRMatches(t *testing.T) {
+
+}
+
+func TestTheFilesInThePR(t *testing.T) {
+
 }
 
 func TestAFile(t *testing.T) {
@@ -308,6 +314,88 @@ func TestAFile(t *testing.T) {
 	if err := prSuite.aFile("junit_01.xml"); err != nil {
 		t.Fatalf("error: %v", err)
 	}
+}
+
+func TestGetFileByFileName(t *testing.T) {
+	prSuite := NewPRSuite(&PullRequest{
+		PullRequestQuery: PullRequestQuery{
+			Title: githubql.String("Conformance results for v1.27/coolkube"),
+		},
+		SupportingFiles: []*PullRequestFile{
+			{
+				Name:     "v1.27/coolkube/junit_01.xml",
+				BaseName: "junit_01.xml",
+				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+			},
+		},
+	})
+	if file := prSuite.GetFileByFileName("junit_01.xml"); file == nil {
+		t.Fatalf("error: file 'junit_01.xml' is empty and should not be")
+	}
+}
+
+func TestTheYamlFileContainsTheRequiredAndNonEmptyField(t *testing.T) {
+
+}
+
+func TestIsNotEmpty(t *testing.T) {
+
+}
+
+func TestALineOfTheFileMatches(t *testing.T) {
+
+}
+
+func TestAListOfCommits(t *testing.T) {
+
+}
+
+func TestThereIsOnlyOneCommit(t *testing.T) {
+
+}
+
+func TestThatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolderStructure(t *testing.T) {
+
+}
+
+func TestAListOfLabelsInThePR(t *testing.T) {
+
+}
+
+func TestTheLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent(t *testing.T) {
+
+}
+
+func TestTheContentOfTheInTheValueOfIsAValid(t *testing.T) {
+
+}
+
+func TestTheContentOfTheUrlInTheValueOfMatches(t *testing.T) {
+
+}
+
+func TestSetSubmissionMetadatafromFolderStructure(t *testing.T) {
+
+}
+
+func TestTheReleaseVersionMatchesTheReleaseVersionInTheTitle(t *testing.T) {
+
+}
+
+func TestTheReleaseVersion(t *testing.T) {
+
+}
+
+func TestItIsAValidAndSupportedRelease(t *testing.T) {
+
+}
+
+func TestGetRequiredTests(t *testing.T) {
+
+}
+
+func TestGetMissingJunitTestsFromPRSuite(t *testing.T) {
+
 }
 
 func TestDetermineSuccessfulTests(t *testing.T) {
@@ -374,4 +462,28 @@ func TestGetJunitSubmittedConformanceTests(t *testing.T) {
 	if len(tests) < 1 {
 		t.Fatal("error: no tests found")
 	}
+}
+
+func TestTheTestsPassAndAreSuccessful(t *testing.T) {
+
+}
+
+func TestAllRequiredTestsInArePresent(t *testing.T) {
+
+}
+
+func TestIsValidYaml(t *testing.T) {
+
+}
+
+func TestIsValid(t *testing.T) {
+
+}
+
+func TestAPRTitle(t *testing.T) {
+
+}
+
+func TestGetLabelsAndCommentsFromSuiteResultsBuffer(t *testing.T) {
+
 }

@@ -54,7 +54,7 @@ var (
 	}
 	managedPRLabelTemplatesWithFileName = []string{"missing-file-%v"}
 	// TODO swap out for ldflag to override variable if built with Ko
-	godogPaths = []string{"./features/", "./kodata/features/", "/var/run/ko/features/"}
+	godogPaths = []string{"./features/", "./kodata/features/", "/var/run/ko/features/", "../../kodata/features/"}
 )
 
 type ProductYAMLField struct {
@@ -455,10 +455,11 @@ func updateComments(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQu
 }
 
 func removeSliceOfStringsFromStringSlice(originalSlice []string, removeSlice []string) (output []string) {
+o:
 	for _, oItem := range originalSlice {
 		for _, delString := range removeSlice {
 			if oItem == delString {
-				continue
+				continue o
 			}
 		}
 		output = append(output, oItem)

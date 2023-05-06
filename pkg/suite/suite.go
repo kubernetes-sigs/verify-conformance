@@ -11,7 +11,6 @@ import (
 	"path"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/cucumber/godog"
@@ -558,39 +557,13 @@ func (s *PRSuite) getJunitSubmittedConformanceTests() (tests []sonobuoyresults.J
 	if file == nil {
 		return []sonobuoyresults.JUnitTestCase{}, fmt.Errorf("unable to find file junit_01.xml")
 	}
-	version, err := semver.NewVersion(s.E2eLogKubernetesReleaseVersion)
-	if err != nil {
-		fmt.Printf("semver error: %#v", err)
-		return []sonobuoyresults.JUnitTestCase{}, fmt.Errorf("unable to find target version for this submission")
+	junit := sonobuoyresults.JUnitTestSuites{}
+	if err := xml.Unmarshal([]byte(file.Contents), &junit); err != nil {
+		return []sonobuoyresults.JUnitTestCase{}, common.SafeError(fmt.Errorf("unable to parse junit_01.xml file, %v", err))
 	}
-	constraint, _ := semver.NewConstraint(">=v1.25.0")
-	if constraint.Check(version) {
-		junit := sonobuoyresults.JUnitTestSuites{}
-		if err := xml.Unmarshal([]byte(file.Contents), &junit); err != nil {
-			return []sonobuoyresults.JUnitTestCase{}, common.SafeError(fmt.Errorf("unable to parse junit_01.xml file, %v", err))
-		}
-		for _, suite := range junit.Suites {
-			for _, testcase := range suite.TestCases {
-				if testcase.SkipMessage != nil {
-					continue
-				}
-				if !strings.Contains(testcase.Name, "[Conformance]") {
-					continue
-				}
-				testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
-				testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
-				testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
-				testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
-				tests = append(tests, testcase)
-			}
-		}
-	} else {
-		testSuite := JunitTestSuite{}
-		if err := xml.Unmarshal([]byte(file.Contents), &testSuite); err != nil {
-			return []sonobuoyresults.JUnitTestCase{}, common.SafeError(fmt.Errorf("unable to parse junit_01.xml file, %v", err))
-		}
-		for _, testcase := range testSuite.TestSuite {
-			if testcase.Skipped != nil {
+	for _, suite := range junit.Suites {
+		for _, testcase := range suite.TestCases {
+			if testcase.SkipMessage != nil {
 				continue
 			}
 			if !strings.Contains(testcase.Name, "[Conformance]") {
@@ -600,10 +573,7 @@ func (s *PRSuite) getJunitSubmittedConformanceTests() (tests []sonobuoyresults.J
 			testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
 			testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
 			testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
-			tests = append(tests, sonobuoyresults.JUnitTestCase{
-				Name:    testcase.Name,
-				XMLName: testcase.XMLName,
-			})
+			tests = append(tests, testcase)
 		}
 	}
 	return tests, nil
@@ -647,46 +617,6 @@ func (s *PRSuite) GetMissingJunitTestsFromPRSuite() (missingTests []string, err 
 	return missingTests, nil
 }
 
-func (s *PRSuite) determineSuccessfulTestsBelowv125() (success bool, passed int, err error) {
-	file := s.GetFileByFileName("e2e.log")
-	if file == nil {
-		return false, 0, fmt.Errorf("unable to find file e2e.log")
-	}
-	fileLines := strings.Split(file.Contents, "\n")
-	lastLinesAmount := len(fileLines) - 100
-	if lastLinesAmount < 0 {
-		lastLinesAmount = len(fileLines)
-	}
-	fileLast100Lines := fileLines[lastLinesAmount:]
-	var pattern *regexp.Regexp
-	patternComplete := regexp.MustCompile(`^(SUCCESS|FAIL)! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
-	patternCompleteWithFlaked := regexp.MustCompile(`^(SUCCESS|FAIL)! -- ([1-9][0-9]+) Passed \| ([0-9]+) Failed \| ([0-9]+) Flaked \| ([0-9]+) Pending \| ([0-9]+) Skipped$`)
-	matchingLine := ""
-	for _, line := range fileLast100Lines {
-		if patternComplete.MatchString(line) {
-			matchingLine = line
-			pattern = patternComplete
-		} else if patternCompleteWithFlaked.MatchString(line) {
-			matchingLine = line
-			pattern = patternCompleteWithFlaked
-		}
-	}
-	if matchingLine == "" {
-		return false, 0, fmt.Errorf("unable to determine test results (passed, failed, flaked, pending, skipped) from e2e.log")
-	}
-	allIndexes := pattern.FindAllSubmatchIndex([]byte(matchingLine), -1)
-	for _, loc := range allIndexes {
-		passed, err = strconv.Atoi(matchingLine[loc[4]:loc[5]])
-		if err != nil {
-			return false, 0, fmt.Errorf("failed to parse successful tests")
-		}
-		// failed := string(file.Name[loc[4]:loc[5]])
-		// pending := string(file.Name[loc[6]:loc[7]])
-		// skipped := string(file.Name[loc[8]:loc[9]])
-	}
-	return true, passed, nil
-}
-
 func (s *PRSuite) determineSuccessfulTestsv125AndAbove() (success bool, passed int, tests []string, err error) {
 	junitTests, err := s.getJunitSubmittedConformanceTests()
 	if err != nil {
@@ -709,23 +639,7 @@ func (s *PRSuite) determineSuccessfulTestsv125AndAbove() (success bool, passed i
 }
 
 func (s *PRSuite) DetermineSuccessfulTests() (success bool, passed int, tests []string, err error) {
-	version, err := semver.NewVersion(s.E2eLogKubernetesReleaseVersion)
-	if err != nil {
-		return false, 0, []string{}, err
-	}
-	constraint, _ := semver.NewConstraint(">=v1.25.0")
-	if constraint.Check(version) {
-		success, passed, tests, err = s.determineSuccessfulTestsv125AndAbove()
-		if err != nil {
-			return false, 0, []string{}, err
-		}
-		return success, passed, tests, nil
-	}
-	success, passed, err = s.determineSuccessfulTestsBelowv125()
-	if err != nil {
-		return false, 0, []string{}, err
-	}
-	tests, err = s.collectPassedTestsFromE2elog()
+	success, passed, tests, err = s.determineSuccessfulTestsv125AndAbove()
 	if err != nil {
 		return false, 0, []string{}, err
 	}
@@ -744,31 +658,6 @@ func (s *PRSuite) allRequiredTestsInJunitXmlArePresent() error {
 	}
 	s.Labels = append(s.Labels, "tests-verified-"+s.KubernetesReleaseVersion)
 	return nil
-}
-
-func (s *PRSuite) collectPassedTestsFromE2elog() (tests []string, err error) {
-	file := s.GetFileByFileName("e2e.log")
-	if file == nil {
-		return []string{}, fmt.Errorf("unable to find file e2e.log")
-	}
-	fileLines := strings.Split(file.Contents, "\n")
-	for _, line := range fileLines {
-		if !strings.Contains(line, "msg") {
-			continue
-		}
-		line = strings.ReplaceAll(line, "•", "")
-		var e2eLogTestPass E2eLogTestPass
-		err = json.Unmarshal([]byte(line), &e2eLogTestPass)
-		if err != nil {
-			continue
-		}
-		if !(strings.Contains(e2eLogTestPass.Message, "PASSED") ||
-			strings.Contains(e2eLogTestPass.Message, "[Conformance]")) {
-			continue
-		}
-		tests = append(tests, strings.ReplaceAll(e2eLogTestPass.Message, "PASSED ", ""))
-	}
-	return tests, nil
 }
 
 func (s *PRSuite) theTestsPassAndAreSuccessful() error {
@@ -811,46 +700,6 @@ func (s *PRSuite) allRequiredTestsInArePresent() error {
 	if len(missingTests) > 0 {
 		sort.Strings(missingTests)
 		return common.SafeError(fmt.Errorf("there appears to be %v tests missing: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - ")))
-	}
-	return nil
-}
-
-// TODO remove this test before release of v1.27
-// DEPRECATED
-func (s *PRSuite) theTestsMatch() error {
-	version, err := semver.NewVersion(s.E2eLogKubernetesReleaseVersion)
-	if err != nil {
-		return err
-	}
-	constraint, _ := semver.NewConstraint(">=v1.25.0")
-	if constraint.Check(version) {
-		return nil
-	}
-	e2eTests, err := s.collectPassedTestsFromE2elog()
-	if err != nil {
-		return err
-	}
-	junitTests, err := s.GetJunitSubmittedConformanceTests()
-	if err != nil {
-		return err
-	}
-	missingTests := []string{}
-	for _, e2eTest := range e2eTests {
-		foundInJunitTests := false
-		for _, junitTest := range junitTests {
-			if e2eTest == strings.TrimPrefix(junitTest, "[It] ") {
-				foundInJunitTests = true
-			}
-		}
-		if !foundInJunitTests {
-			missingTests = append(missingTests, e2eTest)
-		}
-	}
-	if len(missingTests) > 0 {
-		return common.SafeError(fmt.Errorf("there appears to be %v test(s) in e2e.log that are skipped or missing from junit_01.xml: \n    - %v", len(missingTests), strings.Join(missingTests, "\n    - ")))
-	}
-	if len(junitTests) != len(e2eTests) {
-		return common.SafeError(fmt.Errorf("the amount of tests in e2e.log (%v) doesn't match the amount of tests in junit_01.xml (%v)", len(junitTests), len(e2eTests)))
 	}
 	return nil
 }
@@ -1001,7 +850,6 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the tests pass and are successful$`, s.theTestsPassAndAreSuccessful)
 	ctx.Step(`^that version matches the same Kubernetes release version as in the folder structure$`, s.thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolderStructure)
 	ctx.Step(`^all required tests in junit_01.xml are present$`, s.allRequiredTestsInJunitXmlArePresent)
-	ctx.Step(`^the tests match$`, s.theTestsMatch)
 	ctx.Step(`^all required tests are present$`, s.allRequiredTestsInArePresent)
 	ctx.Step(`^a PR title$`, aPRTitle)
 	ctx.Step(`^"([^"]*)" is valid "([^"]*)"`, s.IsValid)

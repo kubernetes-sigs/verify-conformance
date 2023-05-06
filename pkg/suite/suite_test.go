@@ -275,11 +275,39 @@ func TestIsIncludedInItsFileList(t *testing.T) {
 }
 
 func TestGetFileByFileName(t *testing.T) {
-
+	prSuite := NewPRSuite(&PullRequest{
+		PullRequestQuery: PullRequestQuery{
+			Title: githubql.String("Conformance results for v1.27/coolkube"),
+		},
+		SupportingFiles: []*PullRequestFile{
+			{
+				Name:     "v1.27/coolkube/junit_01.xml",
+				BaseName: "junit_01.xml",
+				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+			},
+		},
+	})
+	if file := prSuite.GetFileByFileName("junit_01.xml"); file == nil {
+		t.Fatalf("error: file 'junit_01.xml' is empty and should not be")
+	}
 }
 
 func TestAFile(t *testing.T) {
-
+	prSuite := NewPRSuite(&PullRequest{
+		PullRequestQuery: PullRequestQuery{
+			Title: githubql.String("Conformance results for v1.27/coolkube"),
+		},
+		SupportingFiles: []*PullRequestFile{
+			{
+				Name:     "v1.27/coolkube/junit_01.xml",
+				BaseName: "junit_01.xml",
+				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+			},
+		},
+	})
+	if err := prSuite.aFile("junit_01.xml"); err != nil {
+		t.Fatalf("error: %v", err)
+	}
 }
 
 func TestDetermineSuccessfulTests(t *testing.T) {

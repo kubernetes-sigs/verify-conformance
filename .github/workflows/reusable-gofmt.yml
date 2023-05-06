@@ -17,3 +17,8 @@ jobs:
       - name: gofmt
         id: gofmt
         run: find . -name "*.go" | grep -E -v vendor | xargs gofmt -s -l -d -e
+      - name: check-gofmt
+        if: ${{ steps.gofmt.outputs.stdout != '' }}
+        run: |
+          echo "gofmt discovered regions requiring formatting"
+          exit 1

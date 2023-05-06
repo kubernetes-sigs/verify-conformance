@@ -26,7 +26,10 @@ func TestHelpProvider(t *testing.T) {
 func TestFetchFileFromURI(t *testing.T) {
 	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`Hello!`))
+		_, err := w.Write([]byte(`Hello!`))
+		if err != nil {
+			t.Fatalf("error: sending http response; %v", err)
+		}
 	}))
 	defer svr.Close()
 	content, resp, err := fetchFileFromURI(svr.URL)
@@ -155,7 +158,7 @@ func TestLabelIsManaged(t *testing.T) {
 	}
 }
 
-func TestingLabelIsVersionLabel(t *testing.T) {
+func TestLabelIsVersionLabel(t *testing.T) {
 	type testCase struct {
 		Label          string
 		Version        string
@@ -205,7 +208,7 @@ func TestingLabelIsVersionLabel(t *testing.T) {
 	}
 }
 
-func TestingLabelIsFileLabel(t *testing.T) {
+func TestLabelIsFileLabel(t *testing.T) {
 	type testCase struct {
 		Label          string
 		MissingFiles   []string

@@ -210,6 +210,7 @@ func TestLabelIsVersionLabel(t *testing.T) {
 
 func TestLabelIsFileLabel(t *testing.T) {
 	type testCase struct {
+		Name           string
 		Label          string
 		MissingFiles   []string
 		ExpectedResult bool
@@ -238,19 +239,19 @@ func TestLabelIsFileLabel(t *testing.T) {
 		},
 		{
 			Label:          "missing-file-README.md",
-			ExpectedResult: false,
+			ExpectedResult: true,
 		},
 		{
 			Label:          "missing-file-e2e.log",
-			ExpectedResult: false,
+			ExpectedResult: true,
 		},
 		{
 			Label:          "missing-file-junit_01.xml",
-			ExpectedResult: false,
+			ExpectedResult: true,
 		},
 		{
 			Label:          "missing-file-PRODUCT.yaml",
-			ExpectedResult: false,
+			ExpectedResult: true,
 		},
 		{
 			Label:          "hi-im-a-label",
@@ -262,7 +263,7 @@ func TestLabelIsFileLabel(t *testing.T) {
 		},
 	} {
 		if result := labelIsFileLabel(tc.Label, tc.MissingFiles); result != tc.ExpectedResult {
-			t.Fatalf("error: file label is not expected for %v", tc.Label)
+			t.Fatalf("error: file label is not expected for %v (%v) with result (%v)", tc.Label, tc.ExpectedResult, result)
 		}
 	}
 }

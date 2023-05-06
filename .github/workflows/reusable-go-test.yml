@@ -16,4 +16,4 @@ jobs:
           cache-dependency-path: go.sum
       - name: test
         id: test
-        run: go test -v ./...
+        run: go test -v ./... -cover

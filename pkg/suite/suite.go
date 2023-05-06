@@ -557,39 +557,13 @@ func (s *PRSuite) getJunitSubmittedConformanceTests() (tests []sonobuoyresults.J
 	if file == nil {
 		return []sonobuoyresults.JUnitTestCase{}, fmt.Errorf("unable to find file junit_01.xml")
 	}
-	version, err := semver.NewVersion(s.E2eLogKubernetesReleaseVersion)
-	if err != nil {
-		fmt.Printf("semver error: %#v", err)
-		return []sonobuoyresults.JUnitTestCase{}, fmt.Errorf("unable to find target version for this submission")
+	junit := sonobuoyresults.JUnitTestSuites{}
+	if err := xml.Unmarshal([]byte(file.Contents), &junit); err != nil {
+		return []sonobuoyresults.JUnitTestCase{}, common.SafeError(fmt.Errorf("unable to parse junit_01.xml file, %v", err))
 	}
-	constraint, _ := semver.NewConstraint(">=v1.25.0")
-	if constraint.Check(version) {
-		junit := sonobuoyresults.JUnitTestSuites{}
-		if err := xml.Unmarshal([]byte(file.Contents), &junit); err != nil {
-			return []sonobuoyresults.JUnitTestCase{}, common.SafeError(fmt.Errorf("unable to parse junit_01.xml file, %v", err))
-		}
-		for _, suite := range junit.Suites {
-			for _, testcase := range suite.TestCases {
-				if testcase.SkipMessage != nil {
-					continue
-				}
-				if !strings.Contains(testcase.Name, "[Conformance]") {
-					continue
-				}
-				testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
-				testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
-				testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
-				testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
-				tests = append(tests, testcase)
-			}
-		}
-	} else {
-		testSuite := JunitTestSuite{}
-		if err := xml.Unmarshal([]byte(file.Contents), &testSuite); err != nil {
-			return []sonobuoyresults.JUnitTestCase{}, common.SafeError(fmt.Errorf("unable to parse junit_01.xml file, %v", err))
-		}
-		for _, testcase := range testSuite.TestSuite {
-			if testcase.Skipped != nil {
+	for _, suite := range junit.Suites {
+		for _, testcase := range suite.TestCases {
+			if testcase.SkipMessage != nil {
 				continue
 			}
 			if !strings.Contains(testcase.Name, "[Conformance]") {
@@ -599,10 +573,7 @@ func (s *PRSuite) getJunitSubmittedConformanceTests() (tests []sonobuoyresults.J
 			testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
 			testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
 			testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
-			tests = append(tests, sonobuoyresults.JUnitTestCase{
-				Name:    testcase.Name,
-				XMLName: testcase.XMLName,
-			})
+			tests = append(tests, testcase)
 		}
 	}
 	return tests, nil

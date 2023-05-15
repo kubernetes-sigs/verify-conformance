@@ -316,36 +316,6 @@ func (s *PRSuite) isNotEmpty(fileName string) error {
 	return nil
 }
 
-func (s *PRSuite) aLineOfTheFileMatches(fileName, match string) error {
-	pattern := regexp.MustCompile(match)
-	file := s.GetFileByFileName(fileName)
-	if file == nil {
-		return common.SafeError(fmt.Errorf("unable to find file '%v'", fileName))
-	}
-	lines := strings.Split(file.Contents, "\n")
-	var matchingLine string
-lineLoop:
-	for _, line := range lines {
-		if !pattern.MatchString(line) {
-			matchingLine = line
-			break lineLoop
-		}
-	}
-	if matchingLine == "" {
-		return common.SafeError(fmt.Errorf("the file '%v' does not contain a release version of Kubernetes in it", fileName))
-	}
-	allIndexes := pattern.FindAllSubmatchIndex([]byte(matchingLine), -1)
-	for _, loc := range allIndexes {
-		e2eLogKubernetesReleaseVersion := string(matchingLine[loc[2]:loc[3]])
-		if e2eLogKubernetesReleaseVersion == "" {
-			continue
-		}
-		s.E2eLogKubernetesReleaseVersion = e2eLogKubernetesReleaseVersion
-		break
-	}
-	return nil
-}
-
 func (s *PRSuite) aListOfCommits() error {
 	if len(s.PR.Commits.Nodes) == 0 {
 		return common.SafeError(fmt.Errorf("no commits were found"))
@@ -599,6 +569,7 @@ func (s *PRSuite) GetMissingJunitTestsFromPRSuite() (missingTests []string, err 
 	if err != nil {
 		return []string{}, err
 	}
+	fmt.Println("submitted tests count:", len(submittedTests))
 
 	for _, submittedTest := range submittedTests {
 		submittedTest = strings.TrimPrefix(submittedTest, "[It] ")
@@ -837,7 +808,6 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the title of the PR matches "([^"]*)"$`, s.theTitleOfThePRMatches)
 	ctx.Step(`^a[n]? "([^"]*)" file$`, s.aFile)
 	ctx.Step(`^"([^"]*)" is not empty$`, s.isNotEmpty)
-	ctx.Step(`^a line of the file "([^"]*)" matches "([^"]*)"$`, s.aLineOfTheFileMatches)
 	ctx.Step(`^a list of labels in the PR$`, s.aListOfLabelsInThePR)
 	ctx.Step(`^the label prefixed with "([^"]*)" and ending with Kubernetes release version should be present$`, s.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent)
 	ctx.Step(`^the yaml file "([^"]*)" contains the required and non-empty "([^"]*)"$`, s.theYamlFileContainsTheRequiredAndNonEmptyField)

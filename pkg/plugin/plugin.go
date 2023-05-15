@@ -201,14 +201,6 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string, 
 	return ret, nil
 }
 
-func GetStableTxt() (string, error) {
-	content, err := common.ReadFile(path.Join(os.Getenv("KO_DATA_PATH"), "metadata", "stable.txt"))
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSuffix(content, "\n"), nil
-}
-
 func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) (prSuite *suite.PRSuite, err error) {
 	prSuite = suite.NewPRSuite(&suite.PullRequest{PullRequestQuery: *pr})
 	issueLabels, err := ghc.GetIssueLabels(string(pr.Repository.Owner.Login), string(pr.Repository.Name), int(pr.Number))
@@ -219,7 +211,7 @@ func NewPRSuiteForPR(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQ
 		prSuite.PR.Labels = append(prSuite.PR.Labels, l.Name)
 	}
 
-	stableTxt, err := GetStableTxt()
+	stableTxt, err := common.GetStableTxt()
 	if err != nil {
 		return &suite.PRSuite{}, fmt.Errorf("unable to read latest version info")
 	}

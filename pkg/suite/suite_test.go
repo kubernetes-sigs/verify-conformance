@@ -5,10 +5,13 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	githubql "github.com/shurcooL/githubv4"
 )
+
+// TODO add Gomega https://onsi.github.io/gomega/
 
 var (
 	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-27-junit_01.xml
@@ -335,67 +338,743 @@ func TestGetFileByFileName(t *testing.T) {
 }
 
 func TestTheYamlFileContainsTheRequiredAndNonEmptyField(t *testing.T) {
-
+	type testCase struct {
+		Contents              string
+		ExpectedErrorContains string
+	}
+	requiredKeys := []string{"vendor", "name", "version", "type", "description", "website_url", "documentation_url", "contact_email_address"}
+	for _, tc := range []testCase{
+		{
+			Contents: `vendor: "cool"
+name: "coolkube"
+version: "v1.27"
+type: "distribution"
+description: "it's just all-round cool and probably the best k8s, idk"
+website_url: "https://coolkubernetes.com"
+documentation_url: "https://coolkubernetes.com/docs"
+contact_email_address: "sales@coolkubernetes.com"`,
+		},
+		{
+			Contents: `vendor: "cool"
+name: "coolkube"
+version: "v1.27"
+type: "distribution"
+description: "it's just all-round cool and probably the best k8s, idk"
+website_url: "https://coolkubernetes.com"
+contact_email_address: "sales@coolkubernetes.com"`,
+			ExpectedErrorContains: "missing or empty field &#39;documentation_url&#39;",
+		},
+		{
+			Contents: `vendor: "cool"
+name: "coolkube"
+version: "v1.27"
+description: "it's just all-round cool and probably the best k8s, idk"
+website_url: "https://coolkubernetes.com"
+contact_email_address: "sales@coolkubernetes.com"`,
+			ExpectedErrorContains: "missing or empty field",
+		},
+	} {
+		prSuite := NewPRSuite(&PullRequest{
+			SupportingFiles: []*PullRequestFile{
+				{
+					Name:     "v1.27/coolkube/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					Contents: tc.Contents,
+				},
+			},
+		})
+	k:
+		for _, k := range requiredKeys {
+			err := prSuite.theYamlFileContainsTheRequiredAndNonEmptyField("PRODUCT.yaml", k)
+			if err != nil && strings.Contains(err.Error(), tc.ExpectedErrorContains) {
+				continue k
+			} else if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+		}
+	}
 }
 
 func TestIsNotEmpty(t *testing.T) {
+	type testCase struct {
+		BaseName              string
+		FileContents          string
+		ExpectedErrorContains string
+	}
 
-}
-
-func TestALineOfTheFileMatches(t *testing.T) {
-
+	for _, tc := range []testCase{
+		{
+			BaseName:     "A",
+			FileContents: "abc123",
+		},
+		{
+			BaseName:              "B",
+			FileContents:          "",
+			ExpectedErrorContains: "is empty",
+		},
+		{
+			BaseName:              "",
+			FileContents:          "",
+			ExpectedErrorContains: "unable to find file",
+		},
+	} {
+		pr := &PullRequest{}
+		if tc.BaseName != "" {
+			pr.SupportingFiles = append(pr.SupportingFiles, &PullRequestFile{
+				BaseName: tc.BaseName,
+				Contents: tc.FileContents,
+			})
+		}
+		prSuite := NewPRSuite(pr)
+		if err := prSuite.isNotEmpty(tc.BaseName); err != nil {
+			if err != nil && strings.Contains(err.Error(), tc.ExpectedErrorContains) {
+				continue
+			} else if err != nil {
+				t.Logf("files: %v", prSuite.PR.SupportingFiles[0])
+				t.Fatalf("error: with file name '%v'; supporting files: %+v; %v", tc.BaseName, pr.SupportingFiles[0], err)
+			}
+		}
+	}
 }
 
 func TestAListOfCommits(t *testing.T) {
-
+	type testCase struct {
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
+	for _, tc := range []testCase{
+		{
+			PullRequest:         &PullRequest{},
+			ExpectedErrorString: "no commits were found",
+		},
+		{
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Commits: struct {
+						Nodes []struct {
+							Commit struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}
+						}
+					}{
+						Nodes: []struct {
+							Commit struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}
+						}{
+							{
+								Commit: struct {
+									Oid    githubql.String
+									Status struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}
+								}{
+									Oid: githubql.String(""),
+									Status: struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}{
+										Contexts: []struct {
+											Context githubql.String
+											State   githubql.String
+										}{
+											{
+												Context: githubql.String(""),
+												State:   githubql.String(""),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.aListOfCommits(); err != nil && err.Error() != tc.ExpectedErrorString {
+			t.Fatalf("error unexpected while listing commits: %v", err)
+		}
+	}
 }
 
 func TestThereIsOnlyOneCommit(t *testing.T) {
-
-}
-
-func TestThatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolderStructure(t *testing.T) {
-
+	type testCase struct {
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
+	for _, tc := range []testCase{
+		{
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Commits: struct {
+						Nodes []struct {
+							Commit struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}
+						}
+					}{
+						Nodes: []struct {
+							Commit struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}
+						}{
+							{
+								Commit: struct {
+									Oid    githubql.String
+									Status struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}
+								}{
+									Oid: githubql.String(""),
+									Status: struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}{
+										Contexts: []struct {
+											Context githubql.String
+											State   githubql.String
+										}{
+											{
+												Context: githubql.String(""),
+												State:   githubql.String(""),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Commits: struct {
+						Nodes []struct {
+							Commit struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}
+						}
+					}{
+						Nodes: []struct {
+							Commit struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}
+						}{
+							{
+								Commit: struct {
+									Oid    githubql.String
+									Status struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}
+								}{
+									Oid: githubql.String(""),
+									Status: struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}{
+										Contexts: []struct {
+											Context githubql.String
+											State   githubql.String
+										}{
+											{
+												Context: githubql.String(""),
+												State:   githubql.String(""),
+											},
+										},
+									},
+								},
+							},
+							{
+								Commit: struct {
+									Oid    githubql.String
+									Status struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}
+								}{
+									Oid: githubql.String(""),
+									Status: struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}{
+										Contexts: []struct {
+											Context githubql.String
+											State   githubql.String
+										}{
+											{
+												Context: githubql.String(""),
+												State:   githubql.String(""),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			ExpectedErrorString: "more than one commit was found; only one commit is allowed.",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.thereIsOnlyOneCommit(); err != nil && err.Error() != tc.ExpectedErrorString {
+			t.Fatalf("error unexpected while listing commits: %v", err)
+		}
+	}
 }
 
 func TestAListOfLabelsInThePR(t *testing.T) {
+	type testCase struct {
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testCase{
+		{
+			PullRequest: &PullRequest{
+				Labels: []string{"conformance-product-submission"},
+			},
+		},
+		{
+			PullRequest:         &PullRequest{},
+			ExpectedErrorString: "there are no labels found",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.aListOfLabelsInThePR(); err != nil && err.Error() != tc.ExpectedErrorString {
+			t.Fatalf("error: %v", err)
+		}
+	}
 }
 
 func TestTheLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent(t *testing.T) {
+	type testCase struct {
+		PullRequest         *PullRequest
+		TestLabel           string
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testCase{
+		{
+			PullRequest: &PullRequest{
+				Labels: []string{"release-v1.27"},
+			},
+			TestLabel: "release-",
+		},
+		{
+			PullRequest: &PullRequest{
+				Labels: []string{"release-"},
+			},
+			TestLabel:           "release-",
+			ExpectedErrorString: "required label",
+		},
+		{
+			PullRequest: &PullRequest{
+				Labels: []string{},
+			},
+			TestLabel:           "release-",
+			ExpectedErrorString: "required label",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		prSuite.KubernetesReleaseVersion = "v1.27"
+		for _, l := range tc.PullRequest.Labels {
+			if err := prSuite.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent(tc.TestLabel); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+				t.Fatalf("error with labels '%v': %v", l, err)
+			}
+		}
+	}
 }
 
 func TestTheContentOfTheInTheValueOfIsAValid(t *testing.T) {
+	type testCase struct {
+		PullRequest         *PullRequest
+		Field               string
+		FieldType           string
+		ExpectedErrorString string
+	}
+	content := `vendor: "CoolKube"
+name: "Kubernetes - The Cool Way"
+version: "1.2.3"
+website_url: "https://cool.kube"
+repo_url: "https://cool.kube"
+documentation_url: "https://docs-for.coo.kube"
+product_logo_url: "http://localhost:8081/logo.svg"
+type: "installer"
+description: "it's just cool OK"
+contact_email_address: "greetings@cool.kube"`
 
+	for _, tc := range []testCase{
+		{
+			Field: "name",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: content,
+					},
+				},
+			},
+		},
+		{
+			Field:     "website_url",
+			FieldType: "URL",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: content,
+					},
+				},
+			},
+		},
+		{
+			Field:     "contact_email_address",
+			FieldType: "email",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: content,
+					},
+				},
+			},
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.theContentOfTheInTheValueOfIsAValid(tc.FieldType, tc.Field); err != nil && strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error with PRODUCT.yaml content field '%v' (type %v)", tc.Field, tc.FieldType)
+		}
+	}
 }
 
 func TestTheContentOfTheUrlInTheValueOfMatches(t *testing.T) {
+	type testCase struct {
+		PullRequest         *PullRequest
+		Field               string
+		FieldType           string
+		ExpectedErrorString string
+	}
+	content := `vendor: "CoolKube"
+name: "Kubernetes - The Cool Way"
+version: "1.2.3"
+website_url: "https://cool.kube"
+repo_url: "https://cool.kube"
+documentation_url: "https://docs-for.coo.kube"
+product_logo_url: "http://localhost:8081/logo.svg"
+type: "installer"
+description: "it's just cool OK"
+contact_email_address: "greetings@cool.kube"`
+
+	for _, tc := range []testCase{
+		{
+			Field:     "name",
+			FieldType: "text",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: content,
+					},
+				},
+			},
+		},
+		{
+			Field:     "website_url",
+			FieldType: "URL",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: content,
+					},
+				},
+			},
+		},
+		{
+			Field:     "contact_email_address",
+			FieldType: "email",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: content,
+					},
+				},
+			},
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.theContentOfTheUrlInTheValueOfMatches(tc.Field, tc.FieldType); err != nil && strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error with PRODUCT.yaml content field '%v' (type %v)", tc.Field, tc.FieldType)
+		}
+	}
 
 }
 
 func TestSetSubmissionMetadatafromFolderStructure(t *testing.T) {
-
+	type testCase struct {
+		PullRequest    *PullRequest
+		ExpectedResult bool
+	}
+	for _, tc := range []testCase{
+		{
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name: "v1.27/coolkube/junit_01.xml",
+					},
+					{
+						Name: "v1.27/coolkube/README.md",
+					},
+				},
+			},
+			ExpectedResult: true,
+		},
+		{
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{},
+			},
+			ExpectedResult: false,
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		prSuite.SetSubmissionMetadatafromFolderStructure()
+		if (prSuite.KubernetesReleaseVersion == "" || prSuite.ProductName == "") && tc.ExpectedResult {
+			t.Fatalf("error unexpected result of metadata being set (%v) intended case being (%v)", prSuite.ProductName, tc.ExpectedResult)
+		}
+	}
 }
 
 func TestTheReleaseVersionMatchesTheReleaseVersionInTheTitle(t *testing.T) {
+	type testCase struct {
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testCase{
+		{
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Title: githubql.String("conformance results for v1.27/coolkube"),
+				},
+			},
+		},
+		{
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Title: githubql.String("I WANT CONFORMANCE AND I WANT IT NOW"),
+				},
+			},
+			ExpectedErrorString: "the Kubernetes release version in the title",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		prSuite.KubernetesReleaseVersion = "v1.27"
+		if err := prSuite.theReleaseVersionMatchesTheReleaseVersionInTheTitle(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error unexpected error matching the release version in the title: %v", err)
+		}
+	}
 }
 
 func TestTheReleaseVersion(t *testing.T) {
+	type testCase struct {
+		Version             string
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testCase{
+		{
+			Version: "v1.27",
+		},
+		{
+			Version:             "a",
+			ExpectedErrorString: "unable to find a Kubernetes release version in the title",
+		},
+		{
+			Version:             "",
+			ExpectedErrorString: "unable to find a Kubernetes release version in the title",
+		},
+	} {
+		prSuite := NewPRSuite(&PullRequest{})
+		prSuite.KubernetesReleaseVersion = tc.Version
+		if err := prSuite.theReleaseVersion(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error unexpected error finding the release version in the title: %v", err)
+		}
+	}
 }
 
 func TestItIsAValidAndSupportedRelease(t *testing.T) {
+	type testCase struct {
+		Version             string
+		VersionLatest       string
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testCase{
+		{
+			Version:       "v1.27",
+			VersionLatest: "v1.27.0",
+		},
+		{
+			Version:             "v1.14",
+			VersionLatest:       "v1.27.0",
+			ExpectedErrorString: "unable to use version",
+		},
+	} {
+		prSuite := NewPRSuite(&PullRequest{})
+		prSuite.KubernetesReleaseVersion = tc.Version
+		prSuite.KubernetesReleaseVersionLatest = tc.VersionLatest
+		if err := prSuite.itIsAValidAndSupportedRelease(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error: %v", err)
+		}
+	}
 }
 
 func TestGetRequiredTests(t *testing.T) {
+	type testCase struct {
+		Version             string
+		ExpectedTestsCount  int
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testCase{
+		{
+			Version:            "v1.27",
+			ExpectedTestsCount: 378,
+		},
+		{
+			Version:             "v1.notfound",
+			ExpectedTestsCount:  0,
+			ExpectedErrorString: "Malformed version",
+		},
+		{
+			Version:            "v1.26",
+			ExpectedTestsCount: 368,
+		},
+	} {
+		prSuite := NewPRSuite(&PullRequest{})
+		prSuite.KubernetesReleaseVersion = tc.Version
+		tests, err := prSuite.GetRequiredTests()
+		if err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error: %v", err)
+		}
+		if len(tests) != tc.ExpectedTestsCount {
+			t.Fatalf("error: test count for version %v is expected to be at %v but instead found at %v", tc.Version, tc.ExpectedTestsCount, len(tests))
+		}
+	}
 }
 
 func TestGetMissingJunitTestsFromPRSuite(t *testing.T) {
+	type testCase struct {
+		Title                     string
+		Version                   string
+		PullRequest               *PullRequest
+		ExpectedTestsMissingCount int
+		ExpectedErrorString       string
+	}
 
+	for _, tc := range []testCase{
+		{
+			Title:   `valid junit`,
+			Version: "v1.27",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					},
+				},
+			},
+			ExpectedTestsMissingCount: 0,
+		},
+		{
+			Title:   `empty junit`,
+			Version: "v1.27",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: ``,
+					},
+				},
+			},
+			ExpectedTestsMissingCount: 0, // skip since invalid junit anyways
+			ExpectedErrorString:       "unable to parse junit_01.xml file",
+		},
+	} {
+		t.Logf("%v", tc.Title)
+		prSuite := NewPRSuite(tc.PullRequest)
+		prSuite.KubernetesReleaseVersion = tc.Version
+		tests, err := prSuite.GetMissingJunitTestsFromPRSuite()
+		if err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error: %v", err)
+		}
+		if len(tests) != tc.ExpectedTestsMissingCount {
+			t.Fatalf("error: missing test count for version %v is expected to be at %v but instead found at %v", tc.Version, tc.ExpectedTestsMissingCount, len(tests))
+		}
+	}
 }
 
 func TestDetermineSuccessfulTests(t *testing.T) {

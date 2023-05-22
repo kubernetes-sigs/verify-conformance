@@ -144,7 +144,11 @@ func TestNewPRSuite(t *testing.T) {
 }
 
 func TestNewTestSuite(t *testing.T) {
-
+	prSuite := NewPRSuite(&PullRequest{})
+	testSuite := prSuite.NewTestSuite(PRSuiteOptions{})
+	if testSuite.Name != "how-are-the-prs" {
+		t.Fatalf("unexpected test suite name: %v", testSuite.Name)
+	}
 }
 
 func TestSetMetadataFolder(t *testing.T) {
@@ -162,13 +166,29 @@ func TestSetMetadataFolder(t *testing.T) {
 }
 
 func TestThePRTitleIsNotEmpty(t *testing.T) {
-	prSuite := NewPRSuite(&PullRequest{
-		PullRequestQuery: PullRequestQuery{
-			Title: githubql.String("Conformance results for coolkube/v1.27"),
+	type testCase struct {
+		Name                string
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
+
+	for _, tc := range []testCase{
+		{
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Title: githubql.String("Conformance results for coolkube/v1.27"),
+				},
+			},
 		},
-	})
-	if err := prSuite.thePRTitleIsNotEmpty(); err != nil {
-		t.Fatalf("error: %v", err)
+		{
+			PullRequest:         &PullRequest{},
+			ExpectedErrorString: "title is empty",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.thePRTitleIsNotEmpty(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error: %v", err)
+		}
 	}
 }
 
@@ -332,6 +352,26 @@ func TestFileFolderStructureMatchesRegex(t *testing.T) {
 					},
 					{
 						Name: "README.md",
+					},
+				},
+			},
+			ExpectedErrorString: "not allowed.",
+		},
+		{
+			Name: "invalid file paths missing distroname",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name: "v1.27//README.md",
+					},
+					{
+						Name: "v1.27//PRODUCT.yaml",
+					},
+					{
+						Name: "v1.27//junit_01.xml",
+					},
+					{
+						Name: "v1.27//e2e.log",
 					},
 				},
 			},
@@ -567,6 +607,9 @@ func TestAFile(t *testing.T) {
 	})
 	if err := prSuite.aFile("junit_01.xml"); err != nil {
 		t.Fatalf("error: %v", err)
+	}
+	if err := prSuite.aFile("README.md"); err != nil && err.Error() != "missing required file" {
+		t.Fatalf("error expected missing file 'README.md'; %v", err)
 	}
 }
 

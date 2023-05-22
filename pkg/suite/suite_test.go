@@ -608,7 +608,7 @@ func TestAFile(t *testing.T) {
 	if err := prSuite.aFile("junit_01.xml"); err != nil {
 		t.Fatalf("error: %v", err)
 	}
-	if err := prSuite.aFile("README.md"); err != nil && err.Error() != "missing required file" {
+	if err := prSuite.aFile("README.md"); err != nil && !strings.Contains(err.Error(), "missing required file") {
 		t.Fatalf("error expected missing file 'README.md'; %v", err)
 	}
 }

@@ -286,23 +286,270 @@ func TestIsIncludedInItsFileList(t *testing.T) {
 }
 
 func TestFileFolderStructureMatchesRegex(t *testing.T) {
+	type testSuite struct {
+		Name                string
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
 
+	folderStructureRegexp := `(v1.[0-9]{2})/(.*)`
+
+	for _, tc := range []testSuite{
+		{
+			Name: "valid file paths",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name: "v1.27/coolkube/README.md",
+					},
+					{
+						Name: "v1.27/coolkube/PRODUCT.yaml",
+					},
+					{
+						Name: "v1.27/coolkube/junit_01.xml",
+					},
+					{
+						Name: "v1.27/coolkube/e2e.log",
+					},
+				},
+			},
+		},
+		{
+			Name: "invalid file paths with edit outside pr",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name: "v1.27/coolkube/README.md",
+					},
+					{
+						Name: "v1.27/coolkube/PRODUCT.yaml",
+					},
+					{
+						Name: "v1.27/coolkube/junit_01.xml",
+					},
+					{
+						Name: "v1.27/coolkube/e2e.log",
+					},
+					{
+						Name: "README.md",
+					},
+				},
+			},
+			ExpectedErrorString: "not allowed.",
+		},
+		{
+			Name: "invalid file paths ",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name: "README.md",
+					},
+				},
+			},
+			ExpectedErrorString: "your product submission PR must be in folders structured like",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.fileFolderStructureMatchesRegex(folderStructureRegexp); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error with testcase '%v'; %v", tc.Name, err)
+		}
+	}
 }
 
 func TestThereIsOnlyOnePathOfFolders(t *testing.T) {
+	type testSuite struct {
+		Name                string
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testSuite{
+		{
+			Name: "valid file paths",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name: "v1.27/coolkube/README.md",
+					},
+					{
+						Name: "v1.27/coolkube/PRODUCT.yaml",
+					},
+					{
+						Name: "v1.27/coolkube/junit_01.xml",
+					},
+					{
+						Name: "v1.27/coolkube/e2e.log",
+					},
+				},
+			},
+		},
+		{
+			Name: "invalid file paths with edit outside pr",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name: "v1.27/coolkube/README.md",
+					},
+					{
+						Name: "v1.27/coolkube/PRODUCT.yaml",
+					},
+					{
+						Name: "v1.27/coolkube/junit_01.xml",
+					},
+					{
+						Name: "v1.27/coolkube/e2e.log",
+					},
+					{
+						Name: "README.md",
+					},
+				},
+			},
+			ExpectedErrorString: "there should be a single set of products in the submission",
+		},
+		{
+			Name: "invalid file paths with multiple submissions",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name: "v1.27/coolkube/README.md",
+					},
+					{
+						Name: "v1.27/coolkube/PRODUCT.yaml",
+					},
+					{
+						Name: "v1.27/coolkube/junit_01.xml",
+					},
+					{
+						Name: "v1.27/coolkube/e2e.log",
+					},
+					{
+						Name: "v1.27/coolerkube/README.md",
+					},
+					{
+						Name: "v1.27/coolerkube/PRODUCT.yaml",
+					},
+					{
+						Name: "v1.27/coolerkube/junit_01.xml",
+					},
+					{
+						Name: "v1.27/coolerkube/e2e.log",
+					},
+				},
+			},
+			ExpectedErrorString: "there should be a single set of products in the submission",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.thereIsOnlyOnePathOfFolders(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error with testcase '%v'; %v", tc.Name, err)
+		}
+	}
 }
 
 func TestTheTitleOfThePR(t *testing.T) {
+	type testSuite struct {
+		Name                string
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testSuite{
+		{
+			Name: "valid title",
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Title: githubql.String("Conformance results for v1.27/coolkube"),
+				},
+			},
+		},
+		{
+			Name: "invalid empty title",
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{},
+			},
+			ExpectedErrorString: "title is empty",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.theTitleOfThePR(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error on testcase '%v'; %v", tc.Name, err)
+		}
+	}
 }
 
 func TestTheTitleOfThePRMatches(t *testing.T) {
+	type testSuite struct {
+		Name                string
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
+	titleRegexp := `(.*) (v1.[0-9]{2})[ /](.*)`
 
+	for _, tc := range []testSuite{
+		{
+			Name: "valid title",
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Title: githubql.String("Conformance results for v1.27/coolkube"),
+				},
+			},
+		},
+		{
+			Name: "invalid title without period in version",
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Title: githubql.String("Conformance results for v127/coolkube"),
+				},
+			},
+			ExpectedErrorString: "title must be formatted like",
+		},
+		{
+			Name: "invalid title with non-conformant text",
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Title: githubql.String("test test test test aaaand fail"),
+				},
+			},
+			ExpectedErrorString: "title must be formatted like",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.theTitleOfThePRMatches(titleRegexp); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error on testcase '%v'; %v", tc.Name, err)
+		}
+	}
 }
 
 func TestTheFilesInThePR(t *testing.T) {
+	type testSuite struct {
+		Name                string
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testSuite{
+		{
+			Name: "valid with files",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "README.md",
+						Contents: "# Hi!",
+					},
+				},
+			},
+		},
+		{
+			Name:                "invalid without files",
+			PullRequest:         &PullRequest{},
+			ExpectedErrorString: "there were no files found in the submission",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.theFilesInThePR(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error on testcase '%v'; %v", tc.Name, err)
+		}
+	}
 }
 
 func TestAFile(t *testing.T) {

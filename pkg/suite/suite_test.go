@@ -16,6 +16,10 @@ import (
 var (
 	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-27-junit_01.xml
 	testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml string
+	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-27-junit_01-with-1-test-failed.xml
+	testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01WithOneTestFailedxml string
+	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-27-junit_01-with-1-test-missing.xml
+	testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01WithOneTestMissingxml string
 )
 
 func init() {
@@ -868,7 +872,6 @@ contact_email_address: "greetings@cool.kube"`
 			t.Fatalf("error with PRODUCT.yaml content field '%v' (type %v)", tc.Field, tc.FieldType)
 		}
 	}
-
 }
 
 func TestSetSubmissionMetadatafromFolderStructure(t *testing.T) {
@@ -1144,23 +1147,226 @@ func TestGetJunitSubmittedConformanceTests(t *testing.T) {
 }
 
 func TestTheTestsPassAndAreSuccessful(t *testing.T) {
+	type testCase struct {
+		Name                string
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+		ExpectedLabels      []string
+	}
 
+	for _, tc := range []testCase{
+		{
+			Name: "valid and all tests pass and are successful",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					},
+				},
+			},
+			ExpectedLabels: []string{"conformance-product-submission", "no-failed-tests-v1.27"},
+		},
+		{
+			Name: "invalid with one test not passing and successful",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01WithOneTestFailedxml,
+					},
+				},
+			},
+			ExpectedLabels:      []string{"conformance-product-submission", "evidence-missing"},
+			ExpectedErrorString: "it appears that there are failures in some tests",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		prSuite.KubernetesReleaseVersion = "v1.27"
+		if err := prSuite.theTestsPassAndAreSuccessful(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error with testcase '%v'; %v", tc.Name, err)
+		}
+		foundLabelCount := 0
+		for _, l := range tc.ExpectedLabels {
+			for _, tcl := range prSuite.Labels {
+				if l == tcl {
+					foundLabelCount++
+				}
+			}
+		}
+		if foundLabelCount != len(tc.ExpectedLabels) {
+			t.Fatalf("error: with testcase '%v' did not find all expected labels (%+v) instead found (%+v)", tc.Name, tc.ExpectedLabels, prSuite.Labels)
+		}
+	}
 }
 
 func TestAllRequiredTestsInArePresent(t *testing.T) {
+	type testCase struct {
+		Name                string
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testCase{
+		{
+			Name: "valid and all tests pass and are successful",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					},
+				},
+			},
+		},
+		{
+			Name: "invalid with one test missing",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01WithOneTestMissingxml,
+					},
+				},
+			},
+			ExpectedErrorString: "there appears to be 1 tests missing",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		prSuite.KubernetesReleaseVersion = "v1.27"
+		if err := prSuite.allRequiredTestsInArePresent(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error with testcase '%v'; %v", tc.Name, err)
+		}
+	}
 }
 
 func TestIsValidYaml(t *testing.T) {
+	type testCase struct {
+		Name                string
+		Content             string
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testCase{
+		{
+			Name: "valid yaml",
+			Content: `---
+a: b
+b: c
+d: e
+`,
+		},
+		{
+			Name:                "invalid yaml 1",
+			Content:             `a`,
+			ExpectedErrorString: "cannot unmarshal string into Go value of type map[string]interface",
+		},
+		{
+			Name:                "invalid yaml 2",
+			Content:             `1`,
+			ExpectedErrorString: "cannot unmarshal number into Go value of type map[string]interface",
+		},
+		{
+			Name:                "invalid yaml 3",
+			Content:             `:`,
+			ExpectedErrorString: "error converting YAML to JSON: yaml: did not find expected key",
+		},
+	} {
+		if err := IsValidYaml([]byte(tc.Content)); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error on test '%v'; %v", tc.Name, err)
+		}
+	}
 }
 
 func TestIsValid(t *testing.T) {
+	type testCase struct {
+		Name                string
+		PullRequest         *PullRequest
+		File                string
+		FileType            string
+		ExpectedErrorString string
+	}
 
+	for _, tc := range []testCase{
+		{
+			Name:     "valid yaml",
+			File:     "PRODUCT.yaml",
+			FileType: "yaml",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `vendor: "CoolKube"
+name: "Kubernetes - The Cool Way"
+version: "1.2.3"
+website_url: "https://cool.kube"
+repo_url: "https://cool.kube"
+documentation_url: "https://docs-for.coo.kube"
+product_logo_url: "http://localhost:8081/logo.svg"
+type: "installer"
+description: "it's just cool OK"
+contact_email_address: "greetings@cool.kube"`,
+					},
+				},
+			},
+		},
+		{
+			Name:     "invalid yaml",
+			File:     "PRODUCT.yaml",
+			FileType: "yaml",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `a`,
+					},
+				},
+			},
+			ExpectedErrorString: "cannot unmarshal string into Go value of type map[string]interface",
+		},
+		{
+			Name:     "empty yaml",
+			File:     "PRODUCT.yaml",
+			FileType: "yaml",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: ``,
+					},
+				},
+			},
+			ExpectedErrorString: "is empty",
+		},
+		{
+			Name:     "valid markdown",
+			File:     "README.md",
+			FileType: "markdown",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "README.md",
+						Contents: `# Hi!`,
+					},
+				},
+			},
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.IsValid(tc.File, tc.FileType); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error with PRODUCT.yaml content file '%v' (type %v) on test '%v'; %v", tc.File, tc.FileType, tc.Name, err)
+		}
+	}
 }
 
 func TestAPRTitle(t *testing.T) {
-
+	if err := aPRTitle(); err != nil {
+		t.Fatalf("error: %v", err)
+	}
 }
 
 func TestGetLabelsAndCommentsFromSuiteResultsBuffer(t *testing.T) {

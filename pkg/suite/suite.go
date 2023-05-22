@@ -231,7 +231,7 @@ func (s *PRSuite) thereIsOnlyOnePathOfFolders() error {
 	for _, file := range s.PR.SupportingFiles {
 		filePath := path.Dir(file.Name)
 		if filePath == "." {
-			continue
+			filePath = "./"
 		}
 		foundInPaths := false
 		for _, p := range paths {

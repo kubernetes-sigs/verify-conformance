@@ -330,24 +330,6 @@ func (s *PRSuite) thereIsOnlyOneCommit() error {
 	return nil
 }
 
-func (s *PRSuite) thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolderStructure() error {
-	e2elogVersion, err := semver.NewSemver(s.E2eLogKubernetesReleaseVersion)
-	if err != nil {
-		return err
-	}
-	e2elogVersionSegments := e2elogVersion.Segments()
-	releaseVersion, err := semver.NewSemver(s.KubernetesReleaseVersion)
-	if err != nil {
-		return err
-	}
-	releaseVersionSegements := releaseVersion.Segments()
-	if !(e2elogVersionSegments[0] == releaseVersionSegements[0] &&
-		e2elogVersionSegments[1] == releaseVersionSegements[1]) {
-		return common.SafeError(fmt.Errorf("the Kubernetes release version in file 'e2e.log' (%v) doesn't match the same version in the folder structure (%v)", s.E2eLogKubernetesReleaseVersion, s.KubernetesReleaseVersion))
-	}
-	return nil
-}
-
 func (s *PRSuite) aListOfLabelsInThePR() error {
 	if len(s.PR.Labels) == 0 {
 		return common.SafeError(fmt.Errorf("there are no labels found"))
@@ -818,7 +800,6 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the release version$`, s.theReleaseVersion)
 	ctx.Step(`^it is a valid and supported release$`, s.itIsAValidAndSupportedRelease)
 	ctx.Step(`^the tests pass and are successful$`, s.theTestsPassAndAreSuccessful)
-	ctx.Step(`^that version matches the same Kubernetes release version as in the folder structure$`, s.thatVersionMatchesTheSameKubernetesReleaseVersionAsInTheFolderStructure)
 	ctx.Step(`^all required tests in junit_01.xml are present$`, s.allRequiredTestsInJunitXmlArePresent)
 	ctx.Step(`^all required tests are present$`, s.allRequiredTestsInArePresent)
 	ctx.Step(`^a PR title$`, aPRTitle)

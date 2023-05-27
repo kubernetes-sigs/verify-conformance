@@ -633,13 +633,18 @@ func TestGetFileByFileName(t *testing.T) {
 
 func TestTheYamlFileContainsTheRequiredAndNonEmptyField(t *testing.T) {
 	type testCase struct {
-		Contents              string
+		PullRequest           *PullRequest
 		ExpectedErrorContains string
 	}
 	requiredKeys := []string{"vendor", "name", "version", "type", "description", "website_url", "documentation_url", "contact_email_address"}
 	for _, tc := range []testCase{
 		{
-			Contents: `vendor: "cool"
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/PRODUCT.yaml",
+						BaseName: "PRODUCT.yaml",
+						Contents: `vendor: "cool"
 name: "coolkube"
 version: "v1.27"
 type: "distribution"
@@ -647,36 +652,63 @@ description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "https://coolkubernetes.com"
 documentation_url: "https://coolkubernetes.com/docs"
 contact_email_address: "sales@coolkubernetes.com"`,
+					},
+				},
+			},
 		},
 		{
-			Contents: `vendor: "cool"
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/PRODUCT.yaml",
+						BaseName: "PRODUCT.yaml",
+						Contents: `vendor: "cool"
 name: "coolkube"
 version: "v1.27"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "https://coolkubernetes.com"
 contact_email_address: "sales@coolkubernetes.com"`,
+					},
+				},
+			},
 			ExpectedErrorContains: "missing or empty field &#39;documentation_url&#39;",
 		},
 		{
-			Contents: `vendor: "cool"
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/PRODUCT.yaml",
+						BaseName: "PRODUCT.yaml",
+						Contents: `vendor: "cool"
 name: "coolkube"
 version: "v1.27"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "https://coolkubernetes.com"
 contact_email_address: "sales@coolkubernetes.com"`,
-			ExpectedErrorContains: "missing or empty field",
-		},
-	} {
-		prSuite := NewPRSuite(&PullRequest{
-			SupportingFiles: []*PullRequestFile{
-				{
-					Name:     "v1.27/coolkube/PRODUCT.yaml",
-					BaseName: "PRODUCT.yaml",
-					Contents: tc.Contents,
+					},
 				},
 			},
-		})
+			ExpectedErrorContains: "missing or empty field",
+		},
+		{
+			PullRequest:           &PullRequest{},
+			ExpectedErrorContains: "missing required file",
+		},
+		{
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/PRODUCT.yaml",
+						BaseName: "PRODUCT.yaml",
+						Contents: `v"`,
+					},
+				},
+			},
+			ExpectedErrorContains: "unable to read file",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
 	k:
 		for _, k := range requiredKeys {
 			err := prSuite.theYamlFileContainsTheRequiredAndNonEmptyField("PRODUCT.yaml", k)
@@ -1093,9 +1125,67 @@ contact_email_address: "greetings@cool.kube"`
 				},
 			},
 		},
+		{
+			Field:               "contact_email_address",
+			FieldType:           "thing",
+			PullRequest:         &PullRequest{},
+			ExpectedErrorString: "missing required file",
+		},
+		{
+			Field:     "contact_email_address",
+			FieldType: "thing",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `:`,
+					},
+				},
+			},
+			ExpectedErrorString: "unable to read file",
+		},
+		{
+			Field:     "a",
+			FieldType: "text-or-something",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `a: ""`,
+					},
+				},
+			},
+			ExpectedErrorString: "",
+		},
+		{
+			Field:     "site_url",
+			FieldType: "URL",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `site_url: a`,
+					},
+				},
+			},
+			ExpectedErrorString: "in PRODUCT.yaml is not a valid URL",
+		},
+		{
+			Field:     "email",
+			FieldType: "email",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `email: a`,
+					},
+				},
+			},
+			ExpectedErrorString: "in PRODUCT.yaml is not a valid address",
+		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
-		if err := prSuite.theContentOfTheInTheValueOfIsAValid(tc.FieldType, tc.Field); err != nil && strings.Contains(err.Error(), tc.ExpectedErrorString) {
+		if err := prSuite.theContentOfTheInTheValueOfIsAValid(tc.FieldType, tc.Field); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
 			t.Fatalf("error with PRODUCT.yaml content field '%v' (type %v)", tc.Field, tc.FieldType)
 		}
 	}
@@ -1118,11 +1208,22 @@ product_logo_url: "http://localhost:8081/logo.svg"
 type: "installer"
 description: "it's just cool OK"
 contact_email_address: "greetings@cool.kube"`
+	productYAMLURLDataTypes := map[string]string{
+		"vendor":            "string",
+		"name":              "string",
+		"version":           "string",
+		"type":              "string",
+		"description":       "string",
+		"website_url":       "text/html",
+		"repo_url":          "text/html",
+		"documentation_url": "text/html",
+		"product_logo_url":  "image/svg",
+	}
 
 	for _, tc := range []testCase{
 		{
 			Field:     "name",
-			FieldType: "text",
+			FieldType: "string",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
@@ -1146,7 +1247,7 @@ contact_email_address: "greetings@cool.kube"`
 		},
 		{
 			Field:     "contact_email_address",
-			FieldType: "email",
+			FieldType: "string",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
@@ -1156,9 +1257,23 @@ contact_email_address: "greetings@cool.kube"`
 				},
 			},
 		},
+		{
+			Field:     "contact_email_address",
+			FieldType: "thing1",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: content,
+					},
+				},
+			},
+			ExpectedErrorString: "resolving content type",
+		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
-		if err := prSuite.theContentOfTheUrlInTheValueOfMatches(tc.Field, tc.FieldType); err != nil && strings.Contains(err.Error(), tc.ExpectedErrorString) {
+		prSuite.PR.ProductYAMLURLDataTypes = productYAMLURLDataTypes
+		if err := prSuite.theContentOfTheUrlInTheValueOfMatches(tc.Field, tc.FieldType); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
 			t.Fatalf("error with PRODUCT.yaml content field '%v' (type %v)", tc.Field, tc.FieldType)
 		}
 	}
@@ -1415,7 +1530,7 @@ func TestDetermineSuccessfulTestsv125AndAbove(t *testing.T) {
 }
 
 func TestGetJunitSubmittedConformanceTests(t *testing.T) {
-	prSuite := NewPRSuite(&PullRequest{
+	tests, err := NewPRSuite(&PullRequest{
 		PullRequestQuery: PullRequestQuery{
 			Title: githubql.String("Conformance results for v1.27/coolkube"),
 		},
@@ -1426,14 +1541,83 @@ func TestGetJunitSubmittedConformanceTests(t *testing.T) {
 				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
 			},
 		},
-	})
-	tests, err := prSuite.getJunitSubmittedConformanceTests()
+	}).getJunitSubmittedConformanceTests()
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
 	if len(tests) < 1 {
 		t.Fatal("error: no tests found")
 	}
+	_, err = NewPRSuite(&PullRequest{}).getJunitSubmittedConformanceTests()
+	if err == nil {
+		t.Fatalf("error unexpectedly nil")
+	}
+	if strings.Contains(err.Error(), "unable to find file junit_01.xml") != true {
+		t.Fatalf("error with unexpected content: %v", err)
+	}
+}
+
+func TestAllRequiredTestsInJunitXmlArePresent(t *testing.T) {
+	type testCase struct {
+		Name                string
+		PullRequest         *PullRequest
+		ExpectedErrorString string
+		ExpectedLabels      []string
+	}
+
+	for _, tc := range []testCase{
+		{
+			Name: "valid and all tests pass and are successful",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					},
+				},
+			},
+			ExpectedLabels: []string{"conformance-product-submission", "tests-verified-v1.27"},
+		},
+		{
+			Name: "invalid with one test not passing and successful",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01WithOneTestFailedxml,
+					},
+				},
+			},
+			ExpectedLabels:      []string{"conformance-product-submission", "required-tests-missing"},
+			ExpectedErrorString: "the following test(s) are missing",
+		},
+		{
+			Name:                "invalid with no junit_01.xml",
+			PullRequest:         &PullRequest{},
+			ExpectedLabels:      []string{"conformance-product-submission"},
+			ExpectedErrorString: "unable to find file junit_01.xml",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		prSuite.KubernetesReleaseVersion = "v1.27"
+		if err := prSuite.allRequiredTestsInJunitXmlArePresent(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error with testcase '%v'; %v", tc.Name, err)
+		}
+		foundLabelCount := 0
+		for _, l := range tc.ExpectedLabels {
+			for _, tcl := range prSuite.Labels {
+				if l == tcl {
+					foundLabelCount++
+				}
+			}
+		}
+		if foundLabelCount != len(tc.ExpectedLabels) {
+			t.Fatalf("error: with testcase '%v' did not find all expected labels (%+v) instead found (%+v)", tc.Name, tc.ExpectedLabels, prSuite.Labels)
+		}
+	}
+
 }
 
 func TestTheTestsPassAndAreSuccessful(t *testing.T) {

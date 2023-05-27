@@ -8,6 +8,7 @@ The AWS account which is used is _cncf-apisnoop / 928655657136_.
 
 The Prow cluster config is located in [_github.com/cncf-infra/prow-config_ repo under _infra/aws_](https://github.com/cncf-infra/prow-config/tree/master/infra/aws), it contains
 - terraform cluster definition for EKS
+  - state stored in S3 (_arn:aws:s3:::prow-cncf-io-tfstate_)
 - prow configuration
 - partial verify-conformance configuration (deprecated)
 

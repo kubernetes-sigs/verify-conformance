@@ -633,12 +633,14 @@ func TestGetFileByFileName(t *testing.T) {
 
 func TestTheYamlFileContainsTheRequiredAndNonEmptyField(t *testing.T) {
 	type testCase struct {
-		PullRequest           *PullRequest
-		ExpectedErrorContains string
+		Name                string
+		PullRequest         *PullRequest
+		ExpectedErrorString string
 	}
 	requiredKeys := []string{"vendor", "name", "version", "type", "description", "website_url", "documentation_url", "contact_email_address"}
 	for _, tc := range []testCase{
 		{
+			Name: "valid PRODUCT.yaml",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
@@ -657,6 +659,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			},
 		},
 		{
+			Name: "invalid PRODUCT.yaml missing documentation_url",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
@@ -672,9 +675,10 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					},
 				},
 			},
-			ExpectedErrorContains: "missing or empty field &#39;documentation_url&#39;",
+			ExpectedErrorString: "missing or empty field &#39;documentation_url&#39;",
 		},
 		{
+			Name: "invalid PRODUCT.yaml missing many fields",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
@@ -689,13 +693,16 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					},
 				},
 			},
-			ExpectedErrorContains: "missing or empty field",
+			ExpectedErrorString: "missing or empty field",
 		},
 		{
-			PullRequest:           &PullRequest{},
-			ExpectedErrorContains: "missing required file",
+			Name:                "missing PRODUCT.yaml",
+			ExpectedErrorString: "missing required file",
+			PullRequest:         &PullRequest{},
 		},
 		{
+			Name:                "invalid PRODUCT.yaml unable to parse",
+			ExpectedErrorString: "unable to read file",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
@@ -705,14 +712,13 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					},
 				},
 			},
-			ExpectedErrorContains: "unable to read file",
 		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
 	k:
 		for _, k := range requiredKeys {
 			err := prSuite.theYamlFileContainsTheRequiredAndNonEmptyField("PRODUCT.yaml", k)
-			if err != nil && strings.Contains(err.Error(), tc.ExpectedErrorContains) {
+			if err != nil && strings.Contains(err.Error(), tc.ExpectedErrorString) {
 				continue k
 			} else if err != nil {
 				t.Fatalf("error: %v", err)
@@ -1073,6 +1079,7 @@ func TestTheLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresen
 
 func TestTheContentOfTheInTheValueOfIsAValid(t *testing.T) {
 	type testCase struct {
+		Name                string
 		PullRequest         *PullRequest
 		Field               string
 		FieldType           string
@@ -1126,19 +1133,21 @@ contact_email_address: "greetings@cool.kube"`
 			},
 		},
 		{
+			Name:                "invalid missing file PRODUCT.yaml",
 			Field:               "contact_email_address",
-			FieldType:           "thing",
+			FieldType:           "email",
 			PullRequest:         &PullRequest{},
 			ExpectedErrorString: "missing required file",
 		},
 		{
+			Name:      "invalid unable to parse PRODUCT.yaml",
 			Field:     "contact_email_address",
-			FieldType: "thing",
+			FieldType: "email",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
 						BaseName: "PRODUCT.yaml",
-						Contents: `:`,
+						Contents: `v"`,
 					},
 				},
 			},
@@ -1171,6 +1180,7 @@ contact_email_address: "greetings@cool.kube"`
 			ExpectedErrorString: "in PRODUCT.yaml is not a valid URL",
 		},
 		{
+			Name:      "invalid empty value for field",
 			Field:     "email",
 			FieldType: "email",
 			PullRequest: &PullRequest{
@@ -1183,16 +1193,44 @@ contact_email_address: "greetings@cool.kube"`
 			},
 			ExpectedErrorString: "in PRODUCT.yaml is not a valid address",
 		},
+		{
+			Name:      "invalid url field type",
+			Field:     "repo_url",
+			FieldType: "URL",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `repo_url: '?'`,
+					},
+				},
+			},
+			ExpectedErrorString: "is not a valid URL",
+		},
+		{
+			Name:      "invalid email field type",
+			Field:     "contact_email_address",
+			FieldType: "email",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `contact_email_address: '?'`,
+					},
+				},
+			},
+		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
 		if err := prSuite.theContentOfTheInTheValueOfIsAValid(tc.FieldType, tc.Field); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
-			t.Fatalf("error with PRODUCT.yaml content field '%v' (type %v)", tc.Field, tc.FieldType)
+			t.Fatalf("error with PRODUCT.yaml content field '%v' (type %v); error: %v", tc.Field, tc.FieldType, err)
 		}
 	}
 }
 
 func TestTheContentOfTheUrlInTheValueOfMatches(t *testing.T) {
 	type testCase struct {
+		Name                string
 		PullRequest         *PullRequest
 		Field               string
 		FieldType           string

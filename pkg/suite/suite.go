@@ -447,7 +447,7 @@ func (s *PRSuite) itIsAValidAndSupportedRelease() error {
 	currentVersion, err := semver.NewSemver(s.KubernetesReleaseVersion)
 	if err != nil {
 		fmt.Printf("error with go-version parsing currentVersion '%v': %v\n", currentVersion, err)
-		return common.SafeError(fmt.Errorf("unable to parse latest release version"))
+		return common.SafeError(fmt.Errorf("unable to parse release version"))
 	}
 	latestVersionSegments := latestVersion.Segments()
 	latestVersionSegments[1] -= lastSupportingVersions

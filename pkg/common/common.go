@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+func Pointer[V any](input V) *V {
+	return &input
+}
+
 func ReadFile(path string) (string, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {

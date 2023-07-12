@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"regexp"
 	"testing"
 )
@@ -12,6 +13,42 @@ import (
 func init() {
 	if err := os.Setenv("KO_DATA_PATH", "./../../kodata"); err != nil {
 		log.Fatalf("failed to set env: %v", err)
+	}
+}
+
+func TestPointer(t *testing.T) {
+	type testCase struct {
+		Name           string
+		Input          any
+		ExpectedResult any
+	}
+
+	for _, tc := range []testCase{
+		{
+			Name:  "string to pointer",
+			Input: "hello world",
+			ExpectedResult: func() *string {
+				i := "hello world"
+				return &i
+			},
+		},
+		{
+			Name:  "int to pointer",
+			Input: 123,
+			ExpectedResult: func() *int {
+				i := 123
+				return &i
+			},
+		},
+		{
+			Name:           "nil to pointer",
+			ExpectedResult: nil,
+		},
+	} {
+		result := Pointer(tc.Input)
+		if reflect.ValueOf(result).Kind() != reflect.Ptr {
+			t.Fatalf("error: unexpected result from test '%v', with input as '%v' and expected input as '%v'", tc.Name, tc.Input, &tc.ExpectedResult)
+		}
 	}
 }
 

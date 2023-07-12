@@ -1,13 +1,16 @@
 package suite
 
 import (
+	"bytes"
 	_ "embed"
 	"log"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 
+	"cncf.io/infra/verify-conformance-release/pkg/common"
 	githubql "github.com/shurcooL/githubv4"
 )
 
@@ -20,6 +23,8 @@ var (
 	testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01WithOneTestFailedxml string
 	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-27-junit_01-with-1-test-missing.xml
 	testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01WithOneTestMissingxml string
+	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-27-junit_01-with-1-extra-test.xml
+	testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xmlWithOneExtraTest string
 )
 
 func init() {
@@ -1411,6 +1416,7 @@ func TestTheReleaseVersion(t *testing.T) {
 
 func TestItIsAValidAndSupportedRelease(t *testing.T) {
 	type testCase struct {
+		Name                string
 		Version             string
 		VersionLatest       string
 		ExpectedErrorString string
@@ -1418,62 +1424,111 @@ func TestItIsAValidAndSupportedRelease(t *testing.T) {
 
 	for _, tc := range []testCase{
 		{
+			Name:          "valid",
 			Version:       "v1.27",
 			VersionLatest: "v1.27.0",
 		},
 		{
+			Name:                "invalid unsupported release",
 			Version:             "v1.14",
 			VersionLatest:       "v1.27.0",
 			ExpectedErrorString: "unable to use version",
+		},
+		{
+			Name:                "invalid future release",
+			Version:             "v1.208",
+			VersionLatest:       "v1.27.0",
+			ExpectedErrorString: "unable to use version",
+		},
+		{
+			Name:                "invalid version latest string",
+			Version:             "v1.27",
+			VersionLatest:       "????",
+			ExpectedErrorString: "unable to parse latest release version",
+		},
+		{
+			Name:                "invalid version string",
+			Version:             "????",
+			VersionLatest:       "v1.27.0",
+			ExpectedErrorString: "unable to parse release version",
 		},
 	} {
 		prSuite := NewPRSuite(&PullRequest{})
 		prSuite.KubernetesReleaseVersion = tc.Version
 		prSuite.KubernetesReleaseVersionLatest = tc.VersionLatest
 		if err := prSuite.itIsAValidAndSupportedRelease(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
-			t.Fatalf("error: %v", err)
+			t.Fatalf("error: unexpected error in test case '%v': %v", tc.Name, err)
 		}
 	}
 }
 
 func TestGetRequiredTests(t *testing.T) {
 	type testCase struct {
+		Name                string
 		Version             string
 		ExpectedTestsCount  int
 		ExpectedErrorString string
+		MetadataFolder      *string
 	}
 
 	for _, tc := range []testCase{
 		{
+			Name:               "valid",
 			Version:            "v1.27",
 			ExpectedTestsCount: 378,
 		},
 		{
+			Name:               "valid alternate version",
+			Version:            "v1.26",
+			ExpectedTestsCount: 368,
+		},
+		{
+			Name:               "valid with test with version above pr version",
+			Version:            "v1.27",
+			MetadataFolder:     common.Pointer("testdata/metadata/version-of-test-higher"),
+			ExpectedTestsCount: 377,
+		},
+		{
+			Name:                "invalid with malformed version",
 			Version:             "v1.notfound",
 			ExpectedTestsCount:  0,
 			ExpectedErrorString: "Malformed version",
 		},
 		{
-			Version:            "v1.26",
-			ExpectedTestsCount: 368,
+			Name:                "invalid unable to parse conformance.yaml",
+			Version:             "v1.123",
+			ExpectedTestsCount:  0,
+			MetadataFolder:      common.Pointer("testdata/metadata/unable-to-parse"),
+			ExpectedErrorString: "cannot unmarshal string into Go value of type []suite.ConformanceTestMetadata",
+		},
+		{
+			Name:                "invalid version in conformance.yaml test",
+			Version:             "v1.27",
+			ExpectedTestsCount:  0,
+			MetadataFolder:      common.Pointer("testdata/metadata/bad-version-in-conformance.yaml"),
+			ExpectedErrorString: "Malformed version",
 		},
 	} {
 		prSuite := NewPRSuite(&PullRequest{})
 		prSuite.KubernetesReleaseVersion = tc.Version
+		if tc.MetadataFolder != nil {
+			prSuite.MetadataFolder = *tc.MetadataFolder
+		}
 		tests, err := prSuite.GetRequiredTests()
 		if err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
-			t.Fatalf("error: %v", err)
+			t.Fatalf("error: unexpected error in test case '%v': %v", tc.Name, err)
 		}
 		if len(tests) != tc.ExpectedTestsCount {
-			t.Fatalf("error: test count for version %v is expected to be at %v but instead found at %v", tc.Version, tc.ExpectedTestsCount, len(tests))
+			t.Fatalf("error: unexpected test count for version %v in test case '%v' is expected to be at %v but instead found at %v", tc.Version, tc.Name, tc.ExpectedTestsCount, len(tests))
 		}
 	}
 }
 
 func TestGetMissingJunitTestsFromPRSuite(t *testing.T) {
 	type testCase struct {
-		Title                     string
+		Name                      string
 		Version                   string
+		MetadataFolder            *string
 		PullRequest               *PullRequest
 		ExpectedTestsMissingCount int
 		ExpectedErrorString       string
@@ -1481,7 +1536,7 @@ func TestGetMissingJunitTestsFromPRSuite(t *testing.T) {
 
 	for _, tc := range []testCase{
 		{
-			Title:   `valid junit`,
+			Name:    `valid junit`,
 			Version: "v1.27",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
@@ -1495,7 +1550,37 @@ func TestGetMissingJunitTestsFromPRSuite(t *testing.T) {
 			ExpectedTestsMissingCount: 0,
 		},
 		{
-			Title:   `empty junit`,
+			Name:    "valid junit but with one extra test",
+			Version: "v1.27",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xmlWithOneExtraTest,
+					},
+				},
+			},
+			ExpectedTestsMissingCount: 0,
+		},
+		{
+			Name:    "invalid with a metadata folder pointing to nowhere",
+			Version: "v1.27",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					},
+				},
+			},
+			ExpectedTestsMissingCount: 0,
+			MetadataFolder:            common.Pointer("nowhere"),
+			ExpectedErrorString:       "open nowhere/v1.27/conformance.yaml",
+		},
+		{
+			Name:    `empty junit`,
 			Version: "v1.27",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
@@ -1510,12 +1595,14 @@ func TestGetMissingJunitTestsFromPRSuite(t *testing.T) {
 			ExpectedErrorString:       "unable to parse junit_01.xml file",
 		},
 	} {
-		t.Logf("%v", tc.Title)
 		prSuite := NewPRSuite(tc.PullRequest)
 		prSuite.KubernetesReleaseVersion = tc.Version
+		if tc.MetadataFolder != nil {
+			prSuite.MetadataFolder = *tc.MetadataFolder
+		}
 		tests, err := prSuite.GetMissingJunitTestsFromPRSuite()
 		if err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
-			t.Fatalf("error: %v", err)
+			t.Fatalf("error: unexpected error in test case '%v': %v", tc.Name, err)
 		}
 		if len(tests) != tc.ExpectedTestsMissingCount {
 			t.Fatalf("error: missing test count for version %v is expected to be at %v but instead found at %v", tc.Version, tc.ExpectedTestsMissingCount, len(tests))
@@ -1694,6 +1781,14 @@ func TestTheTestsPassAndAreSuccessful(t *testing.T) {
 			ExpectedLabels:      []string{"conformance-product-submission", "evidence-missing"},
 			ExpectedErrorString: "it appears that there are failures in some tests",
 		},
+		{
+			Name: "invalid with missing junit_01.xml",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{},
+			},
+			ExpectedLabels:      []string{"conformance-product-submission"},
+			ExpectedErrorString: "unable to find file junit_01.xml",
+		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
 		prSuite.KubernetesReleaseVersion = "v1.27"
@@ -1718,6 +1813,7 @@ func TestAllRequiredTestsInArePresent(t *testing.T) {
 	type testCase struct {
 		Name                string
 		PullRequest         *PullRequest
+		MetadataFolder      *string
 		ExpectedErrorString string
 	}
 
@@ -1735,6 +1831,18 @@ func TestAllRequiredTestsInArePresent(t *testing.T) {
 			},
 		},
 		{
+			Name: "valid and all tests pass and are successful but with one extra test",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xmlWithOneExtraTest,
+					},
+				},
+			},
+		},
+		{
 			Name: "invalid with one test missing",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
@@ -1747,9 +1855,33 @@ func TestAllRequiredTestsInArePresent(t *testing.T) {
 			},
 			ExpectedErrorString: "there appears to be 1 tests missing",
 		},
+		{
+			Name: "invalid with missing junit_01.xml",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{},
+			},
+			ExpectedErrorString: "unable to find file junit_01.xml",
+		},
+		{
+			Name: "invalid with a metadata folder pointing to nowhere",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01WithOneTestMissingxml,
+					},
+				},
+			},
+			MetadataFolder:      common.Pointer("nowhere"),
+			ExpectedErrorString: "open nowhere/v1.27/conformance.yaml",
+		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
 		prSuite.KubernetesReleaseVersion = "v1.27"
+		if tc.MetadataFolder != nil {
+			prSuite.MetadataFolder = *tc.MetadataFolder
+		}
 		if err := prSuite.allRequiredTestsInArePresent(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
 			t.Fatalf("error with testcase '%v'; %v", tc.Name, err)
 		}
@@ -1867,6 +1999,15 @@ contact_email_address: "greetings@cool.kube"`,
 				},
 			},
 		},
+		{
+			Name:     "missing README.md",
+			File:     "README.md",
+			FileType: "markdown",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{},
+			},
+			ExpectedErrorString: "unable to find file",
+		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
 		if err := prSuite.IsValid(tc.File, tc.FileType); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
@@ -1882,5 +2023,208 @@ func TestAPRTitle(t *testing.T) {
 }
 
 func TestGetLabelsAndCommentsFromSuiteResultsBuffer(t *testing.T) {
+	type testCase struct {
+		Name                    string
+		PullRequest             *PullRequest
+		KubernetesVersion       *string
+		KubernetesVersionLatest *string
+		Buffer                  *bytes.Buffer
+		ExpectedComment         *string
+		ExpectedLabels          []string
+		ExpectedState           *string
+		ExpectedErrorString     string
+	}
 
+	for _, tc := range []testCase{
+		{
+			Name: "invalid empty PR",
+			PullRequest: &PullRequest{
+				PullRequestQuery:        PullRequestQuery{},
+				Labels:                  []string{},
+				SupportingFiles:         []*PullRequestFile{},
+				ProductYAMLURLDataTypes: map[string]string{},
+			},
+			ExpectedErrorString: "Malformed version",
+		},
+		{
+			Name:              "invalid with KubernetesVersion",
+			KubernetesVersion: common.Pointer("v1.27"),
+			PullRequest: &PullRequest{
+				PullRequestQuery:        PullRequestQuery{},
+				Labels:                  []string{},
+				SupportingFiles:         []*PullRequestFile{},
+				ProductYAMLURLDataTypes: map[string]string{},
+			},
+		},
+		{
+			Name:                    "invalid with KubernetesVersion and KubernetesVersionLatest",
+			KubernetesVersion:       common.Pointer("v1.27"),
+			KubernetesVersionLatest: common.Pointer("v1.27"),
+			PullRequest: &PullRequest{
+				PullRequestQuery:        PullRequestQuery{},
+				Labels:                  []string{},
+				SupportingFiles:         []*PullRequestFile{},
+				ProductYAMLURLDataTypes: map[string]string{},
+			},
+			ExpectedLabels: []string{"conformance-product-submission", "missing-file-README.md", "missing-file-PRODUCT.yaml", "missing-file-e2e.log", "missing-file-junit_01.xml", "release-v1.27", "not-verifiable"},
+		},
+		{
+			Name:                    "invalid with non-cuke contents",
+			KubernetesVersion:       common.Pointer("v1.27"),
+			KubernetesVersionLatest: common.Pointer("v1.27"),
+			Buffer:                  bytes.NewBuffer([]byte(`hiiii`)),
+			PullRequest: &PullRequest{
+				PullRequestQuery:        PullRequestQuery{},
+				Labels:                  []string{},
+				SupportingFiles:         []*PullRequestFile{},
+				ProductYAMLURLDataTypes: map[string]string{},
+			},
+			ExpectedErrorString: "invalid character 'h' looking for beginning of value",
+		},
+		{
+			Name:                    "invalid with missing supporting conformance.yaml for KubernetesVersion",
+			KubernetesVersion:       common.Pointer("v1.123"),
+			KubernetesVersionLatest: common.Pointer("v1.123"),
+			PullRequest: &PullRequest{
+				PullRequestQuery:        PullRequestQuery{},
+				Labels:                  []string{},
+				SupportingFiles:         []*PullRequestFile{},
+				ProductYAMLURLDataTypes: map[string]string{},
+			},
+			ExpectedLabels:  []string{"conformance-product-submission", "unable-to-process"},
+			ExpectedState:   common.Pointer("pending"),
+			ExpectedComment: common.Pointer("The release version v1.123 is unable to be processed at this time; Please wait as this version may become available soon."),
+		},
+		{
+			Name:                    "valid pull request",
+			KubernetesVersion:       common.Pointer("v1.27"),
+			KubernetesVersionLatest: common.Pointer("v1.27"),
+			PullRequest: &PullRequest{
+				PullRequestQuery: PullRequestQuery{
+					Title: githubql.String("Conformance results for v1.27/coolkube"),
+					Commits: struct {
+						Nodes []struct {
+							Commit struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}
+						}
+					}{
+						Nodes: []struct {
+							Commit struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}
+						}{
+							{
+								Commit: struct {
+									Oid    githubql.String
+									Status struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}
+								}{
+									Oid: githubql.String(""),
+									Status: struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}{
+										Contexts: []struct {
+											Context githubql.String
+											State   githubql.String
+										}{
+											{
+												Context: githubql.String(""),
+												State:   githubql.String(""),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				SupportingFiles: []*PullRequestFile{
+					{
+						Name:     "v1.27/coolkube/PRODUCT.yaml",
+						BaseName: "PRODUCT.yaml",
+						Contents: `vendor: "cool"
+name: "coolkube"
+version: "v1.27"
+type: "distribution"
+description: "it's just all-round cool and probably the best k8s, idk"
+website_url: "https://coolkubernetes.com"
+documentation_url: "https://coolkubernetes.com/docs"
+contact_email_address: "sales@coolkubernetes.com"`,
+					},
+					{
+						Name:     "v1.27/coolkube/README.md",
+						BaseName: "README.md",
+						Contents: `# v1.27/coolkube`,
+					},
+					{
+						Name:     "v1.27/coolkube/e2e.log",
+						BaseName: "e2e.log",
+						Contents: `stuff here`,
+					},
+					{
+						Name:     "v1.27/coolkube/junit_01.xml",
+						BaseName: "junit_01.xml",
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					},
+				},
+				ProductYAMLURLDataTypes: map[string]string{},
+			},
+			ExpectedLabels:  []string{"conformance-product-submission", "tests-verified-v1.27", "no-failed-tests-v1.27", "release-v1.27", "release-documents-checked"},
+			ExpectedComment: common.Pointer("All requirements (13) have passed for the submission!\n"),
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		if tc.KubernetesVersion != nil {
+			prSuite.KubernetesReleaseVersion = *tc.KubernetesVersion
+		}
+		if tc.KubernetesVersionLatest != nil {
+			prSuite.KubernetesReleaseVersionLatest = *tc.KubernetesVersionLatest
+		}
+		prSuite.SetSubmissionMetadatafromFolderStructure()
+		prSuite.NewTestSuite(PRSuiteOptions{Paths: []string{"../../kodata/features/verify-conformance-release.feature"}}).Run()
+		if tc.Buffer != nil {
+			prSuite.buffer = *tc.Buffer
+		}
+		comment, labels, state, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()
+		if err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Fatalf("error: unexpected error string in test case '%v': %v", tc.Name, err)
+		}
+		if tc.ExpectedComment != nil && comment != *tc.ExpectedComment {
+			t.Fatalf("error: comment in test case '%v' result '%v' does not match expected '%v'", tc.Name, comment, *tc.ExpectedComment)
+		}
+		if len(tc.ExpectedLabels) != 0 && !reflect.DeepEqual(labels, tc.ExpectedLabels) {
+			t.Fatalf("error: labels in test case '%v' result '%+v' does not match expected '%+v'", tc.Name, labels, tc.ExpectedLabels)
+		}
+		if tc.ExpectedState != nil && state != *tc.ExpectedState {
+			t.Fatalf("error: state in test case '%v' result '%v' does not match expected '%v'", tc.Name, state, *tc.ExpectedState)
+		}
+	}
+}
+
+func TestInitializeScenario(t *testing.T) {
+	prSuite := NewPRSuite(&PullRequest{})
+	prSuite.NewTestSuite(PRSuiteOptions{Paths: []string{"../../kodata/features/verify-conformance-release.feature"}})
+	if code := prSuite.Suite.Run(); code != 1 {
+		t.Fatalf("error intended failure code of '1', but found to be '%v'", code)
+	}
 }

@@ -33,7 +33,6 @@ jobs:
       - name: commit and push if there are changes
         if: ${{ steps.determine-changes.outputs.changes == 'true' }}
         run: |
-          fi
           TIMESTAMP="$(git log -n1 --pretty='format:%cd' --date=format:'%Y-%m-%d-%H-%M')"
           NEW_BRANCH="conformance-yaml-update-for-${TIMESTAMP}"
           git add ./kodata/conformance-testdata/**/conformance.yaml

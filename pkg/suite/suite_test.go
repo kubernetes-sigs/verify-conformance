@@ -597,6 +597,72 @@ func TestTheFilesInThePR(t *testing.T) {
 	}
 }
 
+func TestTheFilesIncludedInThePRAreOnly(t *testing.T) {
+	type testSuite struct {
+		Name                string
+		PullRequest         *PullRequest
+		FilesString         string
+		ExpectedErrorString string
+	}
+
+	for _, tc := range []testSuite{
+		{
+			Name: "valid submission",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "README.md",
+					},
+					{
+						BaseName: "e2e.log",
+					},
+					{
+						BaseName: "PRODUCT.yaml",
+					},
+					{
+						BaseName: "junit_01.xml",
+					},
+				},
+			},
+			FilesString: "README.md, e2e.log, PRODUCT.yaml, junit_01.xml",
+		},
+		{
+			Name: "invalid submission with extra files",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "README.md",
+					},
+					{
+						BaseName: "e2e.log",
+					},
+					{
+						BaseName: "PRODUCT.yaml",
+					},
+					{
+						BaseName: "scenic-photo.png",
+					},
+					{
+						BaseName: "soup-recommendation.ogg",
+					},
+					{
+						BaseName: "caleb-was-here.txt",
+					},
+				},
+			},
+			FilesString:         "README.md, e2e.log, PRODUCT.yaml, junit_01.xml",
+			ExpectedErrorString: "it appears that there are 3 non-required file(s) included in the submission: scenic-photo.png, soup-recommendation.ogg, caleb-was-here.txt",
+		},
+	} {
+		prSuite := NewPRSuite(tc.PullRequest)
+		err := prSuite.theFilesIncludedInThePRAreOnly(tc.FilesString)
+		if err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
+			t.Errorf("unexpected error in testcase (%v): %v", tc.Name, err)
+		}
+		t.Logf("ran testcase (%v)", tc.Name)
+	}
+}
+
 func TestAFile(t *testing.T) {
 	prSuite := NewPRSuite(&PullRequest{
 		PullRequestQuery: PullRequestQuery{
@@ -2190,7 +2256,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 				ProductYAMLURLDataTypes: map[string]string{},
 			},
 			ExpectedLabels:  []string{"conformance-product-submission", "tests-verified-v1.27", "no-failed-tests-v1.27", "release-v1.27", "release-documents-checked"},
-			ExpectedComment: common.Pointer("All requirements (13) have passed for the submission!\n"),
+			ExpectedComment: common.Pointer("All requirements (14) have passed for the submission!\n"),
 		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)

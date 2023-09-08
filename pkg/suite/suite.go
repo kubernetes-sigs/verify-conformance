@@ -272,6 +272,26 @@ func (s *PRSuite) theFilesInThePR() error {
 	return nil
 }
 
+func (s *PRSuite) theFilesIncludedInThePRAreOnly(filesString string) error {
+	files := strings.Split(filesString, ", ")
+	nonRequiredFiles := []string{}
+	for _, s := range s.PR.SupportingFiles {
+		found := false
+		for _, f := range files {
+			if s.BaseName == f {
+				found = true
+			}
+		}
+		if !found {
+			nonRequiredFiles = append(nonRequiredFiles, s.BaseName)
+		}
+	}
+	if len(nonRequiredFiles) > 0 {
+		return common.SafeError(fmt.Errorf("it appears that there are %v non-required file(s) included in the submission: %v", len(nonRequiredFiles), strings.Join(nonRequiredFiles, ", ")))
+	}
+	return nil
+}
+
 func (s *PRSuite) aFile(fileName string) error {
 	file := s.GetFileByFileName(fileName)
 	if file == nil {
@@ -785,6 +805,7 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the PR title is not empty$`, s.thePRTitleIsNotEmpty)
 	ctx.Step(`^"([^"]*)" is included in its file list$`, s.isIncludedInItsFileList)
 	ctx.Step(`^the files in the PR`, s.theFilesInThePR)
+	ctx.Step(`^the files included in the PR are only: "([^"]*)"$`, s.theFilesIncludedInThePRAreOnly)
 	ctx.Step(`^file folder structure matches "([^"]*)"$`, s.fileFolderStructureMatchesRegex)
 	ctx.Step(`^the title of the PR$`, s.theTitleOfThePR)
 	ctx.Step(`^the title of the PR matches "([^"]*)"$`, s.theTitleOfThePRMatches)

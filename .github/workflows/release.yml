@@ -11,7 +11,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - id: run-info
         name: collect job run info
         env:
@@ -19,13 +19,13 @@ jobs:
         run: |
           echo "go-version=$(go list -f {{.GoVersion}} -m)" >> $GITHUB_OUTPUT
           echo "ko-docker-repo=${KO_DOCKER_REPO,,}" >> $GITHUB_OUTPUT
-      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+      - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
           go-version: ${{ steps.run-info.outputs.go-version }}
           cache-dependency-path: go.sum
-      - uses: sigstore/cosign-installer@001a7d424cbd4db4044e5bffd9481cbb5b451635 # v3.0.3
+      - uses: sigstore/cosign-installer@11086d25041f77fe8fe7b9ea4e48e3b9192b8f19 # v3.1.2
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@2b225b5275d2d624ea40ffd55ecd0bae1d98845f # v2.0.0
+        uses: aws-actions/configure-aws-credentials@ea24045cb2f1d2ea4fe79f9248de800f74ba3aa3 # v3.0.2
         with:
           aws-region: ap-southeast-2
           role-to-assume: arn:aws:iam::928655657136:role/verify-conformance-ci

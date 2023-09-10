@@ -20,6 +20,10 @@ Feature: verify conformance product submission PR
       | "e2e.log"      | "text"     |
       | "junit_01.xml" | "xml"      |
 
+  Scenario: submission only contains required files
+    Given the files in the PR
+    Then the files included in the PR are only: README.md, PRODUCT.yaml, e2e.log, junit_01.xml
+
   Scenario: submission has files in structure of releaseversion/productname/
     the submission file directory does not seem to match the Kubernetes release version in the files
 

@@ -70,7 +70,7 @@ type githubClient interface {
 	BotUserChecker() (func(candidate string) bool, error)
 	AddLabel(org, repo string, number int, label string) error
 	RemoveLabel(org, repo string, number int, label string) error
-	DeleteStaleCommentsWithContext(ctx context.Context, org, repo string, number int, comments []github.IssueComment, isStale func(github.IssueComment) bool) error
+	DeleteStaleComments(org, repo string, number int, comments []github.IssueComment, isStale func(github.IssueComment) bool) error
 	QueryWithGitHubAppsSupport(context.Context, interface{}, map[string]interface{}, string) error
 	GetPullRequest(org, repo string, number int) (*github.PullRequest, error)
 	GetPullRequestChanges(org, repo string, number int) ([]github.PullRequestChange, error)
@@ -187,6 +187,7 @@ func search(ctx context.Context, log *logrus.Entry, ghc githubClient, q string, 
 		if err := ghc.QueryWithGitHubAppsSupport(ctx, &sq, vars, org); err != nil {
 			return nil, err
 		}
+		fmt.Printf("%+v\n", sq)
 		totalCost += int(sq.RateLimit.Cost)
 		remaining = int(sq.RateLimit.Remaining)
 		for _, n := range sq.Search.Nodes {
@@ -424,9 +425,8 @@ func updateComments(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQu
 		botCommentsToPrune = botComments[:len(botComments)-1]
 	}
 
-	err = githubClient.DeleteStaleCommentsWithContext(
+	err = githubClient.DeleteStaleComments(
 		ghc,
-		context.TODO(),
 		string(pr.Repository.Owner.Login),
 		string(pr.Repository.Name),
 		int(pr.Number),

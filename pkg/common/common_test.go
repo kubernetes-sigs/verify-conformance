@@ -100,3 +100,44 @@ func TestGetStableTxt(t *testing.T) {
 		t.Fatalf("error expected to not find stable.txt")
 	}
 }
+
+func TestGetDataPath(t *testing.T) {
+	type testCase struct {
+		Name          string
+		EnvKoDataPath *string
+		ExpectedValue string
+	}
+
+	for _, tc := range []testCase{
+		{
+			Name:          "passing has env set",
+			EnvKoDataPath: Pointer("a"),
+			ExpectedValue: "a",
+		},
+		{
+			Name:          "defaulting no value set",
+			EnvKoDataPath: nil,
+			ExpectedValue: "kodata",
+		},
+	} {
+		checkpointValue := os.Getenv("KO_DATA_PATH")
+
+		if tc.EnvKoDataPath != nil {
+			t.Logf("testcase (%v) setting env to '%v'...", tc.Name, *tc.EnvKoDataPath)
+			if err := os.Setenv("KO_DATA_PATH", *tc.EnvKoDataPath); err != nil {
+				t.Errorf("error restoring env value: %v\n", err)
+			}
+		} else {
+			os.Unsetenv("KO_DATA_PATH")
+		}
+
+		val := GetDataPath()
+		if !reflect.DeepEqual(val, tc.ExpectedValue) {
+			t.Fatalf("error: testcase (%v) datapath value (%v) doesn't equal expected value (%v)", tc.Name, val, tc.ExpectedValue)
+		}
+
+		if err := os.Setenv("KO_DATA_PATH", checkpointValue); err != nil {
+			t.Errorf("error restoring env value: %v\n", err)
+		}
+	}
+}

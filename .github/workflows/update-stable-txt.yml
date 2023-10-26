@@ -47,6 +47,6 @@ jobs:
           git branch "${NEW_BRANCH}"
           git checkout "${NEW_BRANCH}"
           git commit -s -m "update Kubernetes stable.txt to $STABLE for ${TIMESTAMP}"
-          git push origin "${NEW_BRANCH}"
+          git push -f origin "${NEW_BRANCH}"
           gh pr create --title "Update stable.txt to $STABLE ${TIMESTAMP}" --body "updates stable.txt to $STABLE for ${TIMESTAMP}"
           gh pr merge --merge --auto "${NEW_BRANCH}"

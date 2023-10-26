@@ -61,14 +61,14 @@ jobs:
         if: ${{ steps.determine-changes.outputs.changes == 'true' && steps.existing-pr.outputs.exists != 'true' }}
         id: create-pr
         run: |
-          TIMESTAMP="$(date +%Y-%m-%d-%H-%M)"
+          TIMESTAMP="$(git log -n1 --pretty='format:%cd' --date=format:'%Y-%m-%d-%H-%M')"
           NEW_BRANCH="update-go-version-to-${{ steps.run-info-outputs.go-version }}-${TIMESTAMP}"
           echo "new-branch=$NEW_BRANCH" >> $GITHUB_OUTPUT
           git add ${{ inputs.modfile }}
           git branch "${NEW_BRANCH}"
           git checkout "${NEW_BRANCH}"
           git commit -s -m "update Go version to ${{ steps.run-info.outputs.go-version }} for ${{ inputs.modfile }}"
-          git push origin "${NEW_BRANCH}"
+          git push -f origin "${NEW_BRANCH}"
           gh pr create --title "Update Go version to ${{ steps.run-info.outputs.go-version }} in ${{ inputs.modfile }}" --body "Updates the base version of Go required for this project to ${{ steps.run-info.outputs.go-version }} for ${{ inputs.modfile }}" --label update-go-version
       - name: merge PR
         if: ${{ inputs.autoMerge && steps.determine-changes.outputs.changes == 'true' && steps.existing-pr.outputs.exists != 'true' }}

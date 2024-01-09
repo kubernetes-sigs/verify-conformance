@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -29,6 +30,7 @@ var (
 type prContext struct {
 	PullRequestQuery *suite.PullRequestQuery
 	SupportingFiles  []*suite.PullRequestFile
+	Comments         []string
 }
 
 type FakeGitHubClient struct {
@@ -64,6 +66,16 @@ func (f *FakeGitHubClient) GetIssueLabels(org, repo string, number int) ([]githu
 	return labels, nil
 }
 func (f *FakeGitHubClient) CreateComment(org, repo string, number int, comment string) error {
+	var prIndex *int
+	for i := range f.PopulatedPullRequests {
+		if f.PopulatedPullRequests[i].PullRequestQuery.Number == githubql.Int(number) {
+			prIndex = &i
+		}
+	}
+	if prIndex == nil {
+		return fmt.Errorf("unable make comment '%v'", number)
+	}
+	f.PopulatedPullRequests[*prIndex].Comments = append(f.PopulatedPullRequests[*prIndex].Comments, comment)
 	return nil
 }
 func (f *FakeGitHubClient) ListIssueCommentsWithContext(ctx context.Context, org, repo string, number int) ([]github.IssueComment, error) {
@@ -704,6 +716,9 @@ func TestUpdateStatus(t *testing.T) {
 }
 
 func TestHandle(t *testing.T) {
+	if err := os.Setenv("KO_DATA_PATH", "./../../kodata"); err != nil {
+		log.Fatalf("failed to set env: %v", err)
+	}
 	type testCase struct {
 		Name                    string
 		KubernetesVersion       *string
@@ -821,6 +836,111 @@ contact_email_address: "sales@coolkubernetes.com"`,
 				},
 			},
 		},
+		{
+			Name:                    "valid submission for unreleased version",
+			Labels:                  []string{"conformance-product-submission"},
+			KubernetesVersion:       common.Pointer("v1.57"),
+			KubernetesVersionLatest: common.Pointer("v1.57"),
+			SupportingFiles: []*suite.PullRequestFile{
+				{
+					Name:     "v1.57/coolkube/README.md",
+					BaseName: "README.md",
+					Contents: `# coolkube
+> the coolest Kubernetes distribution
+
+## Generating conformance results
+
+1. create a coolkube cluster
+2. sonobuoy run --wait && sonobuoy results "$(sonobuoy retrieve)" && sonobuoy delete --wait`,
+					BlobURL: "README.md",
+				},
+				{
+					Name:     "v1.57/coolkube/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					Contents: `vendor: "cool"
+name: "coolkube"
+version: "v1.57"
+type: "distribution"
+description: "it's just all-round cool and probably the best k8s, idk"
+website_url: "website_url"
+documentation_url: "docs"
+contact_email_address: "sales@coolkubernetes.com"`,
+					BlobURL: "PRODUCT.yaml",
+				},
+				{
+					Name:     "v1.57/coolkube/e2e.log",
+					BaseName: "e2e.log",
+					Contents: "",
+					BlobURL:  "e2e.log",
+				},
+				{
+					Name:     "v1.57/coolkube/junit_01.xml",
+					BaseName: "junit_01.xml",
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					BlobURL:  "junit_01.xml",
+				},
+			},
+			ExpectedComment: "The release version v1.57 is unable to be processed at this time; Please wait as this version may become available soon.",
+			ExpectedError:   "unable to process release file as it is missing for release v1.57",
+			PullRequestQuery: &suite.PullRequestQuery{
+				Title: githubql.String("Conformance results for v1.57/coolkube"),
+				Commits: struct {
+					Nodes []struct {
+						Commit struct {
+							Oid    githubql.String
+							Status struct {
+								Contexts []struct {
+									Context githubql.String
+									State   githubql.String
+								}
+							}
+						}
+					}
+				}{
+					Nodes: []struct {
+						Commit struct {
+							Oid    githubql.String
+							Status struct {
+								Contexts []struct {
+									Context githubql.String
+									State   githubql.String
+								}
+							}
+						}
+					}{
+						{
+							Commit: struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}{
+								Oid: githubql.String(""),
+								Status: struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}{
+									Contexts: []struct {
+										Context githubql.String
+										State   githubql.String
+									}{
+										{
+											Context: githubql.String(""),
+											State:   githubql.String(""),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	} {
 		productYAML := map[string]string{}
 		var productYAMLSupportingFile string
@@ -870,10 +990,21 @@ contact_email_address: "sales@coolkubernetes.com"`,
 				SupportingFiles:  tc.SupportingFiles,
 			},
 		})
-		if err := handle(log, ghc, tc.PullRequestQuery); err != nil {
+		if err := handle(log, ghc, tc.PullRequestQuery); err != nil && !strings.Contains(err.Error(), tc.ExpectedError) {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		// TODO check comment, labels and status
+		if tc.ExpectedComment != "" {
+			found := false
+			for _, comment := range ghc.PopulatedPullRequests[tc.PullRequestQuery.Number].Comments {
+				if comment == tc.ExpectedComment {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("unable to find expected comment: %v", tc.ExpectedComment)
+			}
+		}
+		// TODO check labels and status
 	}
 }
 

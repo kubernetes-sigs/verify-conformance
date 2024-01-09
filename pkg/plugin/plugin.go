@@ -511,6 +511,22 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 	}
 
 	prSuite.SetSubmissionMetadatafromFolderStructure()
+	conformanceYAMLFilePath := path.Join(prSuite.MetadataFolder, prSuite.KubernetesReleaseVersion, "conformance.yaml")
+	if _, err := common.ReadFile(conformanceYAMLFilePath); err != nil {
+		finalComment := fmt.Sprintf("The release version %v is unable to be processed at this time; Please wait as this version may become available soon.", prSuite.KubernetesReleaseVersion)
+		labels := []string{"conformance-product-submission", "unable-to-process"}
+		state := "pending"
+		if _, _, err := updateLabels(log, ghc, pr, prSuite, labels); err != nil {
+			return err
+		}
+		if err := updateComments(log, ghc, pr, prSuite, finalComment); err != nil {
+			return err
+		}
+		if err := updateStatus(log, ghc, pr, prSuite, state); err != nil {
+			return err
+		}
+		return fmt.Errorf("unable to process release file as it is missing for release %v", prSuite.KubernetesReleaseVersion)
+	}
 	prSuite.NewTestSuite(suite.PRSuiteOptions{Paths: godogFeaturePaths}).Run()
 
 	finalComment, labels, state, err := prSuite.GetLabelsAndCommentsFromSuiteResultsBuffer()

@@ -424,6 +424,7 @@ filesLoop:
 	for _, file := range s.PR.SupportingFiles {
 		allIndexes := pattern.FindAllSubmatchIndex([]byte(file.Name), -1)
 		for _, loc := range allIndexes {
+			loc := loc
 			releaseVersion := string(file.Name[loc[2]:loc[3]])
 			distroName := string(file.Name[loc[4]:loc[5]])
 			s.KubernetesReleaseVersion = releaseVersion
@@ -440,6 +441,7 @@ func (s *PRSuite) theReleaseVersionMatchesTheReleaseVersionInTheTitle() error {
 	var titleReleaseVersion string
 	allIndexes := pattern.FindAllSubmatchIndex([]byte(s.PR.Title), -1)
 	for _, loc := range allIndexes {
+		loc := loc
 		titleReleaseVersion = string(s.PR.Title[loc[4]:loc[5]])
 		if titleReleaseVersion != "" {
 			break

@@ -7,17 +7,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
+	"cncf.io/infra/verify-conformance-release/pkg/common"
+	"cncf.io/infra/verify-conformance-release/pkg/suite"
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
 	"k8s.io/test-infra/prow/config"
 	"k8s.io/test-infra/prow/github"
+	"k8s.io/test-infra/prow/plugins"
 	"sigs.k8s.io/yaml"
-
-	"cncf.io/infra/verify-conformance-release/pkg/common"
-	"cncf.io/infra/verify-conformance-release/pkg/suite"
 )
 
 var (
@@ -30,7 +31,9 @@ var (
 type prContext struct {
 	PullRequestQuery *suite.PullRequestQuery
 	SupportingFiles  []*suite.PullRequestFile
-	Comments         []string
+	Comments         []github.IssueComment
+	HeadRefOID       string
+	Status           github.Status
 }
 
 type FakeGitHubClient struct {
@@ -43,7 +46,19 @@ func NewFakeGitHubClient(p []*prContext) *FakeGitHubClient {
 	}
 }
 
+func (f *FakeGitHubClient) GetPopulatedPullRequests() []*prContext {
+	return f.PopulatedPullRequests
+}
+
 func (f *FakeGitHubClient) CreateStatus(org string, repo string, headRefOID string, status github.Status) error {
+	for i := range f.PopulatedPullRequests {
+		if !(string(f.PopulatedPullRequests[i].PullRequestQuery.Repository.Owner.Login) == org &&
+			string(f.PopulatedPullRequests[i].PullRequestQuery.Repository.Name) == repo) {
+			continue
+		}
+		f.PopulatedPullRequests[i].HeadRefOID = headRefOID
+		f.PopulatedPullRequests[i].Status = status
+	}
 	return nil
 }
 func (f *FakeGitHubClient) GetCombinedStatus(org, repo, ref string) (*github.CombinedStatus, error) {
@@ -75,11 +90,25 @@ func (f *FakeGitHubClient) CreateComment(org, repo string, number int, comment s
 	if prIndex == nil {
 		return fmt.Errorf("unable make comment '%v'", number)
 	}
-	f.PopulatedPullRequests[*prIndex].Comments = append(f.PopulatedPullRequests[*prIndex].Comments, comment)
+	f.PopulatedPullRequests[*prIndex].Comments = append(f.PopulatedPullRequests[*prIndex].Comments, github.IssueComment{
+		Body: comment,
+		User: github.User{
+			Login: "cncfci(bot)",
+		},
+	})
 	return nil
 }
 func (f *FakeGitHubClient) ListIssueCommentsWithContext(ctx context.Context, org, repo string, number int) ([]github.IssueComment, error) {
-	return []github.IssueComment{}, nil
+	var prIndex *int
+	for i := range f.PopulatedPullRequests {
+		if f.PopulatedPullRequests[i].PullRequestQuery.Number == githubql.Int(number) {
+			prIndex = &i
+		}
+	}
+	if prIndex == nil {
+		return []github.IssueComment{}, fmt.Errorf("unable make comment '%v'", number)
+	}
+	return f.PopulatedPullRequests[*prIndex].Comments, nil
 }
 func (f *FakeGitHubClient) BotUserChecker() (func(candidate string) bool, error) {
 	return func(string) bool { return false }, nil
@@ -200,7 +229,16 @@ func (f *FakeGitHubClient) QueryWithGitHubAppsSupport(ctx context.Context, sq in
 	return nil
 }
 func (f *FakeGitHubClient) GetPullRequest(org, repo string, number int) (*github.PullRequest, error) {
-	return nil, nil
+	var prIndex *int
+	for i := range f.PopulatedPullRequests {
+		if f.PopulatedPullRequests[i].PullRequestQuery.Number == githubql.Int(number) {
+			prIndex = &i
+		}
+	}
+	if prIndex == nil {
+		return nil, fmt.Errorf("unable make comment '%v'", number)
+	}
+	return NewGitHubPullRequestForPullRequestQuery(org, repo, number, f.PopulatedPullRequests[*prIndex].PullRequestQuery), nil
 }
 func (f *FakeGitHubClient) GetPullRequestChanges(org, repo string, number int) ([]github.PullRequestChange, error) {
 	pr := &prContext{}
@@ -230,7 +268,7 @@ func TestHelpProvider(t *testing.T) {
 	}
 }
 
-func TestFetchFileFromURI(t *testing.T) {
+func Test_fetchFileFromURI(t *testing.T) {
 	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte(`Hello!`))
@@ -252,7 +290,7 @@ func TestFetchFileFromURI(t *testing.T) {
 
 }
 
-func TestRawURLForBlobURL(t *testing.T) {
+func Test_rawURLForBlobURL(t *testing.T) {
 	type testCase struct {
 		BlobURL           string
 		RawUserContentURL string
@@ -278,7 +316,7 @@ func TestRawURLForBlobURL(t *testing.T) {
 	}
 }
 
-func TestSearch(t *testing.T) {
+func Test_search(t *testing.T) {
 	type testCase struct {
 		Name                string
 		PullRequestQuery    *suite.PullRequestQuery
@@ -483,7 +521,7 @@ func TestGetGodogPaths(t *testing.T) {
 	}
 }
 
-func TestLabelIsManaged(t *testing.T) {
+func Test_labelIsManaged(t *testing.T) {
 	type testCase struct {
 		Label          string
 		ExpectedResult bool
@@ -529,7 +567,7 @@ func TestLabelIsManaged(t *testing.T) {
 	}
 }
 
-func TestLabelIsVersionLabel(t *testing.T) {
+func Test_labelIsVersionLabel(t *testing.T) {
 	type testCase struct {
 		Label          string
 		Version        string
@@ -579,7 +617,7 @@ func TestLabelIsVersionLabel(t *testing.T) {
 	}
 }
 
-func TestLabelIsFileLabel(t *testing.T) {
+func Test_labelIsFileLabel(t *testing.T) {
 	type testCase struct {
 		Name           string
 		Label          string
@@ -639,15 +677,7 @@ func TestLabelIsFileLabel(t *testing.T) {
 	}
 }
 
-func TestUpdateLabels(t *testing.T) {
-
-}
-
-func TestUpdateComments(t *testing.T) {
-
-}
-
-func TestRemoveSliceOfStringsFromStringSlice(t *testing.T) {
+func Test_removeSliceOfStringsFromStringSlice(t *testing.T) {
 	type testCase struct {
 		Input          []string
 		Remove         []string
@@ -679,43 +709,7 @@ func TestRemoveSliceOfStringsFromStringSlice(t *testing.T) {
 	}
 }
 
-func TestIsConformancePR(t *testing.T) {
-	type testCase struct {
-		PR             *suite.PullRequestQuery
-		ExpectedResult bool
-	}
-
-	for _, tc := range []testCase{
-		{
-			PR: &suite.PullRequestQuery{
-				Title: githubql.String("conformance results for v1.27/thing"),
-			},
-			ExpectedResult: true,
-		},
-		{
-			PR: &suite.PullRequestQuery{
-				Title: githubql.String("conformance results for v1.27/kubernetes"),
-			},
-			ExpectedResult: true,
-		},
-		{
-			PR: &suite.PullRequestQuery{
-				Title: githubql.String("conformanc"),
-			},
-			ExpectedResult: false,
-		},
-	} {
-		if isConformancePR(tc.PR) != tc.ExpectedResult {
-			t.Fatalf("error: conformance PR with name (%v) is expected to be a conformance PR", tc.PR.Title)
-		}
-	}
-}
-
-func TestUpdateStatus(t *testing.T) {
-
-}
-
-func TestHandle(t *testing.T) {
+func Test_handle(t *testing.T) {
 	if err := os.Setenv("KO_DATA_PATH", "./../../kodata"); err != nil {
 		log.Fatalf("failed to set env: %v", err)
 	}
@@ -941,6 +935,12 @@ contact_email_address: "sales@coolkubernetes.com"`,
 				},
 			},
 		},
+		{
+			Name: "not a conformance pr",
+			PullRequestQuery: &suite.PullRequestQuery{
+				Title: githubql.String("soup recipes for winter"),
+			},
+		},
 	} {
 		productYAML := map[string]string{}
 		var productYAMLSupportingFile string
@@ -996,7 +996,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 		if tc.ExpectedComment != "" {
 			found := false
 			for _, comment := range ghc.PopulatedPullRequests[tc.PullRequestQuery.Number].Comments {
-				if comment == tc.ExpectedComment {
+				if comment.Body == tc.ExpectedComment {
 					found = true
 				}
 			}
@@ -1024,13 +1024,808 @@ func TestNewPullRequestQueryForGithubPullRequest(t *testing.T) {
 }
 
 func TestHandlePullRequestEvent(t *testing.T) {
+	type args struct {
+		log *logrus.Entry
+		ghc githubClient
+		pre *github.PullRequestEvent
+	}
+	tests := []struct {
+		name            string
+		supportingFiles []*suite.PullRequestFile
+		args            args
+		wantErr         bool
+	}{
+		{
+			name: "basic",
+			supportingFiles: []*suite.PullRequestFile{
+				{
+					Name:     "v1.27/coolkube/README.md",
+					BaseName: "README.md",
+					Contents: `# coolkube
+> the coolest Kubernetes distribution
 
+## Generating conformance results
+
+1. create a coolkube cluster
+2. sonobuoy run --wait && sonobuoy results "$(sonobuoy retrieve)" && sonobuoy delete --wait`,
+					BlobURL: "README.md",
+				},
+				{
+					Name:     "v1.27/coolkube/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					Contents: `vendor: "cool"
+name: "coolkube"
+version: "v1.27"
+type: "distribution"
+description: "it's just all-round cool and probably the best k8s, idk"
+website_url: "website_url"
+documentation_url: "docs"
+contact_email_address: "sales@coolkubernetes.com"`,
+					BlobURL: "PRODUCT.yaml",
+				},
+				{
+					Name:     "v1.27/coolkube/e2e.log",
+					BaseName: "e2e.log",
+					Contents: "",
+					BlobURL:  "e2e.log",
+				},
+				{
+					Name:     "v1.27/coolkube/junit_01.xml",
+					BaseName: "junit_01.xml",
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					BlobURL:  "junit_01.xml",
+				},
+			},
+			args: args{
+				log: log,
+				pre: &github.PullRequestEvent{
+					Action: github.PullRequestActionOpened,
+					Repo: github.Repo{
+						Owner: github.User{
+							Login: "cncf",
+						},
+						Name: "k8s-conformance",
+					},
+					Number: 12345,
+					PullRequest: github.PullRequest{
+						Title: "Conformance results for v1.27/coolkube",
+						User: github.User{
+							Login: "example",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "request not open or reopen",
+			args: args{
+				log: log,
+				pre: &github.PullRequestEvent{
+					Action: github.PullRequestActionClosed,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			productYAML := map[string]string{}
+			var productYAMLSupportingFile string
+			for _, file := range tt.supportingFiles {
+				if file.BaseName == "PRODUCT.yaml" {
+					productYAMLSupportingFile = file.Contents
+				}
+			}
+			if productYAMLSupportingFile != "" {
+				if err := yaml.Unmarshal([]byte(productYAMLSupportingFile), &productYAML); err != nil {
+					t.Fatalf("error: unmarshalling from PRODUCT.yaml supporting file: %v", err)
+				}
+			}
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Logf("requesting path '%v'", r.URL.Path)
+				supportingFile := &suite.PullRequestFile{}
+				for _, file := range tt.supportingFiles {
+					if r.URL.Path == "/"+file.BaseName || r.URL.Path == "/"+file.Name {
+						supportingFile = file
+					}
+				}
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(supportingFile.Contents))
+				if err != nil {
+					t.Fatalf("error: sending http response; %v", err)
+				}
+			}))
+			defer svr.Close()
+			for _, field := range []string{"website_url", "documentation_url"} {
+				if productYAML[field] != "" {
+					productYAML[field] = svr.URL + "/" + productYAML[field]
+				}
+			}
+			productYAMLBytes, err := yaml.Marshal(productYAML)
+			if err != nil {
+				t.Fatalf("error: marshalling new product yaml: %v", err)
+			}
+			for i := range tt.supportingFiles {
+				tt.supportingFiles[i].BlobURL = svr.URL + "/" + tt.supportingFiles[i].BlobURL
+				if tt.supportingFiles[i].BaseName == "PRODUCT.yaml" {
+					tt.supportingFiles[i].Contents = string(productYAMLBytes)
+				}
+			}
+			ghc := NewFakeGitHubClient([]*prContext{
+				{
+					PullRequestQuery: NewPullRequestQueryForGithubPullRequest(tt.args.pre.Repo.Owner.Login, tt.args.pre.Repo.Name, tt.args.pre.Number, &tt.args.pre.PullRequest),
+					SupportingFiles:  tt.supportingFiles,
+				},
+			})
+			if err := HandlePullRequestEvent(tt.args.log, ghc, tt.args.pre); (err != nil) != tt.wantErr {
+				t.Errorf("HandlePullRequestEvent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }
 
 func TestHandleIssueCommentEvent(t *testing.T) {
+	type args struct {
+		log *logrus.Entry
+		ghc githubClient
+		ice *github.IssueCommentEvent
+	}
+	tests := []struct {
+		name             string
+		args             args
+		pullRequestQuery *suite.PullRequestQuery
+		supportingFiles  []*suite.PullRequestFile
+		wantErr          bool
+	}{
+		{
+			name: "basic",
+			pullRequestQuery: &suite.PullRequestQuery{
+				Number: githubql.Int(12345),
+				Title:  githubql.String("Conformance results for v1.27/coolkube"),
+				Commits: struct {
+					Nodes []struct {
+						Commit struct {
+							Oid    githubql.String
+							Status struct {
+								Contexts []struct {
+									Context githubql.String
+									State   githubql.String
+								}
+							}
+						}
+					}
+				}{
+					Nodes: []struct {
+						Commit struct {
+							Oid    githubql.String
+							Status struct {
+								Contexts []struct {
+									Context githubql.String
+									State   githubql.String
+								}
+							}
+						}
+					}{
+						{
+							Commit: struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}{
+								Oid: githubql.String(""),
+								Status: struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}{
+									Contexts: []struct {
+										Context githubql.String
+										State   githubql.String
+									}{
+										{
+											Context: githubql.String(""),
+											State:   githubql.String(""),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			supportingFiles: []*suite.PullRequestFile{
+				{
+					Name:     "v1.27/coolkube/README.md",
+					BaseName: "README.md",
+					Contents: `# coolkube
+> the coolest Kubernetes distribution
 
+## Generating conformance results
+
+1. create a coolkube cluster
+2. sonobuoy run --wait && sonobuoy results "$(sonobuoy retrieve)" && sonobuoy delete --wait`,
+					BlobURL: "README.md",
+				},
+				{
+					Name:     "v1.27/coolkube/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					Contents: `vendor: "cool"
+name: "coolkube"
+version: "v1.27"
+type: "distribution"
+description: "it's just all-round cool and probably the best k8s, idk"
+website_url: "website_url"
+documentation_url: "docs"
+contact_email_address: "sales@coolkubernetes.com"`,
+					BlobURL: "PRODUCT.yaml",
+				},
+				{
+					Name:     "v1.27/coolkube/e2e.log",
+					BaseName: "e2e.log",
+					Contents: "",
+					BlobURL:  "e2e.log",
+				},
+				{
+					Name:     "v1.27/coolkube/junit_01.xml",
+					BaseName: "junit_01.xml",
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					BlobURL:  "junit_01.xml",
+				},
+			},
+			args: args{
+				log: log,
+				ice: &github.IssueCommentEvent{
+					Action: github.IssueCommentActionCreated,
+					Issue: github.Issue{
+						PullRequest: &struct{}{},
+						Number:      12345,
+					},
+					Comment: github.IssueComment{},
+					Repo: github.Repo{
+						Owner: github.User{
+							Login: "cncf",
+						},
+						Name: "k8s-conformance",
+					},
+				},
+			},
+		},
+		{
+			name: "not a pr",
+			args: args{
+				log: log,
+				ice: &github.IssueCommentEvent{
+					Action: github.IssueCommentActionCreated,
+					Issue: github.Issue{
+						Number: 101010,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			productYAML := map[string]string{}
+			var productYAMLSupportingFile string
+			for _, file := range tt.supportingFiles {
+				if file.BaseName == "PRODUCT.yaml" {
+					productYAMLSupportingFile = file.Contents
+				}
+			}
+			if productYAMLSupportingFile != "" {
+				if err := yaml.Unmarshal([]byte(productYAMLSupportingFile), &productYAML); err != nil {
+					t.Fatalf("error: unmarshalling from PRODUCT.yaml supporting file: %v", err)
+				}
+			}
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Logf("requesting path '%v'", r.URL.Path)
+				supportingFile := &suite.PullRequestFile{}
+				for _, file := range tt.supportingFiles {
+					if r.URL.Path == "/"+file.BaseName || r.URL.Path == "/"+file.Name {
+						supportingFile = file
+					}
+				}
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(supportingFile.Contents))
+				if err != nil {
+					t.Fatalf("error: sending http response; %v", err)
+				}
+			}))
+			defer svr.Close()
+			for _, field := range []string{"website_url", "documentation_url"} {
+				if productYAML[field] != "" {
+					productYAML[field] = svr.URL + "/" + productYAML[field]
+				}
+			}
+			productYAMLBytes, err := yaml.Marshal(productYAML)
+			if err != nil {
+				t.Fatalf("error: marshalling new product yaml: %v", err)
+			}
+			for i := range tt.supportingFiles {
+				tt.supportingFiles[i].BlobURL = svr.URL + "/" + tt.supportingFiles[i].BlobURL
+				if tt.supportingFiles[i].BaseName == "PRODUCT.yaml" {
+					tt.supportingFiles[i].Contents = string(productYAMLBytes)
+				}
+			}
+			ghc := NewFakeGitHubClient([]*prContext{
+				{
+					PullRequestQuery: tt.pullRequestQuery,
+					SupportingFiles:  tt.supportingFiles,
+				},
+			})
+			if err := HandleIssueCommentEvent(tt.args.log, ghc, tt.args.ice); (err != nil) != tt.wantErr {
+				t.Errorf("HandleIssueCommentEvent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }
 
 func TestHandleAll(t *testing.T) {
+	type args struct {
+		log    *logrus.Entry
+		ghc    githubClient
+		config *plugins.Configuration
+	}
+	tests := []struct {
+		name       string
+		prContexts []*prContext
+		args       args
+		wantErr    bool
+	}{
+		{
+			name: "basic",
+			prContexts: []*prContext{
+				{
+					PullRequestQuery: &suite.PullRequestQuery{
+						Number: githubql.Int(12345),
+						Title:  githubql.String("Conformance results for v1.27/coolkube"),
+						Commits: struct {
+							Nodes []struct {
+								Commit struct {
+									Oid    githubql.String
+									Status struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}
+								}
+							}
+						}{
+							Nodes: []struct {
+								Commit struct {
+									Oid    githubql.String
+									Status struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}
+								}
+							}{
+								{
+									Commit: struct {
+										Oid    githubql.String
+										Status struct {
+											Contexts []struct {
+												Context githubql.String
+												State   githubql.String
+											}
+										}
+									}{
+										Oid: githubql.String(""),
+										Status: struct {
+											Contexts []struct {
+												Context githubql.String
+												State   githubql.String
+											}
+										}{
+											Contexts: []struct {
+												Context githubql.String
+												State   githubql.String
+											}{
+												{
+													Context: githubql.String(""),
+													State:   githubql.String(""),
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					SupportingFiles: []*suite.PullRequestFile{
+						{
+							Name:     "v1.27/coolkube/README.md",
+							BaseName: "README.md",
+							Contents: `# coolkube
+> the coolest Kubernetes distribution
 
+## Generating conformance results
+
+1. create a coolkube cluster
+2. sonobuoy run --wait && sonobuoy results "$(sonobuoy retrieve)" && sonobuoy delete --wait`,
+							BlobURL: "README.md",
+						},
+						{
+							Name:     "v1.27/coolkube/PRODUCT.yaml",
+							BaseName: "PRODUCT.yaml",
+							Contents: `vendor: "cool"
+name: "coolkube"
+version: "v1.27"
+type: "distribution"
+description: "it's just all-round cool and probably the best k8s, idk"
+website_url: "website_url"
+documentation_url: "docs"
+contact_email_address: "sales@coolkubernetes.com"`,
+							BlobURL: "PRODUCT.yaml",
+						},
+						{
+							Name:     "v1.27/coolkube/e2e.log",
+							BaseName: "e2e.log",
+							Contents: "",
+							BlobURL:  "e2e.log",
+						},
+						{
+							Name:     "v1.27/coolkube/junit_01.xml",
+							BaseName: "junit_01.xml",
+							Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+							BlobURL:  "junit_01.xml",
+						},
+					},
+				},
+			},
+			args: args{
+				log: log,
+				config: &plugins.Configuration{
+					ExternalPlugins: map[string][]plugins.ExternalPlugin{
+						"cncf/k8s-conformance": {
+							{
+								Name: "verify-conformance-release",
+								Events: []string{
+									"issue_comment",
+									"pull_request",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "no config",
+			args: args{
+				log:    log,
+				config: &plugins.Configuration{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Logf("requesting path '%v'", r.URL.Path)
+				supportingFile := &suite.PullRequestFile{}
+				for _, prc := range tt.prContexts {
+					for _, file := range prc.SupportingFiles {
+						if r.URL.Path == "/"+file.BaseName || r.URL.Path == "/"+file.Name {
+							supportingFile = file
+						}
+					}
+				}
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(supportingFile.Contents))
+				if err != nil {
+					t.Fatalf("error: sending http response; %v", err)
+				}
+			}))
+			defer svr.Close()
+			for _, prc := range tt.prContexts {
+				productYAML := map[string]string{}
+				var productYAMLSupportingFile string
+				for _, file := range prc.SupportingFiles {
+					if file.BaseName == "PRODUCT.yaml" {
+						productYAMLSupportingFile = file.Contents
+					}
+				}
+				if productYAMLSupportingFile != "" {
+					if err := yaml.Unmarshal([]byte(productYAMLSupportingFile), &productYAML); err != nil {
+						t.Fatalf("error: unmarshalling from PRODUCT.yaml supporting file: %v", err)
+					}
+				}
+				for _, field := range []string{"website_url", "documentation_url"} {
+					if productYAML[field] != "" {
+						productYAML[field] = svr.URL + "/" + productYAML[field]
+					}
+				}
+				productYAMLBytes, err := yaml.Marshal(productYAML)
+				if err != nil {
+					t.Fatalf("error: marshalling new product yaml: %v", err)
+				}
+				for i := range prc.SupportingFiles {
+					prc.SupportingFiles[i].BlobURL = svr.URL + "/" + prc.SupportingFiles[i].BlobURL
+					if prc.SupportingFiles[i].BaseName == "PRODUCT.yaml" {
+						prc.SupportingFiles[i].Contents = string(productYAMLBytes)
+					}
+				}
+			}
+			ghc := NewFakeGitHubClient(tt.prContexts)
+			if err := HandleAll(tt.args.log, ghc, tt.args.config); (err != nil) != tt.wantErr {
+				t.Errorf("HandleAll() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestNewGitHubPullRequestForPullRequestQuery(t *testing.T) {
+	type args struct {
+		orgName  string
+		repoName string
+		number   int
+		pr       *suite.PullRequestQuery
+	}
+	tests := []struct {
+		name string
+		args args
+		want *github.PullRequest
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewGitHubPullRequestForPullRequestQuery(tt.args.orgName, tt.args.repoName, tt.args.number, tt.args.pr); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewGitHubPullRequestForPullRequestQuery() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_updateLabels(t *testing.T) {
+	type args struct {
+		log     *logrus.Entry
+		ghc     githubClient
+		pr      *suite.PullRequestQuery
+		prSuite *suite.PRSuite
+		labels  []string
+	}
+	tests := []struct {
+		name              string
+		args              args
+		wantNewLabels     []string
+		wantRemovedLabels []string
+		wantErr           bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotNewLabels, gotRemovedLabels, err := updateLabels(tt.args.log, tt.args.ghc, tt.args.pr, tt.args.prSuite, tt.args.labels)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("updateLabels() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotNewLabels, tt.wantNewLabels) {
+				t.Errorf("updateLabels() gotNewLabels = %v, want %v", gotNewLabels, tt.wantNewLabels)
+			}
+			if !reflect.DeepEqual(gotRemovedLabels, tt.wantRemovedLabels) {
+				t.Errorf("updateLabels() gotRemovedLabels = %v, want %v", gotRemovedLabels, tt.wantRemovedLabels)
+			}
+		})
+	}
+}
+
+func Test_updateComments(t *testing.T) {
+	type args struct {
+		log     *logrus.Entry
+		ghc     githubClient
+		pr      *suite.PullRequestQuery
+		prSuite *suite.PRSuite
+		comment string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := updateComments(tt.args.log, tt.args.ghc, tt.args.pr, tt.args.prSuite, tt.args.comment); (err != nil) != tt.wantErr {
+				t.Errorf("updateComments() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_isConformancePR(t *testing.T) {
+	type args struct {
+		pr *suite.PullRequestQuery
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "basic",
+			args: args{
+				pr: &suite.PullRequestQuery{
+					Title: "Conformance results for v1.27/coolkube",
+				},
+			},
+			want: true,
+		},
+		{
+			name: "not conformance pr",
+			args: args{
+				pr: &suite.PullRequestQuery{
+					Title: "cool soup recipe",
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isConformancePR(tt.args.pr); got != tt.want {
+				t.Errorf("isConformancePR() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_updateStatus(t *testing.T) {
+	type args struct {
+		log     *logrus.Entry
+		ghc     githubClient
+		pr      *suite.PullRequestQuery
+		prSuite *suite.PRSuite
+		state   string
+	}
+	tests := []struct {
+		name            string
+		supportingFiles []*suite.PullRequestFile
+		args            args
+		wantStatus      *struct {
+			Context githubql.String
+			State   githubql.String
+		}
+		wantErr bool
+	}{
+		{
+			name: "basic",
+			wantStatus: &struct {
+				Context githubql.String
+				State   githubql.String
+			}{
+				Context: githubql.String("verify-conformance"),
+				State:   githubql.String("success"),
+			},
+			args: args{
+				log: log,
+				pr: &suite.PullRequestQuery{
+					Number:     githubql.Int(12345),
+					Title:      githubql.String("Conformance results for v1.27/coolkube"),
+					HeadRefOID: "12345678",
+					Commits: struct {
+						Nodes []struct {
+							Commit struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}
+						}
+					}{
+						Nodes: []struct {
+							Commit struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}
+						}{
+							{
+								Commit: struct {
+									Oid    githubql.String
+									Status struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}
+								}{
+									Oid: githubql.String("12345678"),
+									Status: struct {
+										Contexts []struct {
+											Context githubql.String
+											State   githubql.String
+										}
+									}{
+										Contexts: []struct {
+											Context githubql.String
+											State   githubql.String
+										}{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			productYAML := map[string]string{}
+			var productYAMLSupportingFile string
+			for _, file := range tt.supportingFiles {
+				if file.BaseName == "PRODUCT.yaml" {
+					productYAMLSupportingFile = file.Contents
+				}
+			}
+			if productYAMLSupportingFile != "" {
+				if err := yaml.Unmarshal([]byte(productYAMLSupportingFile), &productYAML); err != nil {
+					t.Fatalf("error: unmarshalling from PRODUCT.yaml supporting file: %v", err)
+				}
+			}
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Logf("requesting path '%v'", r.URL.Path)
+				supportingFile := &suite.PullRequestFile{}
+				for _, file := range tt.supportingFiles {
+					if r.URL.Path == "/"+file.BaseName || r.URL.Path == "/"+file.Name {
+						supportingFile = file
+					}
+				}
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(supportingFile.Contents))
+				if err != nil {
+					t.Fatalf("error: sending http response; %v", err)
+				}
+			}))
+			defer svr.Close()
+			for _, field := range []string{"website_url", "documentation_url"} {
+				if productYAML[field] != "" {
+					productYAML[field] = svr.URL + "/" + productYAML[field]
+				}
+			}
+			productYAMLBytes, err := yaml.Marshal(productYAML)
+			if err != nil {
+				t.Fatalf("error: marshalling new product yaml: %v", err)
+			}
+			for i := range tt.supportingFiles {
+				tt.supportingFiles[i].BlobURL = svr.URL + "/" + tt.supportingFiles[i].BlobURL
+				if tt.supportingFiles[i].BaseName == "PRODUCT.yaml" {
+					tt.supportingFiles[i].Contents = string(productYAMLBytes)
+				}
+			}
+			ghc := NewFakeGitHubClient([]*prContext{
+				{
+					PullRequestQuery: tt.args.pr,
+					SupportingFiles:  tt.supportingFiles,
+				},
+			})
+			if err := updateStatus(tt.args.log, ghc, tt.args.pr, tt.args.prSuite, tt.args.state); (err != nil) != tt.wantErr {
+				t.Errorf("updateStatus() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			ghPr := ghc.GetPopulatedPullRequests()[0]
+			if tt.wantStatus != nil &&
+				ghPr.Status.Context != string(tt.wantStatus.Context) &&
+				ghPr.Status.State != string(tt.wantStatus.State) {
+				t.Fatalf("error: unexpected status: %v:%v", ghPr.Status.Context, ghPr.Status.State)
+			}
+		})
+	}
 }

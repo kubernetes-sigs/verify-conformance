@@ -537,6 +537,7 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 	if err != nil {
 		return err
 	}
+	prSuite.MetadataFolder = path.Join(common.GetDataPath(), "conformance-testdata")
 
 	prSuite.SetSubmissionMetadatafromFolderStructure()
 	conformanceYAMLFilePath := path.Join(prSuite.MetadataFolder, prSuite.KubernetesReleaseVersion, "conformance.yaml")

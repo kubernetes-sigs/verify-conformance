@@ -1,4 +1,3 @@
----
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -10,11 +9,6 @@ patches:
 generatorOptions:
   disableNameSuffixHash: true
 configMapGenerator:
-- behavior: replace
-  files:
-  - ./verify-conformance-config.yaml
-  name: verify-conformance-config
-  namespace: verify-conformance
 - files:
   - ./plugins.yaml
   name: plugins
@@ -33,6 +27,6 @@ secretGenerator:
   name: hmac-token
   namespace: verify-conformance
 images:
-- name: ko://sigs.k8s.io/verify-conformance
-  newTag: latest
+- digest: sha256:2a3282841346c2721ee309b8f0c73969447afab5bda64c570b699ba9cca26a43
+  name: ko://sigs.k8s.io/verify-conformance
   newName: localhost:5001/verify-conformance/verify-conformance

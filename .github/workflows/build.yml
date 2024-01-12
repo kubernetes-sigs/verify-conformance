@@ -19,4 +19,4 @@ jobs:
           cache-dependency-path: go.sum
       - id: build-binary
         run: |
-          go build -o /dev/null .
+          go build -o /dev/null ./...

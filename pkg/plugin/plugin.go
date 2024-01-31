@@ -414,11 +414,9 @@ func updateComments(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQu
 		}
 		botComments = append(botComments, c)
 	}
-	if len(botComments) > 0 {
-		if botComments[len(botComments)-1].Body == comment {
-			log.Printf("warning: nothing new to add in PR (%v)\n", int(pr.Number))
-			return nil
-		}
+	if len(botComments) > 0 && botComments[len(botComments)-1].Body == comment {
+		log.Printf("warning: nothing new to add in PR (%v)\n", int(pr.Number))
+		return nil
 	}
 	botCommentsToPrune := botComments
 	if len(botComments) > 0 {
@@ -587,10 +585,22 @@ func NewPullRequestQueryForGithubPullRequest(orgName string, repoName string, nu
 	}
 }
 
+func NewGitHubPullRequestForPullRequestQuery(orgName string, repoName string, number int, pr *suite.PullRequestQuery) *github.PullRequest {
+	return &github.PullRequest{
+		Title:  string(pr.Title),
+		Number: number,
+		User: github.User{
+			Login: string(pr.Author.Login),
+		},
+	}
+}
+
 // HandlePullRequestEvent handles a GitHub pull request event
 func HandlePullRequestEvent(log *logrus.Entry, ghc githubClient, pre *github.PullRequestEvent) error {
 	log.Infof("HandlePullRequestEvent")
-	if pre.Action != github.PullRequestActionOpened && pre.Action != github.PullRequestActionSynchronize && pre.Action != github.PullRequestActionReopened {
+	switch pre.Action {
+	case github.PullRequestActionOpened, github.PullRequestActionReopened:
+	default:
 		return nil
 	}
 
@@ -648,9 +658,6 @@ func HandleAll(log *logrus.Entry, ghc githubClient, config *plugins.Configuratio
 		orgs = append(orgs, org)
 		fmt.Fprintf(&queryOpenPRs, " repo:\"%s\"", repo)
 	}
-	// for _, org := range orgs {
-	// 	fmt.Fprintf(&queryOpenPRs, " org:\"%s\"", org)
-	// }
 
 	prs := []suite.PullRequestQuery{}
 	for _, org := range orgs {

@@ -1388,6 +1388,125 @@ contact_email_address: "greetings@cool.kube"`
 	}
 }
 
+func TestTheTypeFieldInPRODUCTyamlIsValid(t *testing.T) {
+	type testCase struct {
+		Name          string
+		Field         string
+		Values        string
+		PullRequest   *PullRequest
+		ExpectedError bool
+	}
+
+	for _, tc := range []testCase{
+		{
+			Name:   "valid installer",
+			Field:  "type",
+			Values: "installer, distribution, hosted platform",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `---
+type: "installer"
+`,
+					},
+				},
+			},
+		},
+		{
+			Name:   "valid distribution",
+			Field:  "type",
+			Values: "installer, distribution, hosted platform",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `---
+type: "distribution"
+`,
+					},
+				},
+			},
+		},
+		{
+			Name:   "valid hosted platform",
+			Field:  "type",
+			Values: "installer, distribution, hosted platform",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `---
+type: "hosted platform"
+`,
+					},
+				},
+			},
+		},
+		{
+			Name:   "invalid type",
+			Field:  "type",
+			Values: "installer, distribution, hosted platform",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `---
+type: "soup"
+`,
+					},
+				},
+			},
+			ExpectedError: true,
+		},
+		{
+			Name:   "field not found",
+			Field:  "type",
+			Values: "installer, distribution, hosted platform",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `---
+soup: "minestrone"
+`,
+					},
+				},
+			},
+			ExpectedError: true,
+		},
+		{
+			Name:   "bad yaml",
+			Field:  "type",
+			Values: "installer, distribution, hosted platform",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{
+					{
+						BaseName: "PRODUCT.yaml",
+						Contents: `%^(%^&(%&^%))`,
+					},
+				},
+			},
+			ExpectedError: true,
+		},
+		{
+			Name:   "file not found",
+			Field:  "type",
+			Values: "installer, distribution, hosted platform",
+			PullRequest: &PullRequest{
+				SupportingFiles: []*PullRequestFile{},
+			},
+			ExpectedError: true,
+		},
+	} {
+		tc := tc
+		prSuite := NewPRSuite(tc.PullRequest)
+		if err := prSuite.theFieldMatchesOneOfTheFollowingValues(tc.Field, tc.Values); err != nil && (err != nil) != tc.ExpectedError {
+			t.Fatalf("error with PRODUCT.yaml field type is invalid: %v", err)
+		}
+	}
+}
+
 func TestSetSubmissionMetadatafromFolderStructure(t *testing.T) {
 	type testCase struct {
 		PullRequest    *PullRequest
@@ -2256,7 +2375,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 				ProductYAMLURLDataTypes: map[string]string{},
 			},
 			ExpectedLabels:  []string{"conformance-product-submission", "tests-verified-v1.27", "no-failed-tests-v1.27", "release-v1.27", "release-documents-checked"},
-			ExpectedComment: common.Pointer("All requirements (14) have passed for the submission!\n"),
+			ExpectedComment: common.Pointer("All requirements (15) have passed for the submission!\n"),
 		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)

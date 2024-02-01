@@ -90,6 +90,12 @@ Feature: verify conformance product submission PR
       | "documentation_url" | "text/html"                        |
       | "product_logo_url"  | "image/svg application/postscript" |
 
+  Scenario: the type field in PRODUCT.yaml is valid
+    it appears that the type field does not match either "distribution", "hosted platform" or "installer"
+
+    Given a "PRODUCT.yaml" file
+    Then the field "type" matches one of the following values: distribution, hosted platform, installer
+
   Scenario: title of product submission contains Kubernetes release version and product name
     the submission title is missing either a Kubernetes release version (v1.xx) or product name
 

@@ -417,6 +417,33 @@ func (s *PRSuite) theContentOfTheUrlInTheValueOfMatches(field, dataType string) 
 	return nil
 }
 
+func (s *PRSuite) theFieldMatchesOneOfTheFollowingValues(field string, valuesRaw string) error {
+	fileName := "PRODUCT.yaml"
+	var parsedContent map[string]string
+	file := s.GetFileByFileName(fileName)
+	if file == nil {
+		return common.SafeError(fmt.Errorf("missing required file '%v'", fileName))
+	}
+	err := yaml.Unmarshal([]byte(file.Contents), &parsedContent)
+	if err != nil {
+		return common.SafeError(fmt.Errorf("unable to read file '%v'", fileName))
+	}
+	if parsedContent[field] == "" {
+		return common.SafeError(fmt.Errorf("missing required field '%v' in '%v'", field, fileName))
+	}
+	values := strings.Split(valuesRaw, ", ")
+	found := false
+	for _, val := range values {
+		if val == parsedContent[field] {
+			found = true
+		}
+	}
+	if !found {
+		return common.SafeError(fmt.Errorf("field '%v' in '%v' is not valid and must be one of the following: %v", field, fileName, valuesRaw))
+	}
+	return nil
+}
+
 func (s *PRSuite) SetSubmissionMetadatafromFolderStructure() *PRSuite {
 	pattern := regexp.MustCompile(`(v1.[0-9]{2})/(.*)/.*`)
 
@@ -818,6 +845,7 @@ func (s *PRSuite) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the yaml file "([^"]*)" contains the required and non-empty "([^"]*)"$`, s.theYamlFileContainsTheRequiredAndNonEmptyField)
 	ctx.Step(`^the content of the "([^"]*)" in the value of "([^"]*)" is a valid .*$`, s.theContentOfTheInTheValueOfIsAValid)
 	ctx.Step(`^the content of the url in the value of "([^"]*)" matches it\'s "([^"]*)"$`, s.theContentOfTheUrlInTheValueOfMatches)
+	ctx.Step(`^the field "([^"]*)" matches one of the following values: "([^"]*)"$`, s.theFieldMatchesOneOfTheFollowingValues)
 	ctx.Step(`^there is only one path of folders$`, s.thereIsOnlyOnePathOfFolders)
 	ctx.Step(`^the release version matches the release version in the title$`, s.theReleaseVersionMatchesTheReleaseVersionInTheTitle)
 	ctx.Step(`^the release version$`, s.theReleaseVersion)

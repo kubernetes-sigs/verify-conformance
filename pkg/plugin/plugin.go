@@ -458,7 +458,7 @@ o:
 }
 
 func isConformancePR(pr *suite.PullRequestQuery) bool {
-	return strings.Contains(strings.ToLower(string(pr.Title)), "conformance")
+	return strings.Contains(strings.ToLower(string(pr.Title)), "conformance results for")
 }
 
 func updateStatus(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery, prSuite *suite.PRSuite, state string) error {
@@ -510,7 +510,7 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 
 	prSuite.SetSubmissionMetadatafromFolderStructure()
 	conformanceYAMLFilePath := path.Join(prSuite.MetadataFolder, prSuite.KubernetesReleaseVersion, "conformance.yaml")
-	if _, err := common.ReadFile(conformanceYAMLFilePath); err != nil {
+	if _, err := common.ReadFile(conformanceYAMLFilePath); err != nil && os.IsNotExist(err) {
 		finalComment := fmt.Sprintf("The release version %v is unable to be processed at this time; Please wait as this version may become available soon.", prSuite.KubernetesReleaseVersion)
 		labels := []string{"conformance-product-submission", "unable-to-process"}
 		state := "pending"

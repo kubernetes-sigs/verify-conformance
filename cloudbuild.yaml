@@ -1,0 +1,23 @@
+---
+steps:
+  # NOTE this image comes with Go which may
+  #      end up not matching the version required
+  #      in go.mod
+  - name: ghcr.io/ko-build/ko:v0.15.1
+    entrypoint: /bin/sh
+    args:
+      - -c
+      - |
+        export KO_DOCKER_REPO=gcr.io/$PROJECT_ID/verify-conformance
+        ko build --base-import-paths --tags $_GIT_TAG .
+  # TODO sign image with OIDC
+  #      https://docs.sigstore.dev/signing/overview/#on-google-cloud-platform
+  - name: ghcr.io/sigstore/cosign/cosign:v2.0.1
+    env:
+      - GOOGLE_SERVICE_ACCOUNT_NAME=gcb-922@k8s-infra-ii-sandbox.iam.gserviceaccount.com
+    args:
+      - sign
+      - --recursive
+      - gcr.io/$PROJECT_ID/verify-conformance/verify-conformance-release:$_GIT_TAG
+substitutions:
+  _GIT_TAG: '12345'

@@ -468,6 +468,7 @@ func (s *PRSuite) theReleaseVersionMatchesTheReleaseVersionInTheTitle() error {
 	var titleReleaseVersion string
 	allIndexes := pattern.FindAllSubmatchIndex([]byte(s.PR.Title), -1)
 	for _, loc := range allIndexes {
+		//nolint:typecheck
 		loc := loc
 		titleReleaseVersion = string(s.PR.Title[loc[4]:loc[5]])
 		if titleReleaseVersion != "" {

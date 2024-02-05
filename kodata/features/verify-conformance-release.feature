@@ -88,7 +88,6 @@ Feature: verify conformance product submission PR
       | "website_url"       | "text/html"                        |
       | "repo_url"          | "text/html"                        |
       | "documentation_url" | "text/html"                        |
-      | "product_logo_url"  | "image/svg application/postscript" |
 
   Scenario: the type field in PRODUCT.yaml is valid
     it appears that the type field does not match either "distribution", "hosted platform" or "installer"

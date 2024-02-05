@@ -1026,7 +1026,6 @@ func TestNewPullRequestQueryForGithubPullRequest(t *testing.T) {
 func TestHandlePullRequestEvent(t *testing.T) {
 	type args struct {
 		log *logrus.Entry
-		ghc githubClient
 		pre *github.PullRequestEvent
 	}
 	tests := []struct {
@@ -1167,7 +1166,6 @@ contact_email_address: "sales@coolkubernetes.com"`,
 func TestHandleIssueCommentEvent(t *testing.T) {
 	type args struct {
 		log *logrus.Entry
-		ghc githubClient
 		ice *github.IssueCommentEvent
 	}
 	tests := []struct {
@@ -1368,7 +1366,6 @@ contact_email_address: "sales@coolkubernetes.com"`,
 func TestHandleAll(t *testing.T) {
 	type args struct {
 		log    *logrus.Entry
-		ghc    githubClient
 		config *plugins.Configuration
 	}
 	tests := []struct {
@@ -1683,7 +1680,6 @@ func Test_isConformancePR(t *testing.T) {
 func Test_updateStatus(t *testing.T) {
 	type args struct {
 		log     *logrus.Entry
-		ghc     githubClient
 		pr      *suite.PullRequestQuery
 		prSuite *suite.PRSuite
 		state   string

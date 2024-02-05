@@ -37,7 +37,6 @@ var (
 		{Field: "website_url"},
 		{Field: "repo_url"},
 		{Field: "documentation_url"},
-		{Field: "product_logo_url"},
 	}
 	managedPRLabels = []string{
 		"conformance-product-submission",

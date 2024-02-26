@@ -1,6 +1,6 @@
 module cncf.io/infra/verify-conformance-release
 
-go 1.21
+go 1.22
 
 replace (
 	cloud.google.com/go => cloud.google.com/go v0.100.2

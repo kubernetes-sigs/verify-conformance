@@ -476,6 +476,7 @@ commitLoop:
 		}
 	}
 	if currentLatestHasCurrentStatus {
+		log.Infof("PR %v has status up to date", pr.Number)
 		return nil
 	}
 	switch state {
@@ -483,14 +484,31 @@ commitLoop:
 		description = "All checks are passing"
 	case "failure":
 		description = "Please check failing requirements and update accordingly"
+	default:
+		description = "Internal error"
+		log.Infof("PR %v has invalid state", pr.Number)
 	}
-	return ghc.CreateStatus(
+	log.Infof("PR %v setting state of '%v' with description '%v'", pr.Number, state, description)
+	cs, err := ghc.GetCombinedStatus(string(pr.Repository.Owner.Login), string(pr.Repository.Name), string(pr.HeadRefOID))
+	if err != nil {
+		log.Infof("PR %v failed to get combined status: %v", pr.Number, err)
+		return err
+	}
+	if cs.SHA == string(pr.HeadRefOID) && cs.State == state {
+		log.Infof("PR %v state unchanged", pr.Number)
+		return nil
+	}
+	if err := ghc.CreateStatus(
 		string(pr.Repository.Owner.Login), string(pr.Repository.Name), string(pr.HeadRefOID),
 		github.Status{
 			Context:     "verify-conformance",
 			State:       state,
 			Description: description,
-		})
+		}); err != nil {
+		log.Infof("PR %v failed to create status: %v", pr.Number, err)
+		return err
+	}
+	return nil
 }
 
 // handle checks a Conformance Certification PR to determine if the contents of the PR pass sanity checks.
@@ -548,12 +566,10 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 	fmt.Println("NewLabels: ", newLabels)
 	fmt.Println("RemovedLabels: ", removedLabels)
 
-	err = updateComments(log, ghc, pr, prSuite, finalComment)
-	if err != nil {
+	if err := updateComments(log, ghc, pr, prSuite, finalComment); err != nil {
 		return err
 	}
-	err = updateStatus(log, ghc, pr, prSuite, state)
-	if err != nil {
+	if err := updateStatus(log, ghc, pr, prSuite, state); err != nil {
 		return err
 	}
 	return nil

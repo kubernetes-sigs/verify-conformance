@@ -6,13 +6,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
-      - id: run-info
-        name: collect job run info
-        run: |
-          echo "go-version=$(go list -f {{.GoVersion}} -m)" >> $GITHUB_OUTPUT
       - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
-          go-version: ${{ steps.run-info.outputs.go-version }}
+          go-version-file: go.mod
+          check-latest: true
           cache-dependency-path: go.sum
       - name: vet
         id: vet

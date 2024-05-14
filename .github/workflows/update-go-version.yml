@@ -2,7 +2,7 @@ name: update go version
 
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 0 1 * *"
   workflow_dispatch: {}
 
 permissions:
@@ -11,6 +11,58 @@ permissions:
 
 jobs:
   update-go-version:
-    uses: cncf-infra/verify-conformance/.github/workflows/reusable-update-go-version.yml@main
-    with:
-      autoMerge: true
+    runs-on: ubuntu-latest
+    env:
+      MOD_FILE: go.mod
+      AUTO_MERGE: false
+    steps:
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - name: configure system
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          gh auth login --with-token < <(echo ${{ secrets.GITHUB_TOKEN }})
+          gh auth status
+      - id: setup-go
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version: stable
+      - id: run-info
+        name: collect job run info
+        run: |
+          VERSION="$(echo ${{ steps.setup-go.outputs.go-version }} | grep -Eo --color=never '([0-9].[0-9]{2})')"
+          echo "go-version=$VERSION" >> $GITHUB_OUTPUT
+      - name: edit Go version to latest
+        run: |
+          go mod edit -go=${{ steps.run-info.outputs.go-version }} ${{ env.MOD_FILE }}
+      - name: determine changes
+        id: determine-changes
+        run: |
+          if git diff --name-only --diff-filter=ACMRT | grep ${{ env.MOD_FILE }}; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+          fi
+      - name: determine if there is an existing PR
+        id: existing-pr
+        if: ${{ steps.determine-changes.outputs.changes == 'true' }}
+        run: |
+          EXISTING_PR="$(gh pr list --json title,labels,body --jq '.' --label update-go-version --search "Update Go version to ${{ steps.run-info.outputs.go-version }}" | jq -r .[].title)"
+          if [ "${EXISTING_PR}" = "Update Go version to ${{ steps.run-info.outputs.go-version }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
+      - name: create PR
+        if: ${{ steps.determine-changes.outputs.changes == 'true' && steps.existing-pr.outputs.exists != 'true' }}
+        id: create-pr
+        run: |
+          TIMESTAMP="$(git log -n1 --pretty='format:%cd' --date=format:'%Y-%m-%d-%H-%M')"
+          NEW_BRANCH="update-go-version-to-${{ steps.run-info-outputs.go-version }}-${TIMESTAMP}"
+          echo "new-branch=$NEW_BRANCH" >> $GITHUB_OUTPUT
+          git add ${{ env.MOD_FILE }}
+          git branch "${NEW_BRANCH}"
+          git checkout "${NEW_BRANCH}"
+          git commit -s -m "update Go version to ${{ steps.run-info.outputs.go-version }} for ${{ env.MOD_FILE }}"
+          git push -f origin "${NEW_BRANCH}"
+          gh pr create --title "Update Go version to ${{ steps.run-info.outputs.go-version }} in ${{ env.MOD_FILE }}" --body "Updates the base version of Go required for this project to ${{ steps.run-info.outputs.go-version }} for ${{ env.MOD_FILE }}" --label update-go-version
+      - name: merge PR
+        if: ${{ env.AUTO_MERGE && steps.determine-changes.outputs.changes == 'true' && steps.existing-pr.outputs.exists != 'true' }}
+        run: |
+          gh pr merge --merge --auto ${{ steps.create-pr.outputs.new-branch }}

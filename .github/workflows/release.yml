@@ -23,6 +23,11 @@ jobs:
           go-version-file: go.mod
           check-latest: true
           cache-dependency-path: go.sum
+      - name: build
+        env:
+          CI_COMMIT_TAG: ${{ github.event.release.name }}
+        run: ./hack/publish.sh --sign
+      # TODO remove below after infra changes
       - uses: sigstore/cosign-installer@11086d25041f77fe8fe7b9ea4e48e3b9192b8f19 # v3.1.2
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ea24045cb2f1d2ea4fe79f9248de800f74ba3aa3 # v3.0.2

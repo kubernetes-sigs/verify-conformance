@@ -1,6 +1,10 @@
 #!/bin/bash
 # Prepare conformance metadata
 
+set -o errexit
+set -o nounset
+set -o pipefail
+
 cd "$(git rev-parse --show-toplevel)"
 
 K8S_LATEST_VERSION=$(curl -L -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)

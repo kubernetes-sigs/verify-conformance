@@ -6,6 +6,18 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  gobuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache-dependency-path: go.sum
+      - name: gobuild
+        id: gobuild
+        run: ./hack/verify-gobuild.sh
   gofmt:
     runs-on: ubuntu-latest
     steps:
@@ -17,12 +29,19 @@ jobs:
           cache-dependency-path: go.sum
       - name: gofmt
         id: gofmt
-        run: find . -name "*.go" | grep -E -v vendor | xargs gofmt -s -l -d -e
-      - name: check-gofmt
-        if: ${{ steps.gofmt.outputs.stdout != '' }}
-        run: |
-          echo "gofmt discovered regions requiring formatting"
-          exit 1
+        run: ./hack/verify-gofmt.sh
+  goimports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache-dependency-path: go.sum
+      - name: goimports
+        id: goimports
+        run: ./hack/verify-goimports.sh
   golangci-lint:
     name: lint
     runs-on: ubuntu-latest
@@ -43,7 +62,7 @@ jobs:
         with:
           version: v1.55.2
           args: --timeout 10m
-  go-test:
+  golint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -52,10 +71,10 @@ jobs:
           go-version-file: go.mod
           check-latest: true
           cache-dependency-path: go.sum
-      - name: test
-        id: test
-        run: go test -v ./... -cover
-  go-vet:
+      - name: golint
+        id: golint
+        run: ./hack/verify-golint.sh
+  gotest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -64,6 +83,42 @@ jobs:
           go-version-file: go.mod
           check-latest: true
           cache-dependency-path: go.sum
-      - name: vet
-        id: vet
-        run: go vet -v ./...
+      - name: gotest
+        id: gotest
+        run: ./hack/verify-gotest.sh
+  govet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache-dependency-path: go.sum
+      - name: govet
+        id: govet
+        run: ./hack/verify-govet.sh
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache-dependency-path: go.sum
+      - name: govulncheck
+        id: govulncheck
+        run: ./hack/verify-govulncheck.sh
+  spellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache-dependency-path: go.sum
+      - name: spellcheck
+        id: spellcheck
+        run: ./hack/verify-spellcheck.sh

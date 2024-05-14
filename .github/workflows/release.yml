@@ -49,7 +49,7 @@ jobs:
         env:
           KO_DOCKER_REPO: ${{ steps.run-info.outputs.ko-docker-repo }}
         run: |
-          ko resolve --base-import-paths -f config/ > ./deploy/release.yaml
+          ko resolve --base-import-paths -f <(kustomize build ./config/default/) > ./deploy/release.yaml
       - id: sign-images-and-attest-sbom
         env:
           COSIGN_YES: "true"

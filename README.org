@@ -1,4 +1,8 @@
-* verify-conformance-release
+* verify-conformance
+
+#+begin_quote
+a GitHub bot for verifying conformance submissions on github.com/cncf/k8s-conformance
+#+end_quote
 
 The behaviour of the bot is described here, in [[https://cucumber.io/docs/gherkin/][Gherkin]].  Each scenario is a requirement a PR must meet to qualify for conformance.
 
@@ -6,88 +10,13 @@ Note: the line immediately beneath the scenario is the comment posted to the PR 
 
 See the feature scenarios, [[./kodata/features/verify-conformance-release.feature][in ./kodata/features]].
 
-* Build locally
+* Developing
+
+build a container with
+
 #+begin_src tmate :window prow-config
-ko build --local -B --tags latest .
+ko build --local --base-import-paths .
 #+end_src
 
-* Set up local dev
-Log into GitHub regularly
-#+begin_src tmate :window prow-config
-unset GITHUB_TOKEN
-gh auth login
-#+end_src
+for more, read [[./docs/development.org][the development docs]].
 
-Update the oauth secret
-#+begin_src shell
-kubectl -n prow create secret generic prow-github-oauth \
-    --from-literal=oauth=$(yq e '."github.com".oauth_token' -P - < ~/.config/gh/hosts.yml) \
-    --dry-run=client -o yaml \
-    | kubectl apply -f -
-#+end_src
-
-#+RESULTS:
-#+begin_example
-secret/prow-github-oauth configured
-#+end_example
-
-Install the config
-#+begin_src shell
-kubectl -n prow create cm vcr-config --from-file=vcr.yaml=./hack/vcr.yaml --dry-run=client -o yaml | \
-    kubectl -n prow apply -f -
-#+end_src
-
-#+RESULTS:
-#+begin_example
-configmap/vcr-config created
-#+end_example
-
-Install the plugin
-#+begin_src tmate :window prow-config
-ko apply --local -B -f ./hack/verify-conformance-release-deployment-dev-temp.yaml -- -n prow
-#+end_src
-
-#+RESULTS:
-#+begin_example
-deployment.apps/verify-conformance-release created
-#+end_example
-
-Read the logs
-#+begin_src tmate :window prow-config
-kubectl -n prow logs -l app=verify-conformance-release --tail=50 -f
-#+end_src
-
-Restart it
-#+begin_src tmate :window prow-config
-kubectl -n prow rollout restart deployment verify-conformance-release
-#+end_src
-
-#+RESULTS:
-#+begin_example
-deployment.apps/verify-conformance-release restarted
-#+end_example
-
-Uninstall the plugin
-#+begin_src shell
-kubectl -n prow delete -f ./hack/verify-conformance-release-deployment-dev-temp.yaml
-#+end_src
-
-#+RESULTS:
-#+begin_example
-deployment.apps "verify-conformance-release" deleted
-#+end_example
-
-* Run trial-implementation
-#+begin_src tmate :window trial-implementation
-cd ./cmd/trial-implementation
-go run .
-#+end_src
-
-* Running the plugin locally
-
-When run locally the plugin interacts with GitHub but by default does not make any changes
-if you want to apply changes to the PR inspected then you can pass in the flag, dry-run=false
-
-#+BEGIN_SRC shell
-./verify-conformance-release --hmac-secret-file=/home/ii/.secret-hook --github-token-path=/home/ii/.secret-oauth --plugin-config=./hack/vcr.yaml
-#+END_SRC

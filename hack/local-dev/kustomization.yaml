@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ./namespace.yaml
+- ../../config/default
+- ./ghproxy.yaml
+patches:
+  - path: ./verify-conformance-patch.yaml
+namespace: prow
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+- behavior: replace
+  files:
+  - ./vcr.yaml
+  name: vcr-config
+  namespace: prow
+- files:
+  - ./plugins.yaml
+  name: plugins
+  namespace: prow
+secretGenerator:
+- files:
+  - token=./tmp/token
+  name: github-token
+  namespace: prow
+- files:
+  - hmac=./tmp/hmac
+  name: hmac-token
+  namespace: prow
+images:
+- digest: sha256:7db60baff20817a23d3c141fb4984ccfd84cda7eabadb81400fabeaae251a05e
+  name: ko://cncf.io/infra/verify-conformance-release
+  newName: ghcr.io/cncf-infra/verify-conformance/verify-conformance-release

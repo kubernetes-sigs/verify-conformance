@@ -20,3 +20,6 @@ ko build --local --base-import-paths .
 
 for more, read [[./docs/development.org][the development docs]].
 
+* Docs
+
+read the docs [[./docs/README.org][here]].

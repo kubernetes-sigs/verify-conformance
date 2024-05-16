@@ -1,0 +1,107 @@
+#+title: Development
+
+#+begin_quote
+Set up a local environment for development
+#+end_quote
+
+* Notes
+
+- currently pushes to a public container registry
+- the bot will log in and make comments are your GitHub user or whatever user the token belongs to
+
+* Environment
+
+install tools
+
+- [[https://podman.io][podman]] or [[https://docker.com][docker]]
+- [[https://ko.build][ko]]
+- [[https://kind.sigs.k8s.io][kind]]
+- [[https://kustomize.io][kustomize]]
+- [[https://kubernetes.io/docs/tasks/tools/#kubectl][kubectl]]
+- [[https://go.dev][go]]
+- [[https://cli.github.com/][gh]]
+
+#+begin_src shell :results silent
+brew install podman ko kind kustomize kubectl go gh
+#+end_src
+
+log in to GitHub with ~gh~
+
+#+begin_src shell: results silent
+gh auth login -s write:packages
+#+end_src
+
+log into ghcr.io
+
+#+begin_src shell :results silent
+gh auth token | ko login ghcr.io --username "$(gh api user --jq .login)" --password-stdin
+#+end_src
+
+create a cluster
+
+#+begin_src shell :results silent
+kind create cluster
+#+end_src
+
+build image
+
+#+begin_src shell :results silent
+export KO_DOCKER_REPO=ghcr.io/cncf-infra/verify-conformance
+IMAGE="$(ko build --base-import-paths .)"
+#+end_src
+(*NOTE*: feel free to swap out registry above)
+
+configure components
+
+#+begin_src shell :results silent
+cd ./hack/local-dev/
+kustomize edit set image ko://cncf.io/infra/verify-conformance-release="$IMAGE"
+#+end_src
+(*NOTE*: avoid committing this change)
+
+write secrets (*example*)
+
+#+begin_src shell :results silent
+mkdir -p ./tmp/
+echo "$(openssl rand -base64 15)" > ./tmp/hmac
+gh auth token > ./tmp/token
+#+end_src
+(*NOTE*: avoid committing these values)
+
+apply
+
+#+begin_src shell :results silent
+kustomize build . | kubectl apply -f -
+#+end_src
+
+observe resources
+
+#+begin_src shell :results silent
+kubectl -n prow get all
+#+end_src
+
+teardown
+
+#+begin_src shell :results silent
+kind delete cluster
+#+end_src
+
+* Tips
+
+read the logs
+
+#+begin_src shell :results silent
+kubectl -n prow logs -l app=verify-conformance-release --tail=50 -f
+#+end_src
+
+restart it
+
+#+begin_src shell :results silent
+kubectl -n prow rollout restart deployment verify-conformance-release
+#+end_src
+
+compile test
+
+#+begin_src shell
+go build -o bin/ .
+#+end_src

@@ -9,14 +9,11 @@ cd "$(git rev-parse --show-toplevel)"
 
 K8S_LATEST_VERSION=$(curl -L -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
 K8S_LATEST_MINOR_VERSION="$(awk '{split($1,array, "."); print array[2]}' <<<$K8S_LATEST_VERSION)"
-SETS=($(seq 19 $K8S_LATEST_MINOR_VERSION))
+K8S_LAST_MINOR_VERSION=$(($K8S_LATEST_MINOR_VERSION - 2))
+SETS=($(seq $K8S_LAST_MINOR_VERSION $K8S_LATEST_MINOR_VERSION))
 rm -r ./kodata/conformance-testdata/
 
-MANIFESTS=(
-  https://raw.githubusercontent.com/cncf-infra/prow-config/master/docs/conformance_v1.{15..17}.yaml
-  https://raw.githubusercontent.com/cncf-infra/prow-config/master/tests/conformance-1.18.yaml
-  https://raw.githubusercontent.com/kubernetes/kubernetes/master/test/conformance/testdata/conformance.yaml
-)
+MANIFESTS=()
 for SET in "${SETS[@]}"; do
   MANIFESTS+=("https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.$SET/test/conformance/testdata/conformance.yaml")
 done

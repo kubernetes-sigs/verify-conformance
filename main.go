@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"time"
 
-	"cncf.io/infra/verify-conformance/pkg/plugin"
+	"sigs.k8s.io/verify-conformance/pkg/plugin"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/test-infra/pkg/flagutil"

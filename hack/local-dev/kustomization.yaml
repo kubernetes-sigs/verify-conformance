@@ -11,8 +11,8 @@ generatorOptions:
 configMapGenerator:
 - behavior: replace
   files:
-  - ./vcr.yaml
-  name: vcr-config
+  - ./verify-conformance.yaml
+  name: verify-conformance-config
   namespace: prow
 - files:
   - ./plugins.yaml
@@ -32,6 +32,6 @@ secretGenerator:
   name: hmac-token
   namespace: prow
 images:
-- name: ko://cncf.io/infra/verify-conformance
+- name: ko://sigs.k8s.io/verify-conformance
   newTag: latest
-  newName: localhost:5001/vcr/verify-conformance
+  newName: localhost:5001/verify-conformance/verify-conformance

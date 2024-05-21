@@ -59,7 +59,7 @@ create a cluster
 build image
 
 #+begin_src shell :results silent
-export KO_DOCKER_REPO=localhost:5001/vcr
+export KO_DOCKER_REPO=localhost:5001/verify-conformance
 IMAGE="$(ko build --base-import-paths .)"
 #+end_src
 (*NOTE*: feel free to swap out registry above)
@@ -68,7 +68,7 @@ configure components (*optional*)
 
 #+begin_src shell :results silent
 cd ./hack/local-dev/
-kustomize edit set image ko://cncf.io/infra/verify-conformance="$IMAGE"
+kustomize edit set image ko://sigs.k8s.io/verify-conformance="$IMAGE"
 #+end_src
 (*NOTE*: avoid committing this change)
 

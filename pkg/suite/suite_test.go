@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"cncf.io/infra/verify-conformance/pkg/common"
 	githubql "github.com/shurcooL/githubv4"
+	"sigs.k8s.io/verify-conformance/pkg/common"
 )
 
 // TODO add Gomega https://onsi.github.io/gomega/

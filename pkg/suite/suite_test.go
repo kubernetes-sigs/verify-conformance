@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"cncf.io/infra/verify-conformance-release/pkg/common"
+	"cncf.io/infra/verify-conformance/pkg/common"
 	githubql "github.com/shurcooL/githubv4"
 )
 
@@ -2386,7 +2386,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			prSuite.KubernetesReleaseVersionLatest = *tc.KubernetesVersionLatest
 		}
 		prSuite.SetSubmissionMetadatafromFolderStructure()
-		prSuite.NewTestSuite(PRSuiteOptions{Paths: []string{"../../kodata/features/verify-conformance-release.feature"}}).Run()
+		prSuite.NewTestSuite(PRSuiteOptions{Paths: []string{"../../kodata/features/verify-conformance.feature"}}).Run()
 		if tc.Buffer != nil {
 			prSuite.buffer = *tc.Buffer
 		}
@@ -2408,7 +2408,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 
 func TestInitializeScenario(t *testing.T) {
 	prSuite := NewPRSuite(&PullRequest{})
-	prSuite.NewTestSuite(PRSuiteOptions{Paths: []string{"../../kodata/features/verify-conformance-release.feature"}})
+	prSuite.NewTestSuite(PRSuiteOptions{Paths: []string{"../../kodata/features/verify-conformance.feature"}})
 	if code := prSuite.Suite.Run(); code != 1 {
 		t.Fatalf("error intended failure code of '1', but found to be '%v'", code)
 	}

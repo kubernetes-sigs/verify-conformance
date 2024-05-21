@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"time"
 
-	"cncf.io/infra/verify-conformance-release/pkg/plugin"
+	"cncf.io/infra/verify-conformance/pkg/plugin"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/test-infra/pkg/flagutil"
@@ -85,7 +85,7 @@ func main() {
 
 	// logrus.SetFormatter(&logrus.JSONFormatter{})
 	logrus.SetLevel(logrus.InfoLevel)
-	log := logrus.StandardLogger().WithField("plugin", "verify-conformance-release")
+	log := logrus.StandardLogger().WithField("plugin", "verify-conformance")
 
 	secrets := []string{}
 	if o.github.TokenPath != "" {

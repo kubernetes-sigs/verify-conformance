@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"cncf.io/infra/verify-conformance-release/pkg/common"
-	"cncf.io/infra/verify-conformance-release/pkg/suite"
+	"cncf.io/infra/verify-conformance/pkg/common"
+	"cncf.io/infra/verify-conformance/pkg/suite"
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
 	"k8s.io/test-infra/prow/config"
@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	log = logrus.StandardLogger().WithField("plugin", "verify-conformance-release")
+	log = logrus.StandardLogger().WithField("plugin", "verify-conformance")
 
 	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-27-junit_01.xml
 	testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml string
@@ -1499,7 +1499,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					ExternalPlugins: map[string][]plugins.ExternalPlugin{
 						"cncf/k8s-conformance": {
 							{
-								Name: "verify-conformance-release",
+								Name: "verify-conformance",
 								Events: []string{
 									"issue_comment",
 									"pull_request",

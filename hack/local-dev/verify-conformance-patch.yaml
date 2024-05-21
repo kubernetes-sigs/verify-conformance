@@ -2,13 +2,13 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: verify-conformance-release
+  name: verify-conformance
   namespace: prow
 spec:
   template:
     spec:
       containers:
-        - name: verify-conformance-release
+        - name: verify-conformance
           args:
             - --github-endpoint=http://ghproxy
             - --github-endpoint=https://api.github.com

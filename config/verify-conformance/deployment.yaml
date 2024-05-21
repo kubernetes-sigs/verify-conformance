@@ -15,24 +15,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: verify-conformance-release
+  name: verify-conformance
   namespace: prow
   labels:
-    app: verify-conformance-release
+    app: verify-conformance
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: verify-conformance-release
+      app: verify-conformance
   template:
     metadata:
       labels:
-        app: verify-conformance-release
+        app: verify-conformance
     spec:
       terminationGracePeriodSeconds: 180
       containers:
-        - name: verify-conformance-release
-          image: ko://cncf.io/infra/verify-conformance-release
+        - name: verify-conformance
+          image: ko://cncf.io/infra/verify-conformance
           imagePullPolicy: IfNotPresent
           args:
             - --github-endpoint=http://prow-ghproxy

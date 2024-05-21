@@ -19,8 +19,8 @@ import (
 	sonobuoyresults "github.com/vmware-tanzu/sonobuoy/pkg/client/results"
 	"sigs.k8s.io/yaml"
 
-	"cncf.io/infra/verify-conformance-release/internal/types"
-	"cncf.io/infra/verify-conformance-release/pkg/common"
+	"cncf.io/infra/verify-conformance/internal/types"
+	"cncf.io/infra/verify-conformance/pkg/common"
 )
 
 // TODO ensure file checking

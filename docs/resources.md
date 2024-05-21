@@ -22,7 +22,7 @@ There is a cluster in _cncf-apisnoop_ AWS account called _prow-cncf-io-eks_ (_ar
 
 Repo located at [github.com/cncf-infra/verify-conformance](https://github.com/cncf-infra/verify-conformance)
 
-Images are built using [`ko`](https://ko.build) and are published to [ghcr.io/cncf-infra/verify-conformance/verify-conformance-release](https://github.com/cncf-infra/verify-conformance/pkgs/container/verify-conformance%2Fverify-conformance-release), this is automated through the [release.yml](https://github.com/cncf-infra/verify-conformance/blob/main/.github/workflows/release.yml) workflow.
+Images are built using [`ko`](https://ko.build) and are published to [ghcr.io/cncf-infra/verify-conformance/verify-conformance](https://github.com/cncf-infra/verify-conformance/pkgs/container/verify-conformance%2Fverify-conformance), this is automated through the [release.yml](https://github.com/cncf-infra/verify-conformance/blob/main/.github/workflows/release.yml) workflow.
 
 The bot has several metadata files baked into the container image which are updated by automations; these are
 - [metadata/stable.txt](https://github.com/cncf-infra/verify-conformance/tree/main/kodata/metadata) :: for the latest known version of Kubernetes

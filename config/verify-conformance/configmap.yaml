@@ -21,13 +21,13 @@ data:
   vcr.yaml: |
     external_plugins:
       cncf/k8s-conformance:
-      - name: verify-conformance-release
+      - name: verify-conformance
         events:
           - issue_comment
           - pull_request
 
       cncf-infra/k8s-conformance:
-      - name: verify-conformance-release
+      - name: verify-conformance
         events:
           - issue_comment
           - pull_request

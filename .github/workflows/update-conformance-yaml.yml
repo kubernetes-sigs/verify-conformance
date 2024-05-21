@@ -35,7 +35,7 @@ jobs:
         run: |
           TIMESTAMP="$(git log -n1 --pretty='format:%cd' --date=format:'%Y-%m-%d-%H-%M')"
           NEW_BRANCH="conformance-yaml-update-for-${TIMESTAMP}"
-          git add ./kodata/conformance-testdata/**/conformance.yaml
+          git add ./kodata/conformance-testdata/
           git branch "${NEW_BRANCH}"
           git checkout "${NEW_BRANCH}"
           git commit -s -m "update conformance yaml for ${TIMESTAMP}"

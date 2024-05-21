@@ -12,12 +12,6 @@ See the feature scenarios, [in ./kodata/features](./kodata/features/verify-confo
 
 # Developing
 
-build a container with
-
-```sh
-ko build --local --base-import-paths .
-```
-
 for more, read [the development docs](./docs/development.md).
 
 # Docs

@@ -11,13 +11,13 @@ import (
 	"strings"
 	"testing"
 
-	"cncf.io/infra/verify-conformance/pkg/common"
-	"cncf.io/infra/verify-conformance/pkg/suite"
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
 	"k8s.io/test-infra/prow/config"
 	"k8s.io/test-infra/prow/github"
 	"k8s.io/test-infra/prow/plugins"
+	"sigs.k8s.io/verify-conformance/pkg/common"
+	"sigs.k8s.io/verify-conformance/pkg/suite"
 	"sigs.k8s.io/yaml"
 )
 

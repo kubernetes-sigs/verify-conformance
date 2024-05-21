@@ -32,14 +32,14 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
         - name: verify-conformance
-          image: ko://cncf.io/infra/verify-conformance
+          image: ko://sigs.k8s.io/verify-conformance
           imagePullPolicy: IfNotPresent
           args:
             - --github-endpoint=http://prow-ghproxy
             - --github-endpoint=https://api.github.com
             - --dry-run=false
             - --hmac-secret-file=/etc/webhook/hmac
-            - --plugin-config=/plugin/vcr.yaml
+            - --plugin-config=/plugin/verify-conformance.yaml
             - --update-period=5m
             - --github-app-id=$(GITHUB_APP_ID)
             - --github-app-private-key-path=/etc/github/cert
@@ -62,9 +62,9 @@ spec:
             - name: plugins
               mountPath: /etc/plugins
               readOnly: true
-            - name: vcr-config
-              mountPath: /plugin/vcr.yaml
-              subPath: vcr.yaml
+            - name: verify-conformance-config
+              mountPath: /plugin/verify-conformance.yaml
+              subPath: verify-conformance.yaml
               readOnly: true
       volumes:
         - name: hmac
@@ -76,6 +76,6 @@ spec:
         - name: plugins
           configMap:
             name: plugins
-        - name: vcr-config
+        - name: verify-conformance-config
           configMap:
-            name: vcr-config
+            name: verify-conformance-config

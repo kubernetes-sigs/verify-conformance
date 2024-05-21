@@ -1,4 +1,4 @@
-module cncf.io/infra/verify-conformance
+module sigs.k8s.io/verify-conformance
 
 go 1.22
 

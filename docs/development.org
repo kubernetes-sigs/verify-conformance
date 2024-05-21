@@ -68,7 +68,7 @@ configure components (*optional*)
 
 #+begin_src shell :results silent
 cd ./hack/local-dev/
-kustomize edit set image ko://cncf.io/infra/verify-conformance-release="$IMAGE"
+kustomize edit set image ko://cncf.io/infra/verify-conformance="$IMAGE"
 #+end_src
 (*NOTE*: avoid committing this change)
 
@@ -99,13 +99,13 @@ docker rm -f kind-registry
 read the logs
 
 #+begin_src shell :results silent
-kubectl -n prow logs -l app=verify-conformance-release --tail=50 -f
+kubectl -n prow logs -l app=verify-conformance --tail=50 -f
 #+end_src
 
 restart it
 
 #+begin_src shell :results silent
-kubectl -n prow rollout restart deployment verify-conformance-release
+kubectl -n prow rollout restart deployment verify-conformance
 #+end_src
 
 compile test

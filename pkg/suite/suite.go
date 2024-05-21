@@ -19,8 +19,8 @@ import (
 	sonobuoyresults "github.com/vmware-tanzu/sonobuoy/pkg/client/results"
 	"sigs.k8s.io/yaml"
 
-	"cncf.io/infra/verify-conformance-release/internal/types"
-	"cncf.io/infra/verify-conformance-release/pkg/common"
+	"cncf.io/infra/verify-conformance/internal/types"
+	"cncf.io/infra/verify-conformance/pkg/common"
 )
 
 // TODO ensure file checking
@@ -587,6 +587,9 @@ func (s *PRSuite) GetJunitSubmittedConformanceTests() (tests []string, err error
 		return []string{}, err
 	}
 	for _, t := range collectedTests {
+		if t.Failure != nil {
+			continue
+		}
 		tests = append(tests, t.Name)
 	}
 	return tests, nil
@@ -657,7 +660,7 @@ func (s *PRSuite) allRequiredTestsInJunitXmlArePresent() error {
 	if len(missingTests) > 0 {
 		s.Labels = append(s.Labels, "required-tests-missing")
 		sort.Strings(missingTests)
-		return common.SafeError(fmt.Errorf("the following test(s) are missing: \n    - %v", strings.Join(missingTests, "\n    - ")))
+		return common.SafeError(fmt.Errorf("the following test(s) are missing or failed: \n    - %v", strings.Join(missingTests, "\n    - ")))
 	}
 	s.Labels = append(s.Labels, "tests-verified-"+s.KubernetesReleaseVersion)
 	return nil

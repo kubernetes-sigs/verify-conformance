@@ -1,6 +1,6 @@
 ---
 builds:
-  - id: verify-conformance-release
+  - id: verify-conformance
     dir: .
     main: .
     env:

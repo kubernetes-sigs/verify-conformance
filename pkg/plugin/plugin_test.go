@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"cncf.io/infra/verify-conformance-release/pkg/common"
-	"cncf.io/infra/verify-conformance-release/pkg/suite"
+	"cncf.io/infra/verify-conformance/pkg/common"
+	"cncf.io/infra/verify-conformance/pkg/suite"
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
 	"k8s.io/test-infra/prow/config"
@@ -22,10 +22,8 @@ import (
 )
 
 var (
-	log = logrus.StandardLogger().WithField("plugin", "verify-conformance-release")
+	log = logrus.StandardLogger().WithField("plugin", "verify-conformance")
 
-	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-27-junit_01.xml
-	testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml string
 	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-30-junit_01.xml
 	testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml string
 )
@@ -432,18 +430,18 @@ func TestNewPRSuiteForPR(t *testing.T) {
 			},
 			SupportingFiles: []*suite.PullRequestFile{
 				{
-					Name:     "v1.27/coolkube/README.md",
+					Name:     "v1.30/coolkube/README.md",
 					BaseName: "README.md",
 					BlobURL:  "README.md",
 					Contents: `# CoolKube`,
 				},
 				{
-					Name:     "v1.27/coolkube/PRODUCT.yaml",
+					Name:     "v1.30/coolkube/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "PRODUCT.yaml",
 					Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.27"
+version: "v1.30"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "website_url"
@@ -451,13 +449,13 @@ documentation_url: "docs"
 contact_email_address: "sales@coolkubernetes.com"`,
 				},
 				{
-					Name:     "v1.27/coolkube/junit_01.xml",
+					Name:     "v1.30/coolkube/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "junit_01.xml",
-					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
 				},
 				{
-					Name:     "v1.27/coolkube/e2e.log",
+					Name:     "v1.30/coolkube/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "e2e.log",
 					Contents: `cool!`,
@@ -885,7 +883,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 				{
 					Name:     "v1.57/coolkube/junit_01.xml",
 					BaseName: "junit_01.xml",
-					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
 					BlobURL:  "junit_01.xml",
 				},
 			},
@@ -1053,7 +1051,7 @@ func TestHandlePullRequestEvent(t *testing.T) {
 			name: "basic",
 			supportingFiles: []*suite.PullRequestFile{
 				{
-					Name:     "v1.27/coolkube/README.md",
+					Name:     "v1.30/coolkube/README.md",
 					BaseName: "README.md",
 					Contents: `# coolkube
 > the coolest Kubernetes distribution
@@ -1065,11 +1063,11 @@ func TestHandlePullRequestEvent(t *testing.T) {
 					BlobURL: "README.md",
 				},
 				{
-					Name:     "v1.27/coolkube/PRODUCT.yaml",
+					Name:     "v1.30/coolkube/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.27"
+version: "v1.30"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "website_url"
@@ -1078,15 +1076,15 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					BlobURL: "PRODUCT.yaml",
 				},
 				{
-					Name:     "v1.27/coolkube/e2e.log",
+					Name:     "v1.30/coolkube/e2e.log",
 					BaseName: "e2e.log",
 					Contents: "",
 					BlobURL:  "e2e.log",
 				},
 				{
-					Name:     "v1.27/coolkube/junit_01.xml",
+					Name:     "v1.30/coolkube/junit_01.xml",
 					BaseName: "junit_01.xml",
-					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
 					BlobURL:  "junit_01.xml",
 				},
 			},
@@ -1253,7 +1251,7 @@ func TestHandleIssueCommentEvent(t *testing.T) {
 			},
 			supportingFiles: []*suite.PullRequestFile{
 				{
-					Name:     "v1.27/coolkube/README.md",
+					Name:     "v1.30/coolkube/README.md",
 					BaseName: "README.md",
 					Contents: `# coolkube
 > the coolest Kubernetes distribution
@@ -1265,11 +1263,11 @@ func TestHandleIssueCommentEvent(t *testing.T) {
 					BlobURL: "README.md",
 				},
 				{
-					Name:     "v1.27/coolkube/PRODUCT.yaml",
+					Name:     "v1.30/coolkube/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.27"
+version: "v1.30"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "website_url"
@@ -1278,15 +1276,15 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					BlobURL: "PRODUCT.yaml",
 				},
 				{
-					Name:     "v1.27/coolkube/e2e.log",
+					Name:     "v1.30/coolkube/e2e.log",
 					BaseName: "e2e.log",
 					Contents: "",
 					BlobURL:  "e2e.log",
 				},
 				{
-					Name:     "v1.27/coolkube/junit_01.xml",
+					Name:     "v1.30/coolkube/junit_01.xml",
 					BaseName: "junit_01.xml",
-					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
 					BlobURL:  "junit_01.xml",
 				},
 			},
@@ -1454,7 +1452,7 @@ func TestHandleAll(t *testing.T) {
 					},
 					SupportingFiles: []*suite.PullRequestFile{
 						{
-							Name:     "v1.27/coolkube/README.md",
+							Name:     "v1.30/coolkube/README.md",
 							BaseName: "README.md",
 							Contents: `# coolkube
 > the coolest Kubernetes distribution
@@ -1466,11 +1464,11 @@ func TestHandleAll(t *testing.T) {
 							BlobURL: "README.md",
 						},
 						{
-							Name:     "v1.27/coolkube/PRODUCT.yaml",
+							Name:     "v1.30/coolkube/PRODUCT.yaml",
 							BaseName: "PRODUCT.yaml",
 							Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.27"
+version: "v1.30"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "website_url"
@@ -1479,15 +1477,15 @@ contact_email_address: "sales@coolkubernetes.com"`,
 							BlobURL: "PRODUCT.yaml",
 						},
 						{
-							Name:     "v1.27/coolkube/e2e.log",
+							Name:     "v1.30/coolkube/e2e.log",
 							BaseName: "e2e.log",
 							Contents: "",
 							BlobURL:  "e2e.log",
 						},
 						{
-							Name:     "v1.27/coolkube/junit_01.xml",
+							Name:     "v1.30/coolkube/junit_01.xml",
 							BaseName: "junit_01.xml",
-							Contents: testGetJunitSubmittedConformanceTestsCoolkubeV127Junit_01xml,
+							Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
 							BlobURL:  "junit_01.xml",
 						},
 					},
@@ -1499,7 +1497,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					ExternalPlugins: map[string][]plugins.ExternalPlugin{
 						"cncf/k8s-conformance": {
 							{
-								Name: "verify-conformance-release",
+								Name: "verify-conformance",
 								Events: []string{
 									"issue_comment",
 									"pull_request",

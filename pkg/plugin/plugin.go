@@ -21,15 +21,15 @@ import (
 	"k8s.io/test-infra/prow/plugins"
 	"sigs.k8s.io/yaml"
 
-	"cncf.io/infra/verify-conformance-release/pkg/common"
-	"cncf.io/infra/verify-conformance-release/pkg/suite"
+	"cncf.io/infra/verify-conformance/pkg/common"
+	"cncf.io/infra/verify-conformance/pkg/suite"
 )
 
 // TODO be fully conformant
 // TODO ensure that templated labels can be removed
 
 const (
-	PluginName = "verify-conformance-release"
+	PluginName = "verify-conformance"
 )
 
 var (

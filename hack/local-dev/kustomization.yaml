@@ -32,6 +32,6 @@ secretGenerator:
   name: hmac-token
   namespace: prow
 images:
-- name: ko://cncf.io/infra/verify-conformance-release
+- name: ko://cncf.io/infra/verify-conformance
   newTag: latest
-  newName: localhost:5001/vcr/verify-conformance-release
+  newName: localhost:5001/vcr/verify-conformance

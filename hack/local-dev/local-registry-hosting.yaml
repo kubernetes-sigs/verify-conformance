@@ -1,0 +1,2 @@
+host: "localhost:5001"
+help: "https://kind.sigs.k8s.io/docs/user/local-registry/"

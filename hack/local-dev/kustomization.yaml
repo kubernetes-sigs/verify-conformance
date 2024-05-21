@@ -5,8 +5,7 @@ resources:
 - ../../config/default
 - ./ghproxy.yaml
 patches:
-  - path: ./verify-conformance-patch.yaml
-namespace: prow
+- path: ./verify-conformance-patch.yaml
 generatorOptions:
   disableNameSuffixHash: true
 configMapGenerator:
@@ -19,6 +18,10 @@ configMapGenerator:
   - ./plugins.yaml
   name: plugins
   namespace: prow
+- files:
+  - localRegistryHosting.v1=./local-registry-hosting.yaml
+  name: local-registry-hosting
+  namespace: kube-public
 secretGenerator:
 - files:
   - token=./tmp/token
@@ -29,6 +32,6 @@ secretGenerator:
   name: hmac-token
   namespace: prow
 images:
-- digest: sha256:7db60baff20817a23d3c141fb4984ccfd84cda7eabadb81400fabeaae251a05e
-  name: ko://cncf.io/infra/verify-conformance-release
-  newName: ghcr.io/cncf-infra/verify-conformance/verify-conformance-release
+- name: ko://cncf.io/infra/verify-conformance-release
+  newTag: latest
+  newName: localhost:5001/vcr/verify-conformance-release

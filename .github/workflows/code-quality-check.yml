@@ -1,7 +1,9 @@
 name: code quality check
 
 on:
-  push: {}
+  push:
+    branches:
+      - '!main'
   pull_request: {}
   workflow_dispatch: {}
 

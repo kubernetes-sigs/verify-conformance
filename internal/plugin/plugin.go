@@ -21,8 +21,8 @@ import (
 	"k8s.io/test-infra/prow/plugins"
 	"sigs.k8s.io/yaml"
 
-	"sigs.k8s.io/verify-conformance/pkg/common"
-	"sigs.k8s.io/verify-conformance/pkg/suite"
+	"sigs.k8s.io/verify-conformance/internal/common"
+	"sigs.k8s.io/verify-conformance/internal/suite"
 )
 
 // TODO be fully conformant

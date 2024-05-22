@@ -1,9 +1,0 @@
-#+title: Docs
-
-#+begin_quote
-Project docs
-#+end_quote
-
-- [[./ci.org][ci]]
-- [[./development.org][development]]
-- [[./resources.md][resources]]

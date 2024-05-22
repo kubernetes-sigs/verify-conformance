@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	githubql "github.com/shurcooL/githubv4"
-	"sigs.k8s.io/verify-conformance/pkg/common"
+	"sigs.k8s.io/verify-conformance/internal/common"
 )
 
 // TODO add Gomega https://onsi.github.io/gomega/

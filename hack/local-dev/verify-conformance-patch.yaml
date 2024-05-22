@@ -3,18 +3,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: verify-conformance
-  namespace: prow
+  namespace: verify-conformance
 spec:
   template:
     spec:
       containers:
         - name: verify-conformance
           args:
-            - --github-endpoint=http://ghproxy
+            - --github-endpoint=http://ghproxy.prow
             - --github-endpoint=https://api.github.com
             - --dry-run=false
             - --hmac-secret-file=/etc/webhook/hmac
-            - --plugin-config=/plugin/verify-conformance.yaml
+            - --plugin-config=/plugin/verify-conformance-config.yaml
             - --update-period=5m
             - --github-token-path=/etc/github/token
           env:

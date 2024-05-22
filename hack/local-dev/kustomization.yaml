@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- ./namespace.yaml
+- ./namespaces.yaml
 - ../../config/default
 - ./ghproxy.yaml
 patches:
@@ -11,13 +11,13 @@ generatorOptions:
 configMapGenerator:
 - behavior: replace
   files:
-  - ./verify-conformance.yaml
+  - ./verify-conformance-config.yaml
   name: verify-conformance-config
-  namespace: prow
+  namespace: verify-conformance
 - files:
   - ./plugins.yaml
   name: plugins
-  namespace: prow
+  namespace: verify-conformance
 - files:
   - localRegistryHosting.v1=./local-registry-hosting.yaml
   name: local-registry-hosting
@@ -26,11 +26,11 @@ secretGenerator:
 - files:
   - token=./tmp/token
   name: github-token
-  namespace: prow
+  namespace: verify-conformance
 - files:
   - hmac=./tmp/hmac
   name: hmac-token
-  namespace: prow
+  namespace: verify-conformance
 images:
 - name: ko://sigs.k8s.io/verify-conformance
   newTag: latest

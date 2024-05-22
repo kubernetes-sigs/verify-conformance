@@ -16,9 +16,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: verify-conformance-config
-  namespace: prow
 data:
-  verify-conformance.yaml: |
+  verify-conformance-config.yaml: |
     external_plugins:
       cncf/k8s-conformance:
       - name: verify-conformance

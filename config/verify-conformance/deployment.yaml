@@ -16,7 +16,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: verify-conformance
-  namespace: prow
   labels:
     app: verify-conformance
 spec:
@@ -34,12 +33,18 @@ spec:
         - name: verify-conformance
           image: ko://sigs.k8s.io/verify-conformance
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            privileged: false
           args:
-            - --github-endpoint=http://prow-ghproxy
+            - --github-endpoint=http://ghproxy.prow
             - --github-endpoint=https://api.github.com
             - --dry-run=false
             - --hmac-secret-file=/etc/webhook/hmac
-            - --plugin-config=/plugin/verify-conformance.yaml
+            - --plugin-config=/plugin/verify-conformance-config.yaml
             - --update-period=5m
             - --github-app-id=$(GITHUB_APP_ID)
             - --github-app-private-key-path=/etc/github/cert
@@ -63,8 +68,8 @@ spec:
               mountPath: /etc/plugins
               readOnly: true
             - name: verify-conformance-config
-              mountPath: /plugin/verify-conformance.yaml
-              subPath: verify-conformance.yaml
+              mountPath: /plugin/verify-conformance-config.yaml
+              subPath: verify-conformance-config.yaml
               readOnly: true
       volumes:
         - name: hmac

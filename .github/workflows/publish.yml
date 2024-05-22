@@ -18,6 +18,7 @@ jobs:
       - id: run-info
         name: collect job run info
         env:
+          KO_DOCKER_REPO: ghcr.io/${{ github.repository }}
         run: |
           echo "ko-docker-repo=${KO_DOCKER_REPO,,}" >> $GITHUB_OUTPUT
       - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1

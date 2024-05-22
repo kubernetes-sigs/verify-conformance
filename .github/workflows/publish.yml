@@ -1,0 +1,32 @@
+name: publish
+on:
+  workflow_dispatch: {}
+  release:
+    types: [published]
+  push:
+    branches:
+      - main
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - id: run-info
+        name: collect job run info
+        env:
+          KO_DOCKER_REPO: ghcr.io/${{ github.repository }}
+        run: |
+          echo "ko-docker-repo=${KO_DOCKER_REPO,,}" >> $GITHUB_OUTPUT
+      - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache-dependency-path: go.sum
+      - name: build
+        env:
+          CI_COMMIT_TAG: ${{ github.event.release.name }}
+        run: ./hack/publish.sh --sign

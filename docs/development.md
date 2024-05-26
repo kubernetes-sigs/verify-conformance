@@ -2,11 +2,11 @@
 
 > Set up a local environment for development
 
-# Notes
+## Notes
 
 - the bot will log in and make comments are your GitHub user or whatever user the token belongs to
 
-# Environment
+## Environment
 
 install tools (macOS or Linux)
 

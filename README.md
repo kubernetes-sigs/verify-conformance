@@ -1,20 +1,24 @@
 # verify-conformance
 
-> a GitHub bot for verifying conformance submissions on github.com/cncf/k8s-conformance
+A GitHub bot for verifying conformance submissions on [github.com/cncf/k8s-conformance](https://github.com/cncf/k8s-conformance).
 
-The behaviour of the bot is described here, in [Gherkin](https://cucumber.io/docs/gherkin/).  Each scenario is a requirement a PR must meet to qualify for conformance.
+Ensuring that the conformance submissions contain the correct data with valid and passing results.
 
-Note: the line immediately beneath the scenario is the comment posted to the PR if the requirement is not met.
+This tool is apart of the Kubernetes Conformance ecosystem. For other tools and info, see:
 
-See the feature scenarios, [in ./kodata/features](./kodata/features/verify-conformance.feature).
+- tracking: [APISnoop](https://apisnoop.cncf.io)
+- test runners: [Hydrophone](https://sigs.k8s.io/hydrophone) and [Sonobuoy](https://sonobuoy.io)
+- tests: [git.k8s.io/kubernetes/test/conformance](http://git.k8s.io/kubernetes/test/conformance)
+- info: [cncf.io/ck](https://cncf.io/ck)
+
+See the submission scenarios [in ./kodata/features](./kodata/features/verify-conformance.feature).
 
 ![verify-conformance](./verify-conformance.png "verify-conformance")
-
-# Developing
-
-for more, read [the development docs](./docs/development.md).
 
 # Docs
 
 read the docs [here](./docs/README.md).
 
+## Developing
+
+read [the development docs](./docs/development.md).

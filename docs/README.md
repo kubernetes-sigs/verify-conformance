@@ -8,6 +8,5 @@
 - [contributing](../contributing.md)
 - [development](./development.md)
 - [maintenance](./maintenance.md)
-- [resources](./resources.md)
 - [security](../security.md)
 

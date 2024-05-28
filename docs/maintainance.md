@@ -152,3 +152,20 @@ docker run --rm \
     --hmac-secret-file=$PWD/tmp/hmac \
     --repo="$REPO"
 ```
+
+see: https://github.com/cncf/k8s-conformance/blob/master/.github/workflows/verify-conformance.yml
+
+### GitHub App
+
+In the case a new GitHub App needs to be set up, navigate to a page like https://github.com/organizations/cncf-infra/settings/apps/new and fill in the values like
+
+| Field                                  | Value                                                                                                               |
+|----------------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| GitHub App name                        | Kubernetes Conformance bot                                                                                          |
+| Description                            | _verifying conformance product submissions_                                                                         |
+| Homepage URL                           | https://github.com/kubernetes-sigs/verify-conformance                                                               |
+| Webhook -> Active                      | false (not set)                                                                                                     |
+| Permissions -> Repository permissions  | Commit Statuses : Read and write, Contents : Read and write, Issues : Read and write, Pull requests: Read and write |
+| Where can this GitHub App be installed | Any account (for testing)                                                                                           |
+
+Next, go back up to deployment in the header above to deploy this with the application.

@@ -972,69 +972,71 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			},
 		},
 	} {
-		productYAML := map[string]string{}
-		var productYAMLSupportingFile string
-		for _, file := range tc.SupportingFiles {
-			if file.BaseName == "PRODUCT.yaml" {
-				productYAMLSupportingFile = file.Contents
-			}
-		}
-		if productYAMLSupportingFile != "" {
-			if err := yaml.Unmarshal([]byte(productYAMLSupportingFile), &productYAML); err != nil {
-				t.Fatalf("error: unmarshalling from PRODUCT.yaml supporting file: %v", err)
-			}
-		}
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			t.Logf("requesting path '%v'", r.URL.Path)
-			supportingFile := &suite.PullRequestFile{}
+		t.Run(tc.Name, func(t *testing.T) {
+			productYAML := map[string]string{}
+			var productYAMLSupportingFile string
 			for _, file := range tc.SupportingFiles {
-				if r.URL.Path == "/"+file.BaseName || r.URL.Path == "/"+file.Name {
-					supportingFile = file
+				if file.BaseName == "PRODUCT.yaml" {
+					productYAMLSupportingFile = file.Contents
 				}
 			}
-			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte(supportingFile.Contents))
+			if productYAMLSupportingFile != "" {
+				if err := yaml.Unmarshal([]byte(productYAMLSupportingFile), &productYAML); err != nil {
+					t.Fatalf("error: unmarshalling from PRODUCT.yaml supporting file: %v", err)
+				}
+			}
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Logf("requesting path '%v'", r.URL.Path)
+				supportingFile := &suite.PullRequestFile{}
+				for _, file := range tc.SupportingFiles {
+					if r.URL.Path == "/"+file.BaseName || r.URL.Path == "/"+file.Name {
+						supportingFile = file
+					}
+				}
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(supportingFile.Contents))
+				if err != nil {
+					t.Fatalf("error: sending http response; %v", err)
+				}
+			}))
+			defer svr.Close()
+			for _, field := range []string{"website_url", "documentation_url"} {
+				if productYAML[field] != "" {
+					productYAML[field] = svr.URL + "/" + productYAML[field]
+				}
+			}
+			productYAMLBytes, err := yaml.Marshal(productYAML)
 			if err != nil {
-				t.Fatalf("error: sending http response; %v", err)
+				t.Fatalf("error: marshalling new product yaml: %v", err)
 			}
-		}))
-		defer svr.Close()
-		for _, field := range []string{"website_url", "documentation_url"} {
-			if productYAML[field] != "" {
-				productYAML[field] = svr.URL + "/" + productYAML[field]
-			}
-		}
-		productYAMLBytes, err := yaml.Marshal(productYAML)
-		if err != nil {
-			t.Fatalf("error: marshalling new product yaml: %v", err)
-		}
-		for i := range tc.SupportingFiles {
-			tc.SupportingFiles[i].BlobURL = svr.URL + "/" + tc.SupportingFiles[i].BlobURL
-			if tc.SupportingFiles[i].BaseName == "PRODUCT.yaml" {
-				tc.SupportingFiles[i].Contents = string(productYAMLBytes)
-			}
-		}
-		ghc := NewFakeGitHubClient([]*prContext{
-			{
-				PullRequestQuery: tc.PullRequestQuery,
-				SupportingFiles:  tc.SupportingFiles,
-			},
-		})
-		if err := handle(log, ghc, tc.PullRequestQuery); err != nil && !strings.Contains(err.Error(), tc.ExpectedError) {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if tc.ExpectedComment != "" {
-			found := false
-			for _, comment := range ghc.PopulatedPullRequests[tc.PullRequestQuery.Number].Comments {
-				if comment.Body == tc.ExpectedComment {
-					found = true
+			for i := range tc.SupportingFiles {
+				tc.SupportingFiles[i].BlobURL = svr.URL + "/" + tc.SupportingFiles[i].BlobURL
+				if tc.SupportingFiles[i].BaseName == "PRODUCT.yaml" {
+					tc.SupportingFiles[i].Contents = string(productYAMLBytes)
 				}
 			}
-			if !found {
-				t.Fatalf("unable to find expected comment: %v", tc.ExpectedComment)
+			ghc := NewFakeGitHubClient([]*prContext{
+				{
+					PullRequestQuery: tc.PullRequestQuery,
+					SupportingFiles:  tc.SupportingFiles,
+				},
+			})
+			if err := handle(log, ghc, tc.PullRequestQuery); err != nil && !strings.Contains(err.Error(), tc.ExpectedError) {
+				t.Fatalf("unexpected error: %v", err)
 			}
-		}
-		// TODO check labels and status
+			if tc.ExpectedComment != "" {
+				found := false
+				for _, comment := range ghc.PopulatedPullRequests[tc.PullRequestQuery.Number].Comments {
+					if comment.Body == tc.ExpectedComment {
+						found = true
+					}
+				}
+				if !found {
+					t.Fatalf("unable to find expected comment: %v", tc.ExpectedComment)
+				}
+			}
+			// TODO check labels and status
+		})
 	}
 }
 

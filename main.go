@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -59,6 +60,9 @@ func (o *options) Validate() error {
 
 	if o.repo == "" {
 		return fmt.Errorf("repo cannot be empty. Use: 'cncf/k8s-conformance'.")
+	}
+	if len(strings.Split(o.repo, "/")) != 2 {
+		return fmt.Errorf("repo must be formatted as ORG/NAME")
 	}
 
 	return nil
@@ -114,25 +118,28 @@ func main() {
 	if err := githubClient.Throttle(360, 360); err != nil {
 		logrus.WithError(err).Fatal("error: throttling GitHub client")
 	}
-	_, err = os.Stat(o.prEventJSONPath)
-	if file := o.prEventJSONPath; file != "" && err == nil {
-		payload, err := os.ReadFile(file)
-		if err != nil {
-			logrus.WithError(err).Fatal("Error reading PR event.json file.")
+	if file := o.prEventJSONPath; file != "" {
+		_, err := os.Stat(o.prEventJSONPath)
+		if err == nil {
+			payload, err := os.ReadFile(file)
+			if err != nil {
+				logrus.WithError(err).Fatal("Error reading PR event.json file.")
+				return
+			}
+			var pre github.PullRequestEvent
+			if err := json.Unmarshal(payload, &pre); err != nil {
+				logrus.WithError(err).Fatal("Error unmarshalling PR event.json file.")
+				return
+			}
+			// TODO: resolve issue with org repo name (https://github.com/cncf-infra/verify-conformance/issues/180)
+			if err := plugin.HandlePullRequestEvent(log, githubClient, &pre); err != nil {
+				log.WithError(err).Info("Error handling event.")
+			}
+			return
+		} else if os.IsNotExist(err) {
+			logrus.WithError(err).Fatal("Error finding PR event.json file.")
 			return
 		}
-		var pre github.PullRequestEvent
-		if err := json.Unmarshal(payload, &pre); err != nil {
-			logrus.WithError(err).Fatal("Error unmarshalling PR event.json file.")
-			return
-		}
-		if err := plugin.HandlePullRequestEvent(log, githubClient, &pre); err != nil {
-			log.WithError(err).Info("Error handling event.")
-		}
-		return
-	} else if os.IsNotExist(err) {
-		logrus.WithError(err).Fatal("Error finding PR event.json file.")
-		return
 	}
 	if err := plugin.HandleAll(log, githubClient, &plugins.Configuration{
 		ExternalPlugins: map[string][]plugins.ExternalPlugin{

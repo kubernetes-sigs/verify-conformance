@@ -59,7 +59,7 @@ jobs:
           git add ${{ env.MOD_FILE }}
           git branch "${NEW_BRANCH}"
           git checkout "${NEW_BRANCH}"
-          git commit -s -m "update Go version to ${{ steps.run-info.outputs.go-version }} for ${{ env.MOD_FILE }}"
+          git commit -m "update Go version to ${{ steps.run-info.outputs.go-version }} for ${{ env.MOD_FILE }}"
           git push -f origin "${NEW_BRANCH}"
           gh pr create --title "Update Go version to ${{ steps.run-info.outputs.go-version }} in ${{ env.MOD_FILE }}" --body "Updates the base version of Go required for this project to ${{ steps.run-info.outputs.go-version }} for ${{ env.MOD_FILE }}" --label update-go-version
       - name: merge PR

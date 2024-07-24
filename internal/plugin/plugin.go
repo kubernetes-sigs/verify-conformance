@@ -524,18 +524,30 @@ commitLoop:
 	return nil
 }
 
+type handleOption struct {
+	fakeKubernetesLatestVersion string
+}
+
 // handle checks a Conformance Certification PR to determine if the contents of the PR pass sanity checks.
 // Adds a comment to indicate whether or not the version in the PR title occurs in the supplied logs.
-func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) error {
+func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery, opts ...handleOption) error {
 	if !isConformancePR(pr) {
 		log.Printf("This PR (%v) is not a conformance PR\n", int(pr.Number))
 		return nil
+	}
+
+	opt := handleOption{}
+	if len(opts) > 0 {
+		opt = opts[0]
 	}
 
 	godogFeaturePaths := GetGodogPaths()
 	prSuite, err := NewPRSuiteForPR(log, ghc, pr)
 	if err != nil {
 		return err
+	}
+	if opt.fakeKubernetesLatestVersion != "" {
+		prSuite.KubernetesReleaseVersionLatest = opt.fakeKubernetesLatestVersion
 	}
 	prSuite.MetadataFolder = path.Join(common.GetDataPath(), "conformance-testdata")
 	prSuite.SetSubmissionMetadatafromFolderStructure()
@@ -553,7 +565,7 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 		if err := updateStatus(log, ghc, pr, prSuite, state); err != nil {
 			return err
 		}
-		return fmt.Errorf("unable to process release file as it is missing for release %v", prSuite.KubernetesReleaseVersion)
+		return err
 	}
 	conformanceYAMLFilePath := path.Join(prSuite.MetadataFolder, prSuite.KubernetesReleaseVersion, "conformance.yaml")
 	if _, err := common.ReadFile(conformanceYAMLFilePath); err != nil && os.IsNotExist(err) {

@@ -53,6 +53,7 @@ var (
 	}
 	managedPRLabels = []string{
 		"conformance-product-submission",
+		"not-conformance-product-submission",
 		"not-verifiable",
 		"release-documents-checked",
 		"required-tests-missing",
@@ -527,11 +528,6 @@ commitLoop:
 // handle checks a Conformance Certification PR to determine if the contents of the PR pass sanity checks.
 // Adds a comment to indicate whether or not the version in the PR title occurs in the supplied logs.
 func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) error {
-	if !isConformancePR(pr) {
-		log.Printf("This PR (%v) is not a conformance PR\n", int(pr.Number))
-		return nil
-	}
-
 	godogFeaturePaths := GetGodogPaths()
 	prSuite, err := NewPRSuiteForPR(log, ghc, pr)
 	if err != nil {
@@ -539,6 +535,31 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 	}
 	prSuite.MetadataFolder = path.Join(common.GetDataPath(), "conformance-testdata")
 	prSuite.SetSubmissionMetadatafromFolderStructure()
+	if !isConformancePR(pr) {
+		log.Printf("This PR (%v) is not a conformance PR\n", int(pr.Number))
+		finalComment := strings.Join(
+			[]string{
+				"This pull request appears to not be a conformance results submission; Checks will not run.",
+				"",
+				"If this change is intended to be verified as a conformance results submission see: " +
+					"[_content of the PR_](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#contents-of-the-pr), " +
+					"and [_requirements_](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#requirements)",
+			},
+			"\n")
+		labels := []string{"not-conformance-product-submission", "unable-to-process"}
+		state := "pending"
+		if _, _, err := updateLabels(log, ghc, pr, prSuite, labels); err != nil {
+			return err
+		}
+		if err := updateComments(log, ghc, pr, prSuite, finalComment); err != nil {
+			return err
+		}
+		if err := updateStatus(log, ghc, pr, prSuite, state); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	if err := prSuite.ItIsAValidAndSupportedRelease(); err != nil {
 		finalComment := err.Error()
 		finalComment = fmt.Sprintf("%v.", strings.ToUpper(finalComment[:1])+finalComment[1:])

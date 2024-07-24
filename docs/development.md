@@ -35,12 +35,23 @@ gh auth token > ./hack/local-dev/tmp/token
 ```
 (**NOTE**: avoid committing these values)
 
+start up ghproxy
+
+```sh
+docker run \
+  -d \
+  -p 8888:8888 \
+  --name ghproxy \
+  gcr.io/k8s-prow/ghproxy:v20240723-dbbd2d86b
+```
+
 # Development loop
 
 run locally
 
-```
+```sh
 go run . \
+  --github-endpoint=http://localhost:8888 \
   --github-endpoint=https://api.github.com \
   --dry-run=false \
   --hmac-secret-file=./hack/local-dev/tmp/hmac \

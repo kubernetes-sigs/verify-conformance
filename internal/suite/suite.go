@@ -522,6 +522,9 @@ func (s *PRSuite) itIsAValidAndSupportedRelease() error {
 		return common.SafeError(fmt.Errorf("unable to parse oldest supported release version"))
 	}
 
+	if currentVersion.GreaterThan(latestVersion) {
+		return common.SafeError(fmt.Errorf("unable to use version %v because it is newer than the latest supported release %v", s.KubernetesReleaseVersion, s.KubernetesReleaseVersionLatest))
+	}
 	if currentVersion.LessThan(oldestSupportedVersion) {
 		return common.SafeError(fmt.Errorf("unable to use version %v because it is older than the last currently supported release %v", s.KubernetesReleaseVersion, oldestVersion))
 	}

@@ -864,7 +864,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			Name:                    "valid submission for unreleased version",
 			Labels:                  []string{"conformance-product-submission"},
 			KubernetesVersion:       common.Pointer("v1.57"),
-			KubernetesVersionLatest: common.Pointer("v1.57"),
+			KubernetesVersionLatest: common.Pointer("v1.30"),
 			SupportingFiles: []*suite.PullRequestFile{
 				{
 					Name:     "v1.57/coolkube/README.md",
@@ -905,9 +905,114 @@ contact_email_address: "sales@coolkubernetes.com"`,
 				},
 			},
 			ExpectedComment: "The release version v1.57 is unable to be processed at this time; Please wait as this version may become available soon.",
-			ExpectedError:   "unable to process release file as it is missing for release v1.57",
+			ExpectedError:   "unable to use version v1.57 because it is newer than the latest supported release v1.30",
 			PullRequestQuery: &suite.PullRequestQuery{
 				Title: githubql.String("Conformance results for v1.57/coolkube"),
+				Commits: struct {
+					Nodes []struct {
+						Commit struct {
+							Oid    githubql.String
+							Status struct {
+								Contexts []struct {
+									Context githubql.String
+									State   githubql.String
+								}
+							}
+						}
+					}
+				}{
+					Nodes: []struct {
+						Commit struct {
+							Oid    githubql.String
+							Status struct {
+								Contexts []struct {
+									Context githubql.String
+									State   githubql.String
+								}
+							}
+						}
+					}{
+						{
+							Commit: struct {
+								Oid    githubql.String
+								Status struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}
+							}{
+								Oid: githubql.String(""),
+								Status: struct {
+									Contexts []struct {
+										Context githubql.String
+										State   githubql.String
+									}
+								}{
+									Contexts: []struct {
+										Context githubql.String
+										State   githubql.String
+									}{
+										{
+											Context: githubql.String(""),
+											State:   githubql.String(""),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:                    "valid submission for older unsupported version",
+			Labels:                  []string{"conformance-product-submission"},
+			KubernetesVersion:       common.Pointer("v1.10"),
+			KubernetesVersionLatest: common.Pointer("v1.30"),
+			SupportingFiles: []*suite.PullRequestFile{
+				{
+					Name:     "v1.10/coolkube/README.md",
+					BaseName: "README.md",
+					Contents: `# coolkube
+> the coolest Kubernetes distribution
+
+## Generating conformance results
+
+1. create a coolkube cluster
+2. sonobuoy run --wait && sonobuoy results "$(sonobuoy retrieve)" && sonobuoy delete --wait`,
+					BlobURL: "README.md",
+				},
+				{
+					Name:     "v1.10/coolkube/PRODUCT.yaml",
+					BaseName: "PRODUCT.yaml",
+					Contents: `vendor: "cool"
+name: "coolkube"
+version: "v1.10"
+type: "distribution"
+description: "it's just all-round cool and probably the best k8s, idk"
+website_url: "website_url"
+documentation_url: "docs"
+contact_email_address: "sales@coolkubernetes.com"`,
+					BlobURL: "PRODUCT.yaml",
+				},
+				{
+					Name:     "v1.10/coolkube/e2e.log",
+					BaseName: "e2e.log",
+					Contents: "",
+					BlobURL:  "e2e.log",
+				},
+				{
+					Name:     "v1.10/coolkube/junit_01.xml",
+					BaseName: "junit_01.xml",
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+					BlobURL:  "junit_01.xml",
+				},
+			},
+			ExpectedComment: "unable to use version v1.10 because it is older than the last currently supported release v1.28",
+			ExpectedError:   "unable to use version v1.10 because it is older than the last currently supported release v1.28",
+			PullRequestQuery: &suite.PullRequestQuery{
+				Title: githubql.String("Conformance results for v1.10/coolkube"),
 				Commits: struct {
 					Nodes []struct {
 						Commit struct {
@@ -1021,18 +1126,22 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					SupportingFiles:  tc.SupportingFiles,
 				},
 			})
-			if err := handle(log, ghc, tc.PullRequestQuery); err != nil && !strings.Contains(err.Error(), tc.ExpectedError) {
-				t.Fatalf("unexpected error: %v", err)
+			opt := handleOption{}
+			if tc.KubernetesVersionLatest != nil {
+				opt.fakeKubernetesLatestVersion = *tc.KubernetesVersionLatest
+			}
+			if err := handle(log, ghc, tc.PullRequestQuery, opt); err != nil && !strings.Contains(err.Error(), tc.ExpectedError) {
+				t.Fatalf("unexpected error: '%v'; expected '%v'", err, tc.ExpectedError)
 			}
 			if tc.ExpectedComment != "" {
-				found := false
+				resultingComment := ""
 				for _, comment := range ghc.PopulatedPullRequests[tc.PullRequestQuery.Number].Comments {
 					if comment.Body == tc.ExpectedComment {
-						found = true
+						resultingComment = comment.Body
 					}
 				}
-				if !found {
-					t.Fatalf("unable to find expected comment: %v", tc.ExpectedComment)
+				if resultingComment == "" {
+					t.Fatalf("unable to find expected comment: '%v'; found: '%v'", tc.ExpectedComment, resultingComment)
 				}
 			}
 			// TODO check labels and status

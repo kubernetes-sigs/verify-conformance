@@ -85,7 +85,7 @@ func (f *FakeGitHubClient) GetCombinedStatus(org, repo, ref string) (*github.Com
 		if string(f.PopulatedPullRequests[i].PullRequestQuery.Repository.Owner.Login) == org &&
 			string(f.PopulatedPullRequests[i].PullRequestQuery.Repository.Name) == repo {
 			sha = f.PopulatedPullRequests[i].HeadRefOID
-			state = f.PopulatedPullRequests[i].Status.Context
+			state = f.PopulatedPullRequests[i].Status.State
 			break
 		}
 	}
@@ -762,6 +762,9 @@ func Test_handle(t *testing.T) {
 			Labels:                  []string{"conformance-product-submission"},
 			KubernetesVersion:       common.Pointer("v1.30"),
 			KubernetesVersionLatest: common.Pointer("v1.30"),
+			ExpectedComment:         "have passed for the submission",
+			ExpectedStatus:          "success",
+			ExpectedLabels:          []string{"conformance-product-submission", "tests-verified-v1.30", "no-failed-tests-v1.30", "release-v1.30", "release-documents-checked"},
 			SupportingFiles: []*suite.PullRequestFile{
 				{
 					Name:     "v1.30/coolkube/README.md",
@@ -791,7 +794,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 				{
 					Name:     "v1.30/coolkube/e2e.log",
 					BaseName: "e2e.log",
-					Contents: "",
+					Contents: "12345",
 					BlobURL:  "e2e.log",
 				},
 				{
@@ -802,7 +805,8 @@ contact_email_address: "sales@coolkubernetes.com"`,
 				},
 			},
 			PullRequestQuery: &suite.PullRequestQuery{
-				Title: githubql.String("Conformance results for v1.30/coolkube"),
+				Title:  githubql.String("Conformance results for v1.30/coolkube"),
+				Number: githubql.Int(0),
 				Commits: struct {
 					Nodes []struct {
 						Commit struct {
@@ -906,8 +910,10 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			},
 			ExpectedComment: "The release version v1.57 is unable to be processed at this time; Please wait as this version may become available soon.",
 			ExpectedError:   "unable to process release file as it is missing for release v1.57",
+			ExpectedLabels:  []string{"conformance-product-submission", "unable-to-process"},
 			PullRequestQuery: &suite.PullRequestQuery{
-				Title: githubql.String("Conformance results for v1.57/coolkube"),
+				Title:  githubql.String("Conformance results for v1.57/coolkube"),
+				Number: githubql.Int(0),
 				Commits: struct {
 					Nodes []struct {
 						Commit struct {
@@ -970,6 +976,9 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			PullRequestQuery: &suite.PullRequestQuery{
 				Title: githubql.String("soup recipes for winter"),
 			},
+			ExpectedComment: "This pull request appears to not be a conformance results submission; Checks will not run.",
+			ExpectedLabels:  []string{"not-conformance-product-submission", "unable-to-process"},
+			ExpectedStatus:  "pending",
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -1026,16 +1035,27 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			}
 			if tc.ExpectedComment != "" {
 				found := false
+				got := ""
 				for _, comment := range ghc.PopulatedPullRequests[tc.PullRequestQuery.Number].Comments {
-					if comment.Body == tc.ExpectedComment {
+					if strings.Contains(comment.Body, tc.ExpectedComment) {
+						got = comment.Body
 						found = true
 					}
 				}
 				if !found {
-					t.Fatalf("unable to find expected comment: %v", tc.ExpectedComment)
+					t.Fatalf("unexpected comment: want = %v; got %v", tc.ExpectedComment, got)
 				}
 			}
-			// TODO check labels and status
+			if want, got := tc.ExpectedStatus, ghc.PopulatedPullRequests[tc.PullRequestQuery.Number].Status.State; want != "" && want != got {
+				t.Fatalf("unexpected status: want = %v; got = %v", want, got)
+			}
+			prLabels := []string{}
+			for _, l := range ghc.PopulatedPullRequests[tc.PullRequestQuery.Number].PullRequestQuery.Labels.Nodes {
+				prLabels = append(prLabels, string(l.Name))
+			}
+			if !reflect.DeepEqual(tc.ExpectedLabels, prLabels) {
+				t.Fatalf("unexpected labels: want = %v; got = %v", tc.ExpectedLabels, prLabels)
+			}
 		})
 	}
 }

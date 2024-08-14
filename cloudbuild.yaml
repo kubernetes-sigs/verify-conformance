@@ -9,7 +9,7 @@ steps:
       - -c
       - |
         export KO_DOCKER_REPO=gcr.io/$PROJECT_ID/verify-conformance
-        ko build --base-import-paths --tags $_GIT_TAG .
+        ko build --bare --tags $_GIT_TAG .
   # TODO sign image with OIDC
   #      https://docs.sigstore.dev/signing/overview/#on-google-cloud-platform
 substitutions:

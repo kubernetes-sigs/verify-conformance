@@ -539,7 +539,7 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 		log.Printf("This PR (%v) is not a conformance PR\n", int(pr.Number))
 		finalComment := strings.Join(
 			[]string{
-				"This pull request appears to not be a conformance results submission; Checks will not run.",
+				"This pull request appears to not be a conformance results submission, because its title doesn't include \"conformance results for\"; Checks will not run.",
 				"",
 				"If this change is intended to be verified as a conformance results submission see: " +
 					"[_content of the PR_](https://github.com/cncf/k8s-conformance/blob/master/instructions.md#contents-of-the-pr), " +

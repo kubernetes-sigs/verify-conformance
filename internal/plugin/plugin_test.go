@@ -976,7 +976,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			PullRequestQuery: &suite.PullRequestQuery{
 				Title: githubql.String("soup recipes for winter"),
 			},
-			ExpectedComment: "This pull request appears to not be a conformance results submission; Checks will not run.",
+			ExpectedComment: "This pull request appears to not be a conformance results submission, because its title doesn't include \"conformance results for\"; Checks will not run.",
 			ExpectedLabels:  []string{"not-conformance-product-submission", "unable-to-process"},
 			ExpectedStatus:  "pending",
 		},

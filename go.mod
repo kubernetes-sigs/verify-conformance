@@ -1,6 +1,6 @@
 module sigs.k8s.io/verify-conformance
 
-go 1.22
+go 1.23
 
 replace (
 	cloud.google.com/go => cloud.google.com/go v0.100.2

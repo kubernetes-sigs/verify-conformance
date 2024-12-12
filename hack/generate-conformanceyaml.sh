@@ -22,7 +22,7 @@ set -o pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-K8S_LATEST_VERSION=$(curl -L -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+K8S_LATEST_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
 K8S_LATEST_MINOR_VERSION="$(awk '{split($1,array, "."); print array[2]}' <<<$K8S_LATEST_VERSION)"
 K8S_LAST_MINOR_VERSION=$(($K8S_LATEST_MINOR_VERSION - 2))
 SETS=($(seq $K8S_LAST_MINOR_VERSION $K8S_LATEST_MINOR_VERSION))

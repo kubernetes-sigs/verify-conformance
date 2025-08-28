@@ -34,14 +34,14 @@ import (
 // TODO(BobyMCbobs): add Gomega https://onsi.github.io/gomega/
 
 var (
-	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-30-junit_01.xml
-	testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml string
-	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-30-junit_01-with-1-test-failed.xml
-	testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01WithOneTestFailedxml string
-	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-30-junit_01-with-1-test-missing.xml
-	testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01WithOneTestMissingxml string
-	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-30-junit_01-with-1-extra-test.xml
-	testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xmlWithOneExtraTest string
+	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-33-junit_01.xml
+	testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml string
+	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-33-junit_01-with-1-test-failed.xml
+	testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01WithOneTestFailedxml string
+	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-33-junit_01-with-1-test-missing.xml
+	testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01WithOneTestMissingxml string
+	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-33-junit_01-with-1-extra-test.xml
+	testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xmlWithOneExtraTest string
 )
 
 func init() {
@@ -55,7 +55,7 @@ func TestNewPRSuite(t *testing.T) {
 		{
 			PullRequestQuery: PullRequestQuery{
 				Number: githubql.Int(1),
-				Title:  githubql.String("Conformance results for SOMETHING/v1.30"),
+				Title:  githubql.String("Conformance results for SOMETHING/v1.33"),
 				Author: struct{ Login githubql.String }{
 					Login: githubql.String("BobyMCbobs"),
 				},
@@ -198,7 +198,7 @@ func TestThePRTitleIsNotEmpty(t *testing.T) {
 		{
 			PullRequest: &PullRequest{
 				PullRequestQuery: PullRequestQuery{
-					Title: githubql.String("Conformance results for coolkube/v1.30"),
+					Title: githubql.String("Conformance results for coolkube/v1.33"),
 				},
 			},
 		},
@@ -239,23 +239,23 @@ func TestIsIncludedInItsFileList(t *testing.T) {
 			Name: "contains all correct files and nothing more",
 			PullRequest: &PullRequest{
 				PullRequestQuery: PullRequestQuery{
-					Title: githubql.String("Conformance results for v1.30/coolkube"),
+					Title: githubql.String("Conformance results for v1.33/coolkube"),
 				},
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/README.md",
+						Name:     "v1.33/coolkube/README.md",
 						BaseName: "README.md",
 					},
 					{
-						Name:     "v1.30/coolkube/PRODUCT.yaml",
+						Name:     "v1.33/coolkube/PRODUCT.yaml",
 						BaseName: "PRODUCT.yaml",
 					},
 					{
-						Name:     "v1.30/coolkube/e2e.log",
+						Name:     "v1.33/coolkube/e2e.log",
 						BaseName: "e2e.log",
 					},
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
 					},
 				},
@@ -266,23 +266,23 @@ func TestIsIncludedInItsFileList(t *testing.T) {
 			MissingFiles: []string{"e2e.log"},
 			PullRequest: &PullRequest{
 				PullRequestQuery: PullRequestQuery{
-					Title: githubql.String("Conformance results for v1.30/badkube"),
+					Title: githubql.String("Conformance results for v1.33/badkube"),
 				},
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/badkube/README.md",
+						Name:     "v1.33/badkube/README.md",
 						BaseName: "README.md",
 					},
 					{
-						Name:     "v1.30/coolkube/PRODUCT.yaml",
+						Name:     "v1.33/coolkube/PRODUCT.yaml",
 						BaseName: "PRODUCT.yaml",
 					},
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
 					},
 					{
-						Name:     "v1.30/coolkube/main.go",
+						Name:     "v1.33/coolkube/main.go",
 						BaseName: "main.go",
 					},
 				},
@@ -342,16 +342,16 @@ func TestFileFolderStructureMatchesRegex(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name: "v1.30/coolkube/README.md",
+						Name: "v1.33/coolkube/README.md",
 					},
 					{
-						Name: "v1.30/coolkube/PRODUCT.yaml",
+						Name: "v1.33/coolkube/PRODUCT.yaml",
 					},
 					{
-						Name: "v1.30/coolkube/junit_01.xml",
+						Name: "v1.33/coolkube/junit_01.xml",
 					},
 					{
-						Name: "v1.30/coolkube/e2e.log",
+						Name: "v1.33/coolkube/e2e.log",
 					},
 				},
 			},
@@ -361,16 +361,16 @@ func TestFileFolderStructureMatchesRegex(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name: "v1.30/coolkube/README.md",
+						Name: "v1.33/coolkube/README.md",
 					},
 					{
-						Name: "v1.30/coolkube/PRODUCT.yaml",
+						Name: "v1.33/coolkube/PRODUCT.yaml",
 					},
 					{
-						Name: "v1.30/coolkube/junit_01.xml",
+						Name: "v1.33/coolkube/junit_01.xml",
 					},
 					{
-						Name: "v1.30/coolkube/e2e.log",
+						Name: "v1.33/coolkube/e2e.log",
 					},
 					{
 						Name: "README.md",
@@ -384,16 +384,16 @@ func TestFileFolderStructureMatchesRegex(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name: "v1.30//README.md",
+						Name: "v1.33//README.md",
 					},
 					{
-						Name: "v1.30//PRODUCT.yaml",
+						Name: "v1.33//PRODUCT.yaml",
 					},
 					{
-						Name: "v1.30//junit_01.xml",
+						Name: "v1.33//junit_01.xml",
 					},
 					{
-						Name: "v1.30//e2e.log",
+						Name: "v1.33//e2e.log",
 					},
 				},
 			},
@@ -431,16 +431,16 @@ func TestThereIsOnlyOnePathOfFolders(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name: "v1.30/coolkube/README.md",
+						Name: "v1.33/coolkube/README.md",
 					},
 					{
-						Name: "v1.30/coolkube/PRODUCT.yaml",
+						Name: "v1.33/coolkube/PRODUCT.yaml",
 					},
 					{
-						Name: "v1.30/coolkube/junit_01.xml",
+						Name: "v1.33/coolkube/junit_01.xml",
 					},
 					{
-						Name: "v1.30/coolkube/e2e.log",
+						Name: "v1.33/coolkube/e2e.log",
 					},
 				},
 			},
@@ -450,16 +450,16 @@ func TestThereIsOnlyOnePathOfFolders(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name: "v1.30/coolkube/README.md",
+						Name: "v1.33/coolkube/README.md",
 					},
 					{
-						Name: "v1.30/coolkube/PRODUCT.yaml",
+						Name: "v1.33/coolkube/PRODUCT.yaml",
 					},
 					{
-						Name: "v1.30/coolkube/junit_01.xml",
+						Name: "v1.33/coolkube/junit_01.xml",
 					},
 					{
-						Name: "v1.30/coolkube/e2e.log",
+						Name: "v1.33/coolkube/e2e.log",
 					},
 					{
 						Name: "README.md",
@@ -473,28 +473,28 @@ func TestThereIsOnlyOnePathOfFolders(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name: "v1.30/coolkube/README.md",
+						Name: "v1.33/coolkube/README.md",
 					},
 					{
-						Name: "v1.30/coolkube/PRODUCT.yaml",
+						Name: "v1.33/coolkube/PRODUCT.yaml",
 					},
 					{
-						Name: "v1.30/coolkube/junit_01.xml",
+						Name: "v1.33/coolkube/junit_01.xml",
 					},
 					{
-						Name: "v1.30/coolkube/e2e.log",
+						Name: "v1.33/coolkube/e2e.log",
 					},
 					{
-						Name: "v1.30/coolerkube/README.md",
+						Name: "v1.33/coolerkube/README.md",
 					},
 					{
-						Name: "v1.30/coolerkube/PRODUCT.yaml",
+						Name: "v1.33/coolerkube/PRODUCT.yaml",
 					},
 					{
-						Name: "v1.30/coolerkube/junit_01.xml",
+						Name: "v1.33/coolerkube/junit_01.xml",
 					},
 					{
-						Name: "v1.30/coolerkube/e2e.log",
+						Name: "v1.33/coolerkube/e2e.log",
 					},
 				},
 			},
@@ -520,7 +520,7 @@ func TestTheTitleOfThePR(t *testing.T) {
 			Name: "valid title",
 			PullRequest: &PullRequest{
 				PullRequestQuery: PullRequestQuery{
-					Title: githubql.String("Conformance results for v1.30/coolkube"),
+					Title: githubql.String("Conformance results for v1.33/coolkube"),
 				},
 			},
 		},
@@ -552,7 +552,7 @@ func TestTheTitleOfThePRMatches(t *testing.T) {
 			Name: "valid title",
 			PullRequest: &PullRequest{
 				PullRequestQuery: PullRequestQuery{
-					Title: githubql.String("Conformance results for v1.30/coolkube"),
+					Title: githubql.String("Conformance results for v1.33/coolkube"),
 				},
 			},
 		},
@@ -560,7 +560,7 @@ func TestTheTitleOfThePRMatches(t *testing.T) {
 			Name: "invalid title without period in version",
 			PullRequest: &PullRequest{
 				PullRequestQuery: PullRequestQuery{
-					Title: githubql.String("Conformance results for v130/coolkube"),
+					Title: githubql.String("Conformance results for V133/coolkube"),
 				},
 			},
 			ExpectedErrorString: "title must be formatted like",
@@ -683,13 +683,13 @@ func TestTheFilesIncludedInThePRAreOnly(t *testing.T) {
 func TestAFile(t *testing.T) {
 	prSuite := NewPRSuite(&PullRequest{
 		PullRequestQuery: PullRequestQuery{
-			Title: githubql.String("Conformance results for v1.30/coolkube"),
+			Title: githubql.String("Conformance results for v1.33/coolkube"),
 		},
 		SupportingFiles: []*PullRequestFile{
 			{
-				Name:     "v1.30/coolkube/junit_01.xml",
+				Name:     "v1.33/coolkube/junit_01.xml",
 				BaseName: "junit_01.xml",
-				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 			},
 		},
 	})
@@ -704,13 +704,13 @@ func TestAFile(t *testing.T) {
 func TestGetFileByFileName(t *testing.T) {
 	prSuite := NewPRSuite(&PullRequest{
 		PullRequestQuery: PullRequestQuery{
-			Title: githubql.String("Conformance results for v1.30/coolkube"),
+			Title: githubql.String("Conformance results for v1.33/coolkube"),
 		},
 		SupportingFiles: []*PullRequestFile{
 			{
-				Name:     "v1.30/coolkube/junit_01.xml",
+				Name:     "v1.33/coolkube/junit_01.xml",
 				BaseName: "junit_01.xml",
-				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 			},
 		},
 	})
@@ -732,11 +732,11 @@ func TestTheYamlFileContainsTheRequiredAndNonEmptyField(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/PRODUCT.yaml",
+						Name:     "v1.33/coolkube/PRODUCT.yaml",
 						BaseName: "PRODUCT.yaml",
 						Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.30"
+version: "v1.33"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "https://coolkubernetes.com"
@@ -751,11 +751,11 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/PRODUCT.yaml",
+						Name:     "v1.33/coolkube/PRODUCT.yaml",
 						BaseName: "PRODUCT.yaml",
 						Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.30"
+version: "v1.33"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "https://coolkubernetes.com"
@@ -770,11 +770,11 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/PRODUCT.yaml",
+						Name:     "v1.33/coolkube/PRODUCT.yaml",
 						BaseName: "PRODUCT.yaml",
 						Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.30"
+version: "v1.33"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "https://coolkubernetes.com"
 contact_email_address: "sales@coolkubernetes.com"`,
@@ -794,7 +794,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/PRODUCT.yaml",
+						Name:     "v1.33/coolkube/PRODUCT.yaml",
 						BaseName: "PRODUCT.yaml",
 						Contents: `v"`,
 					},
@@ -1136,7 +1136,7 @@ func TestTheLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresen
 	for _, tc := range []testCase{
 		{
 			PullRequest: &PullRequest{
-				Labels: []string{"release-v1.30"},
+				Labels: []string{"release-v1.33"},
 			},
 			TestLabel: "release-",
 		},
@@ -1156,7 +1156,7 @@ func TestTheLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresen
 		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
-		prSuite.KubernetesReleaseVersion = "v1.30"
+		prSuite.KubernetesReleaseVersion = "v1.33"
 		for _, l := range tc.PullRequest.Labels {
 			if err := prSuite.theLabelPrefixedWithAndEndingWithKubernetesReleaseVersionShouldBePresent(tc.TestLabel); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
 				t.Fatalf("error with labels '%v': %v", l, err)
@@ -1534,10 +1534,10 @@ func TestSetSubmissionMetadatafromFolderStructure(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name: "v1.30/coolkube/junit_01.xml",
+						Name: "v1.33/coolkube/junit_01.xml",
 					},
 					{
-						Name: "v1.30/coolkube/README.md",
+						Name: "v1.33/coolkube/README.md",
 					},
 				},
 			},
@@ -1568,7 +1568,7 @@ func TestTheReleaseVersionMatchesTheReleaseVersionInTheTitle(t *testing.T) {
 		{
 			PullRequest: &PullRequest{
 				PullRequestQuery: PullRequestQuery{
-					Title: githubql.String("conformance results for v1.30/coolkube"),
+					Title: githubql.String("conformance results for v1.33/coolkube"),
 				},
 			},
 		},
@@ -1582,7 +1582,7 @@ func TestTheReleaseVersionMatchesTheReleaseVersionInTheTitle(t *testing.T) {
 		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
-		prSuite.KubernetesReleaseVersion = "v1.30"
+		prSuite.KubernetesReleaseVersion = "v1.33"
 		if err := prSuite.theReleaseVersionMatchesTheReleaseVersionInTheTitle(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
 			t.Fatalf("error unexpected error matching the release version in the title: %v", err)
 		}
@@ -1597,7 +1597,7 @@ func TestTheReleaseVersion(t *testing.T) {
 
 	for _, tc := range []testCase{
 		{
-			Version: "v1.30",
+			Version: "v1.33",
 		},
 		{
 			Version:             "a",
@@ -1627,31 +1627,31 @@ func TestItIsAValidAndSupportedRelease(t *testing.T) {
 	for _, tc := range []testCase{
 		{
 			Name:          "valid",
-			Version:       "v1.30",
-			VersionLatest: "v1.30.0",
+			Version:       "v1.33",
+			VersionLatest: "v1.33.0",
 		},
 		{
 			Name:                "invalid unsupported release",
 			Version:             "v1.14",
-			VersionLatest:       "v1.30.0",
+			VersionLatest:       "v1.33.0",
 			ExpectedErrorString: "unable to use version",
 		},
 		{
 			Name:                "invalid future release",
 			Version:             "v1.208",
-			VersionLatest:       "v1.30.0",
+			VersionLatest:       "v1.33.0",
 			ExpectedErrorString: "unable to use version",
 		},
 		{
 			Name:                "invalid version latest string",
-			Version:             "v1.30",
+			Version:             "v1.33",
 			VersionLatest:       "????",
 			ExpectedErrorString: "unable to parse latest release version",
 		},
 		{
 			Name:                "invalid version string",
 			Version:             "????",
-			VersionLatest:       "v1.30.0",
+			VersionLatest:       "v1.33.0",
 			ExpectedErrorString: "unable to parse release version",
 		},
 	} {
@@ -1676,17 +1676,17 @@ func TestGetRequiredTests(t *testing.T) {
 	for _, tc := range []testCase{
 		{
 			Name:               "valid",
-			Version:            "v1.30",
-			ExpectedTestsCount: 402, // NOTE magic number is count of tests form conformance.yaml
+			Version:            "v1.33",
+			ExpectedTestsCount: 417, // NOTE magic number is count of tests form conformance.yaml
 		},
 		{
 			Name:               "valid alternate version",
-			Version:            "v1.29",
-			ExpectedTestsCount: 388, // NOTE magic number is count of tests form conformance.yaml
+			Version:            "v1.32",
+			ExpectedTestsCount: 411, // NOTE magic number is count of tests form conformance.yaml
 		},
 		{
 			Name:               "valid with test with version above pr version",
-			Version:            "v1.31",
+			Version:            "v1.34",
 			MetadataFolder:     common.Pointer("testdata/metadata/version-of-test-higher"),
 			ExpectedTestsCount: 0,
 		},
@@ -1705,7 +1705,7 @@ func TestGetRequiredTests(t *testing.T) {
 		},
 		{
 			Name:                "invalid version in conformance.yaml test",
-			Version:             "v1.27",
+			Version:             "v1.30",
 			ExpectedTestsCount:  0,
 			MetadataFolder:      common.Pointer("testdata/metadata/bad-version-in-conformance.yaml"),
 			ExpectedErrorString: "Malformed version",
@@ -1741,13 +1741,13 @@ func TestGetMissingJunitTestsFromPRSuite(t *testing.T) {
 	for _, tc := range []testCase{
 		{
 			Name:    `valid junit`,
-			Version: "v1.30",
+			Version: "v1.33",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 					},
 				},
 			},
@@ -1755,13 +1755,13 @@ func TestGetMissingJunitTestsFromPRSuite(t *testing.T) {
 		},
 		{
 			Name:    "valid junit but with one extra test",
-			Version: "v1.30",
+			Version: "v1.33",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xmlWithOneExtraTest,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xmlWithOneExtraTest,
 					},
 				},
 			},
@@ -1769,27 +1769,27 @@ func TestGetMissingJunitTestsFromPRSuite(t *testing.T) {
 		},
 		{
 			Name:    "invalid with a metadata folder pointing to nowhere",
-			Version: "v1.30",
+			Version: "v1.33",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 					},
 				},
 			},
 			ExpectedTestsMissingCount: 0,
 			MetadataFolder:            common.Pointer("nowhere"),
-			ExpectedErrorString:       "open nowhere/v1.30/conformance.yaml",
+			ExpectedErrorString:       "open nowhere/v1.33/conformance.yaml",
 		},
 		{
 			Name:    `empty junit`,
-			Version: "v1.30",
+			Version: "v1.33",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
 						Contents: ``,
 					},
@@ -1817,13 +1817,13 @@ func TestGetMissingJunitTestsFromPRSuite(t *testing.T) {
 func TestDetermineSuccessfulTests(t *testing.T) {
 	prSuite := NewPRSuite(&PullRequest{
 		PullRequestQuery: PullRequestQuery{
-			Title: githubql.String("Conformance results for v1.30/coolkube"),
+			Title: githubql.String("Conformance results for v1.33/coolkube"),
 		},
 		SupportingFiles: []*PullRequestFile{
 			{
-				Name:     "v1.30/coolkube/junit_01.xml",
+				Name:     "v1.33/coolkube/junit_01.xml",
 				BaseName: "junit_01.xml",
-				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 			},
 		},
 	})
@@ -1839,13 +1839,13 @@ func TestDetermineSuccessfulTests(t *testing.T) {
 func TestDetermineSuccessfulTestsv125AndAbove(t *testing.T) {
 	prSuite := NewPRSuite(&PullRequest{
 		PullRequestQuery: PullRequestQuery{
-			Title: githubql.String("Conformance results for v1.30/coolkube"),
+			Title: githubql.String("Conformance results for v1.33/coolkube"),
 		},
 		SupportingFiles: []*PullRequestFile{
 			{
-				Name:     "v1.30/coolkube/junit_01.xml",
+				Name:     "v1.33/coolkube/junit_01.xml",
 				BaseName: "junit_01.xml",
-				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 			},
 		},
 	})
@@ -1861,13 +1861,13 @@ func TestDetermineSuccessfulTestsv125AndAbove(t *testing.T) {
 func TestGetJunitSubmittedConformanceTests(t *testing.T) {
 	tests, err := NewPRSuite(&PullRequest{
 		PullRequestQuery: PullRequestQuery{
-			Title: githubql.String("Conformance results for v1.30/coolkube"),
+			Title: githubql.String("Conformance results for v1.33/coolkube"),
 		},
 		SupportingFiles: []*PullRequestFile{
 			{
-				Name:     "v1.30/coolkube/junit_01.xml",
+				Name:     "v1.33/coolkube/junit_01.xml",
 				BaseName: "junit_01.xml",
-				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+				Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 			},
 		},
 	}).getJunitSubmittedConformanceTests()
@@ -1900,22 +1900,22 @@ func TestAllRequiredTestsInJunitXmlArePresent(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 					},
 				},
 			},
-			ExpectedLabels: []string{"conformance-product-submission", "tests-verified-v1.30"},
+			ExpectedLabels: []string{"conformance-product-submission", "tests-verified-v1.33"},
 		},
 		{
 			Name: "invalid with one test not passing and successful",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01WithOneTestFailedxml,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01WithOneTestFailedxml,
 					},
 				},
 			},
@@ -1931,7 +1931,7 @@ func TestAllRequiredTestsInJunitXmlArePresent(t *testing.T) {
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			prSuite := NewPRSuite(tc.PullRequest)
-			prSuite.KubernetesReleaseVersion = "v1.30"
+			prSuite.KubernetesReleaseVersion = "v1.33"
 			if err := prSuite.allRequiredTestsInJunitXmlArePresent(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
 				t.Fatalf("error with testcase '%v'; %v", tc.Name, err)
 			}
@@ -1965,22 +1965,22 @@ func TestTheTestsPassAndAreSuccessful(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 					},
 				},
 			},
-			ExpectedLabels: []string{"conformance-product-submission", "no-failed-tests-v1.30"},
+			ExpectedLabels: []string{"conformance-product-submission", "no-failed-tests-v1.33"},
 		},
 		{
 			Name: "invalid with one test not passing and successful",
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01WithOneTestFailedxml,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01WithOneTestFailedxml,
 					},
 				},
 			},
@@ -1997,7 +1997,7 @@ func TestTheTestsPassAndAreSuccessful(t *testing.T) {
 		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
-		prSuite.KubernetesReleaseVersion = "v1.30"
+		prSuite.KubernetesReleaseVersion = "v1.33"
 		if err := prSuite.theTestsPassAndAreSuccessful(); err != nil && !strings.Contains(err.Error(), tc.ExpectedErrorString) {
 			t.Fatalf("error with testcase '%v'; %v", tc.Name, err)
 		}
@@ -2029,9 +2029,9 @@ func TestAllRequiredTestsInArePresent(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 					},
 				},
 			},
@@ -2041,9 +2041,9 @@ func TestAllRequiredTestsInArePresent(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xmlWithOneExtraTest,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xmlWithOneExtraTest,
 					},
 				},
 			},
@@ -2053,9 +2053,9 @@ func TestAllRequiredTestsInArePresent(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01WithOneTestMissingxml,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01WithOneTestMissingxml,
 					},
 				},
 			},
@@ -2073,18 +2073,18 @@ func TestAllRequiredTestsInArePresent(t *testing.T) {
 			PullRequest: &PullRequest{
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01WithOneTestMissingxml,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01WithOneTestMissingxml,
 					},
 				},
 			},
 			MetadataFolder:      common.Pointer("nowhere"),
-			ExpectedErrorString: "open nowhere/v1.30/conformance.yaml",
+			ExpectedErrorString: "open nowhere/v1.33/conformance.yaml",
 		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)
-		prSuite.KubernetesReleaseVersion = "v1.30"
+		prSuite.KubernetesReleaseVersion = "v1.33"
 		if tc.MetadataFolder != nil {
 			prSuite.MetadataFolder = *tc.MetadataFolder
 		}
@@ -2254,7 +2254,7 @@ func TestGetLabelsAndCommentsFromSuiteResultsBuffer(t *testing.T) {
 		},
 		{
 			Name:              "invalid with KubernetesVersion",
-			KubernetesVersion: common.Pointer("v1.30"),
+			KubernetesVersion: common.Pointer("v1.33"),
 			PullRequest: &PullRequest{
 				PullRequestQuery:        PullRequestQuery{},
 				Labels:                  []string{},
@@ -2264,20 +2264,20 @@ func TestGetLabelsAndCommentsFromSuiteResultsBuffer(t *testing.T) {
 		},
 		{
 			Name:                    "invalid with KubernetesVersion and KubernetesVersionLatest",
-			KubernetesVersion:       common.Pointer("v1.30"),
-			KubernetesVersionLatest: common.Pointer("v1.30"),
+			KubernetesVersion:       common.Pointer("v1.33"),
+			KubernetesVersionLatest: common.Pointer("v1.33"),
 			PullRequest: &PullRequest{
 				PullRequestQuery:        PullRequestQuery{},
 				Labels:                  []string{},
 				SupportingFiles:         []*PullRequestFile{},
 				ProductYAMLURLDataTypes: map[string]string{},
 			},
-			ExpectedLabels: []string{"conformance-product-submission", "missing-file-README.md", "missing-file-PRODUCT.yaml", "missing-file-e2e.log", "missing-file-junit_01.xml", "release-v1.30", "not-verifiable"},
+			ExpectedLabels: []string{"conformance-product-submission", "missing-file-README.md", "missing-file-PRODUCT.yaml", "missing-file-e2e.log", "missing-file-junit_01.xml", "release-v1.33", "not-verifiable"},
 		},
 		{
 			Name:                    "invalid with non-cuke contents",
-			KubernetesVersion:       common.Pointer("v1.30"),
-			KubernetesVersionLatest: common.Pointer("v1.30"),
+			KubernetesVersion:       common.Pointer("v1.33"),
+			KubernetesVersionLatest: common.Pointer("v1.33"),
 			Buffer:                  bytes.NewBuffer([]byte(`hiiii`)),
 			PullRequest: &PullRequest{
 				PullRequestQuery:        PullRequestQuery{},
@@ -2303,11 +2303,11 @@ func TestGetLabelsAndCommentsFromSuiteResultsBuffer(t *testing.T) {
 		},
 		{
 			Name:                    "valid pull request",
-			KubernetesVersion:       common.Pointer("v1.30"),
-			KubernetesVersionLatest: common.Pointer("v1.30"),
+			KubernetesVersion:       common.Pointer("v1.33"),
+			KubernetesVersionLatest: common.Pointer("v1.33"),
 			PullRequest: &PullRequest{
 				PullRequestQuery: PullRequestQuery{
-					Title: githubql.String("Conformance results for v1.30/coolkube"),
+					Title: githubql.String("Conformance results for v1.33/coolkube"),
 					Commits: struct {
 						Nodes []struct {
 							Commit struct {
@@ -2366,11 +2366,11 @@ func TestGetLabelsAndCommentsFromSuiteResultsBuffer(t *testing.T) {
 				},
 				SupportingFiles: []*PullRequestFile{
 					{
-						Name:     "v1.30/coolkube/PRODUCT.yaml",
+						Name:     "v1.33/coolkube/PRODUCT.yaml",
 						BaseName: "PRODUCT.yaml",
 						Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.30"
+version: "v1.33"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "https://coolkubernetes.com"
@@ -2378,24 +2378,24 @@ documentation_url: "https://coolkubernetes.com/docs"
 contact_email_address: "sales@coolkubernetes.com"`,
 					},
 					{
-						Name:     "v1.30/coolkube/README.md",
+						Name:     "v1.33/coolkube/README.md",
 						BaseName: "README.md",
-						Contents: `# v1.30/coolkube`,
+						Contents: `# v1.33/coolkube`,
 					},
 					{
-						Name:     "v1.30/coolkube/e2e.log",
+						Name:     "v1.33/coolkube/e2e.log",
 						BaseName: "e2e.log",
 						Contents: `stuff here`,
 					},
 					{
-						Name:     "v1.30/coolkube/junit_01.xml",
+						Name:     "v1.33/coolkube/junit_01.xml",
 						BaseName: "junit_01.xml",
-						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV130Junit_01xml,
+						Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
 					},
 				},
 				ProductYAMLURLDataTypes: map[string]string{},
 			},
-			ExpectedLabels:  []string{"conformance-product-submission", "tests-verified-v1.30", "no-failed-tests-v1.30", "release-v1.30", "release-documents-checked"},
+			ExpectedLabels:  []string{"conformance-product-submission", "tests-verified-v1.33", "no-failed-tests-v1.33", "release-v1.33", "release-documents-checked"},
 			ExpectedComment: common.Pointer("All requirements (15) have passed for the submission!\n"),
 		},
 	} {

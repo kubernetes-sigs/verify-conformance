@@ -86,7 +86,7 @@ func TestReadFile(t *testing.T) {
 func TestSafeError(t *testing.T) {
 	inputText := "<p>Hello</p>"
 	expectedText := `&lt;p&gt;Hello&lt;/p&gt;`
-	err := fmt.Errorf(inputText)
+	err := fmt.Errorf("%s", inputText)
 	safeError := SafeError(err)
 	if safeError.Error() != expectedText {
 		t.Fatalf("error: html escape not applied to '%v'", safeError.Error())
@@ -144,6 +144,7 @@ func TestGetDataPath(t *testing.T) {
 				t.Errorf("error restoring env value: %v\n", err)
 			}
 		} else {
+			// nolint:errcheck
 			os.Unsetenv("KO_DATA_PATH")
 		}
 

@@ -41,7 +41,7 @@ func ReadFile(path string) (string, error) {
 }
 
 func SafeError(input error) (output error) {
-	return fmt.Errorf(html.EscapeString(input.Error()))
+	return fmt.Errorf("%s", html.EscapeString(input.Error()))
 }
 
 func GetDataPath() string {

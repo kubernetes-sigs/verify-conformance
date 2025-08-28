@@ -168,7 +168,11 @@ func fetchFileFromURI(uri string) (content string, resp *http.Response, err erro
 	if err != nil {
 		return "", nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Failed to close response body: %v", err)
+		}
+	}()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", nil, err
@@ -603,7 +607,7 @@ func handle(log *logrus.Entry, ghc githubClient, pr *suite.PullRequestQuery) err
 		return nil
 	}
 
-	fmt.Printf("PR url: https://github.com/%v/%v/pull/%v \n", prSuite.PR.PullRequestQuery.Repository.Owner.Login, prSuite.PR.PullRequestQuery.Repository.Name, prSuite.PR.PullRequestQuery.Number)
+	fmt.Printf("PR url: https://github.com/%v/%v/pull/%v \n", prSuite.PR.Repository.Owner.Login, prSuite.PR.Repository.Name, prSuite.PR.Number)
 	fmt.Println("PR title:", prSuite.PR.Title)
 	fmt.Println("Release Version:", prSuite.KubernetesReleaseVersion)
 	fmt.Println("Labels:", strings.Join(labels, ", "))

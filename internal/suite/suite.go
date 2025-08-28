@@ -359,7 +359,7 @@ func (s *PRSuite) aListOfCommits() error {
 
 func (s *PRSuite) thereIsOnlyOneCommit() error {
 	if len(s.PR.Commits.Nodes) > 1 {
-		return common.SafeError(fmt.Errorf("more than one commit was found; only one commit is allowed."))
+		return common.SafeError(fmt.Errorf("more than one commit was found; only one commit is allowed"))
 	}
 	return nil
 }
@@ -408,7 +408,7 @@ func (s *PRSuite) theContentOfTheInTheValueOfIsAValid(fieldType string, field st
 	case "email":
 		_, err = mail.ParseAddress(parsedContent[field])
 		if err != nil {
-			return common.SafeError(fmt.Errorf("Email field '%v' in PRODUCT.yaml is not a valid address, %v", field, err))
+			return common.SafeError(fmt.Errorf("email field '%v' in PRODUCT.yaml is not a valid address, %v", field, err))
 		}
 	}
 	return nil
@@ -587,10 +587,10 @@ func (s *PRSuite) getJunitSubmittedConformanceTests() (tests []sonobuoyresults.J
 			if !strings.Contains(testcase.Name, "[Conformance]") {
 				continue
 			}
-			testcase.Name = strings.Replace(testcase.Name, "&#39;", "'", -1)
-			testcase.Name = strings.Replace(testcase.Name, "&#34;", "\"", -1)
-			testcase.Name = strings.Replace(testcase.Name, "&gt;", ">", -1)
-			testcase.Name = strings.Replace(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"", -1)
+			testcase.Name = strings.ReplaceAll(testcase.Name, "&#39;", "'")
+			testcase.Name = strings.ReplaceAll(testcase.Name, "&#34;", "\"")
+			testcase.Name = strings.ReplaceAll(testcase.Name, "&gt;", ">")
+			testcase.Name = strings.ReplaceAll(testcase.Name, "'cat /tmp/health'", "\"cat /tmp/health\"")
 			tests = append(tests, testcase)
 		}
 	}

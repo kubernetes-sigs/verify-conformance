@@ -1092,7 +1092,7 @@ func TestThereIsOnlyOneCommit(t *testing.T) {
 					},
 				},
 			},
-			ExpectedErrorString: "more than one commit was found; only one commit is allowed.",
+			ExpectedErrorString: "more than one commit was found; only one commit is allowed",
 		},
 	} {
 		prSuite := NewPRSuite(tc.PullRequest)

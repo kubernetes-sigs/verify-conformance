@@ -59,7 +59,7 @@ func (o *options) Validate() error {
 	}
 
 	if o.repo == "" {
-		return fmt.Errorf("repo cannot be empty. Use: 'cncf/k8s-conformance'.")
+		return fmt.Errorf("repo cannot be empty. Use: 'cncf/k8s-conformance'")
 	}
 	if len(strings.Split(o.repo, "/")) != 2 {
 		return fmt.Errorf("repo must be formatted as ORG/NAME")

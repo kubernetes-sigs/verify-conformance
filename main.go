@@ -25,11 +25,10 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"k8s.io/test-infra/pkg/flagutil"
-	"k8s.io/test-infra/prow/config/secret"
-	prowflagutil "k8s.io/test-infra/prow/flagutil"
-	"k8s.io/test-infra/prow/github"
-	"k8s.io/test-infra/prow/plugins"
+	"sigs.k8s.io/prow/pkg/config/secret"
+	prowflagutil "sigs.k8s.io/prow/pkg/flagutil"
+	"sigs.k8s.io/prow/pkg/github"
+	"sigs.k8s.io/prow/pkg/plugins"
 
 	"sigs.k8s.io/verify-conformance/internal/plugin"
 )
@@ -52,7 +51,7 @@ type options struct {
 }
 
 func (o *options) Validate() error {
-	for _, group := range []flagutil.OptionGroup{&o.github} {
+	for _, group := range []prowflagutil.OptionGroup{&o.github} {
 		if err := group.Validate(o.dryRun); err != nil {
 			return err
 		}
@@ -78,7 +77,7 @@ func gatherOptions() options {
 	fs.DurationVar(&o.updatePeriod, "update-period", time.Hour*24, "Period duration for periodic scans of all PRs.")
 	fs.StringVar(&o.webhookSecretFile, "hmac-secret-file", "/etc/webhook/hmac", "Path to the file containing the GitHub HMAC secret.")
 
-	for _, group := range []flagutil.OptionGroup{&o.github} {
+	for _, group := range []prowflagutil.OptionGroup{&o.github} {
 		group.AddFlags(fs)
 	}
 	if err := fs.Parse(os.Args[1:]); err != nil {

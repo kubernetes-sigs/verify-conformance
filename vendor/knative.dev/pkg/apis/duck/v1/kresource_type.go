@@ -24,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"knative.dev/pkg/apis/duck/ducktypes"
+
 	"knative.dev/pkg/apis"
 )
 
@@ -40,6 +42,7 @@ type KRShaped interface {
 // Asserts KResource conformance with KRShaped
 var _ KRShaped = (*KResource)(nil)
 
+// +genduck
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // KResource is a skeleton type wrapping Conditions in the manner we expect
@@ -53,6 +56,11 @@ type KResource struct {
 	Status Status `json:"status"`
 }
 
+// GetFullType implements duck.Implementable
+func (*KResource) GetFullType() ducktypes.Populatable {
+	return &KResource{}
+}
+
 // Populate implements duck.Populatable
 func (t *KResource) Populate() {
 	t.Status.ObservedGeneration = 42
@@ -60,11 +68,17 @@ func (t *KResource) Populate() {
 		// Populate ALL fields
 		Type:               "Birthday",
 		Status:             corev1.ConditionTrue,
-		LastTransitionTime: apis.VolatileTime{Inner: metav1.NewTime(time.Date(1984, 02, 28, 18, 52, 00, 00, time.UTC))},
+		LastTransitionTime: apis.VolatileTime{Inner: metav1.NewTime(time.Date(1984, 2, 28, 18, 52, 0, 0, time.UTC))},
 		Reason:             "Celebrate",
 		Message:            "n3wScott, find your party hat :tada:",
 	}}
 }
+
+// Verify KResource resources meet duck contracts.
+var (
+	_ apis.Listable         = (*KResource)(nil)
+	_ ducktypes.Populatable = (*KResource)(nil)
+)
 
 // GetListType implements apis.Listable
 func (*KResource) GetListType() runtime.Object {

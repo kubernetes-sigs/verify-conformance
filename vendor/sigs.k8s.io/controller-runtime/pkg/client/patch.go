@@ -19,7 +19,7 @@ package client
 import (
 	"fmt"
 
-	jsonpatch "github.com/evanphx/json-patch"
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -27,6 +27,8 @@ import (
 
 var (
 	// Apply uses server-side apply to patch the given object.
+	//
+	// Deprecated: Use client.Client.Apply() instead.
 	Apply Patch = applyPatch{}
 
 	// Merge uses the raw object as a merge patch, without modifications.

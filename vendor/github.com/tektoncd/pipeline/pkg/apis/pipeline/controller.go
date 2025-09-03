@@ -18,12 +18,20 @@ package pipeline
 
 const (
 	// PipelineRunControllerName holds the name of the PipelineRun controller
-	// nolint: golint
 	PipelineRunControllerName = "PipelineRun"
+
+	// PipelineControllerName holds the name of the Pipeline controller
+	PipelineControllerName = "Pipeline"
 
 	// TaskRunControllerName holds the name of the TaskRun controller
 	TaskRunControllerName = "TaskRun"
 
-	// TaskRunControllerName holds the name of the PipelineRun controller
+	// TaskControllerName holds the name of the Task controller
+	TaskControllerName = "Task"
+
+	// RunControllerName holds the name of the Custom Task controller
 	RunControllerName = "Run"
+
+	// CustomRunControllerName holds the name of the CustomRun controller
+	CustomRunControllerName = "CustomRun"
 )

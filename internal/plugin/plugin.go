@@ -31,10 +31,10 @@ import (
 
 	githubql "github.com/shurcooL/githubv4"
 	"github.com/sirupsen/logrus"
-	"k8s.io/test-infra/prow/config"
-	"k8s.io/test-infra/prow/github"
-	"k8s.io/test-infra/prow/pluginhelp"
-	"k8s.io/test-infra/prow/plugins"
+	"sigs.k8s.io/prow/pkg/config"
+	"sigs.k8s.io/prow/pkg/github"
+	"sigs.k8s.io/prow/pkg/pluginhelp"
+	"sigs.k8s.io/prow/pkg/plugins"
 	"sigs.k8s.io/yaml"
 
 	"sigs.k8s.io/verify-conformance/internal/common"

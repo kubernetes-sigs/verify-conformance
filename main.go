@@ -25,11 +25,11 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"k8s.io/test-infra/pkg/flagutil"
-	"k8s.io/test-infra/prow/config/secret"
-	prowflagutil "k8s.io/test-infra/prow/flagutil"
-	"k8s.io/test-infra/prow/github"
-	"k8s.io/test-infra/prow/plugins"
+	"sigs.k8s.io/prow/pkg/flagutil"
+	"sigs.k8s.io/prow/pkg/config/secret"
+	prowflagutil "sigs.k8s.io/prow/pkg/flagutil"
+	"sigs.k8s.io/prow/pkg/github"
+	"sigs.k8s.io/prow/pkg/plugins"
 
 	"sigs.k8s.io/verify-conformance/internal/plugin"
 )

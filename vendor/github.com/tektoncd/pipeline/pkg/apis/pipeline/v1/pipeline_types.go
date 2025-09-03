@@ -51,6 +51,7 @@ const (
 // Pipeline describes a list of Tasks to execute. It expresses how outputs
 // of tasks feed into inputs of subsequent tasks.
 // +k8s:openapi-gen=true
+// +kubebuilder:storageversion
 type Pipeline struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
@@ -114,7 +115,6 @@ type PipelineSpec struct {
 	Tasks []PipelineTask `json:"tasks,omitempty"`
 	// Params declares a list of input parameters that must be supplied when
 	// this Pipeline is run.
-	// +listType=atomic
 	Params ParamSpecs `json:"params,omitempty"`
 	// Workspaces declares a set of named workspaces that are expected to be
 	// provided by a PipelineRun.
@@ -147,6 +147,8 @@ type PipelineResult struct {
 	Description string `json:"description"`
 
 	// Value the expression used to retrieve the value
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
 	Value ResultValue `json:"value"`
 }
 
@@ -200,8 +202,11 @@ type PipelineTask struct {
 
 	// TaskSpec is a specification of a task
 	// Specifying TaskSpec can be disabled by setting
-	// `disable-inline-spec` feature flag..
+	// `disable-inline-spec` feature flag.
+	// See Task.spec (API version: tekton.dev/v1)
 	// +optional
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
 	TaskSpec *EmbeddedTask `json:"taskSpec,omitempty"`
 
 	// When is a list of when expressions that need to be true for the task to run
@@ -220,7 +225,6 @@ type PipelineTask struct {
 
 	// Parameters declares parameters passed to this task.
 	// +optional
-	// +listType=atomic
 	Params Params `json:"params,omitempty"`
 
 	// Matrix declares parameters used to fan out this task.
@@ -246,8 +250,11 @@ type PipelineTask struct {
 	// PipelineSpec is a specification of a pipeline
 	// Note: PipelineSpec is in preview mode and not yet supported
 	// Specifying PipelineSpec can be disabled by setting
-	// `disable-inline-spec` feature flag..
+	// `disable-inline-spec` feature flag.
+	// See Pipeline.spec (API version: tekton.dev/v1)
 	// +optional
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
 	PipelineSpec *PipelineSpec `json:"pipelineSpec,omitempty"`
 
 	// OnError defines the exiting behavior of a PipelineRun on error

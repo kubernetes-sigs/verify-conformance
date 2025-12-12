@@ -8,9 +8,8 @@ steps:
     args:
       - -c
       - |
-        exoprt GO_VERSION="1.25.5"
-        wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz
-        tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
+        wget https://go.dev/dl/go1.25.5.linux-amd64.tar.gz
+        tar -C /usr/local -xzf go1.25.5.linux-amd64.tar.gz
         export KO_DOCKER_REPO=gcr.io/$PROJECT_ID/verify-conformance
         ko build --bare --tags $_GIT_TAG .
   # TODO sign image with OIDC

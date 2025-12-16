@@ -15,7 +15,5 @@ steps:
 substitutions:
   _GIT_TAG: '12345'
   _PULL_BASE_REF: 'main'
-images:
-  - 'gcr.io/$PROJECT_ID/verify-conformance:$_GIT_TAG'
 options:
   substitution_option: 'ALLOW_LOOSE'

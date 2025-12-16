@@ -3,13 +3,11 @@ steps:
   # NOTE this image comes with Go which may
   #      end up not matching the version required
   #      in go.mod
-  - name: ghcr.io/ko-build/ko:v0.18.0
+  - name: ghcr.io/ko-build/ko:v0.18.1
     entrypoint: /bin/sh
     args:
       - -c
       - |
-        wget https://go.dev/dl/go1.25.5.linux-amd64.tar.gz
-        tar -C /usr/local -xzf go1.25.5.linux-amd64.tar.gz
         export KO_DOCKER_REPO=gcr.io/$PROJECT_ID/verify-conformance
         ko build --bare --tags $_GIT_TAG .
   # TODO sign image with OIDC

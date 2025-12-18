@@ -1681,12 +1681,12 @@ func TestGetRequiredTests(t *testing.T) {
 		},
 		{
 			Name:               "valid alternate version",
-			Version:            "v1.32",
-			ExpectedTestsCount: 411, // NOTE magic number is count of tests form conformance.yaml
+			Version:            "v1.34",
+			ExpectedTestsCount: 424, // NOTE magic number is count of tests form conformance.yaml
 		},
 		{
 			Name:               "valid with test with version above pr version",
-			Version:            "v1.34",
+			Version:            "v1.36",
 			MetadataFolder:     common.Pointer("testdata/metadata/version-of-test-higher"),
 			ExpectedTestsCount: 0,
 		},

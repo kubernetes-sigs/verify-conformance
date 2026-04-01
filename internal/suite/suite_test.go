@@ -1694,7 +1694,7 @@ func TestGetRequiredTests(t *testing.T) {
 			Name:                "invalid with malformed version",
 			Version:             "v1.notfound",
 			ExpectedTestsCount:  0,
-			ExpectedErrorString: "Malformed version",
+			ExpectedErrorString: "malformed version",
 		},
 		{
 			Name:                "invalid unable to parse conformance.yaml",
@@ -1708,7 +1708,7 @@ func TestGetRequiredTests(t *testing.T) {
 			Version:             "v1.30",
 			ExpectedTestsCount:  0,
 			MetadataFolder:      common.Pointer("testdata/metadata/bad-version-in-conformance.yaml"),
-			ExpectedErrorString: "Malformed version",
+			ExpectedErrorString: "malformed version",
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -2250,7 +2250,7 @@ func TestGetLabelsAndCommentsFromSuiteResultsBuffer(t *testing.T) {
 				SupportingFiles:         []*PullRequestFile{},
 				ProductYAMLURLDataTypes: map[string]string{},
 			},
-			ExpectedErrorString: "Malformed version",
+			ExpectedErrorString: "malformed version",
 		},
 		{
 			Name:              "invalid with KubernetesVersion",

@@ -3,7 +3,7 @@ steps:
   # NOTE this image comes with Go which may
   #      end up not matching the version required
   #      in go.mod
-  - name: ghcr.io/ko-build/ko:v0.18.1
+  - name: ghcr.io/ko-build/ko:e46f651cb12c5cc4eec8a6bd49d895df7c1fe1e5 # go1.26.1
     entrypoint: /bin/sh
     args:
       - -c
@@ -16,4 +16,4 @@ substitutions:
   _GIT_TAG: '12345'
   _PULL_BASE_REF: 'main'
 options:
-  substitution_option: 'ALLOW_LOOSE'
+  substitutionOption: 'ALLOW_LOOSE'

@@ -3,7 +3,7 @@ steps:
   # NOTE this image comes with Go which may
   #      end up not matching the version required
   #      in go.mod
-  - name: ghcr.io/ko-build/ko:e46f651cb12c5cc4eec8a6bd49d895df7c1fe1e5 # go1.26.1
+  - name: ghcr.io/ko-build/ko:c63784bd68a6683edada345d11c899bd426c4ede # go1.26.2
     entrypoint: /bin/sh
     args:
       - -c

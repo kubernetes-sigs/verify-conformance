@@ -41,8 +41,8 @@ import (
 var (
 	log = logrus.StandardLogger().WithField("plugin", "verify-conformance")
 
-	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-33-junit_01.xml
-	testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml string
+	//go:embed testdata/TestGetJunitSubmittedConformanceTests-coolkube-v1-34-junit_01.xml
+	testGetJunitSubmittedConformanceTestsCoolkubeV134Junit_01xml string
 )
 
 type prContext struct {
@@ -328,8 +328,8 @@ func Test_rawURLForBlobURL(t *testing.T) {
 	}
 	for _, u := range []testCase{
 		{
-			BlobURL:           "https://github.com/smira/k8s-conformance/blob/2c25ea5963e88ad77a8035dc639c7e3a60b8fb0f/v1.33/kind/PRODUCT.yaml",
-			RawUserContentURL: "https://raw.githubusercontent.com/smira/k8s-conformance/2c25ea5963e88ad77a8035dc639c7e3a60b8fb0f/v1.33/kind/PRODUCT.yaml",
+			BlobURL:           "https://github.com/smira/k8s-conformance/blob/2c25ea5963e88ad77a8035dc639c7e3a60b8fb0f/v1.34/kind/PRODUCT.yaml",
+			RawUserContentURL: "https://raw.githubusercontent.com/smira/k8s-conformance/2c25ea5963e88ad77a8035dc639c7e3a60b8fb0f/v1.34/kind/PRODUCT.yaml",
 		},
 		{
 			BlobURL:           "https://github.com/cncf/apisnoop/blob/main/505_output_coverage_jsons.sql",
@@ -448,18 +448,18 @@ func TestNewPRSuiteForPR(t *testing.T) {
 			},
 			SupportingFiles: []*suite.PullRequestFile{
 				{
-					Name:     "v1.33/coolkube/README.md",
+					Name:     "v1.34/coolkube/README.md",
 					BaseName: "README.md",
 					BlobURL:  "README.md",
 					Contents: `# CoolKube`,
 				},
 				{
-					Name:     "v1.33/coolkube/PRODUCT.yaml",
+					Name:     "v1.34/coolkube/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					BlobURL:  "PRODUCT.yaml",
 					Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.33"
+version: "v1.34"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "website_url"
@@ -467,13 +467,13 @@ documentation_url: "docs"
 contact_email_address: "sales@coolkubernetes.com"`,
 				},
 				{
-					Name:     "v1.33/coolkube/junit_01.xml",
+					Name:     "v1.34/coolkube/junit_01.xml",
 					BaseName: "junit_01.xml",
 					BlobURL:  "junit_01.xml",
-					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV134Junit_01xml,
 				},
 				{
-					Name:     "v1.33/coolkube/e2e.log",
+					Name:     "v1.34/coolkube/e2e.log",
 					BaseName: "e2e.log",
 					BlobURL:  "e2e.log",
 					Contents: `cool!`,
@@ -607,8 +607,8 @@ func Test_labelIsVersionLabel(t *testing.T) {
 
 	for _, tc := range []testCase{
 		{
-			Label:          "release-v1.33",
-			Version:        "v1.33",
+			Label:          "release-v1.34",
+			Version:        "v1.34",
 			ExpectedResult: true,
 		},
 		{
@@ -617,8 +617,8 @@ func Test_labelIsVersionLabel(t *testing.T) {
 			ExpectedResult: true,
 		},
 		{
-			Label:          "no-failed-tests-v1.33",
-			Version:        "v1.33",
+			Label:          "no-failed-tests-v1.34",
+			Version:        "v1.34",
 			ExpectedResult: true,
 		},
 		{
@@ -627,18 +627,18 @@ func Test_labelIsVersionLabel(t *testing.T) {
 			ExpectedResult: true,
 		},
 		{
-			Label:          "tests-verified-v1.33",
-			Version:        "v1.33",
+			Label:          "tests-verified-v1.34",
+			Version:        "v1.34",
 			ExpectedResult: true,
 		},
 		{
-			Label:          "am-i-a-label-v1.33",
-			Version:        "v1.33",
+			Label:          "am-i-a-label-v1.34",
+			Version:        "v1.34",
 			ExpectedResult: false,
 		},
 		{
 			Label:          "thing",
-			Version:        "v1.33",
+			Version:        "v1.34",
 			ExpectedResult: false,
 		},
 	} {
@@ -761,14 +761,14 @@ func Test_handle(t *testing.T) {
 		{
 			Name:                    "valid submission",
 			Labels:                  []string{"conformance-product-submission"},
-			KubernetesVersion:       common.Pointer("v1.33"),
-			KubernetesVersionLatest: common.Pointer("v1.33"),
+			KubernetesVersion:       common.Pointer("v1.34"),
+			KubernetesVersionLatest: common.Pointer("v1.34"),
 			ExpectedComment:         "have passed for the submission",
 			ExpectedStatus:          "success",
-			ExpectedLabels:          []string{"conformance-product-submission", "tests-verified-v1.33", "no-failed-tests-v1.33", "release-v1.33", "release-documents-checked"},
+			ExpectedLabels:          []string{"conformance-product-submission", "tests-verified-v1.34", "no-failed-tests-v1.34", "release-v1.34", "release-documents-checked"},
 			SupportingFiles: []*suite.PullRequestFile{
 				{
-					Name:     "v1.33/coolkube/README.md",
+					Name:     "v1.34/coolkube/README.md",
 					BaseName: "README.md",
 					Contents: `# coolkube
 > the coolest Kubernetes distribution
@@ -780,11 +780,11 @@ func Test_handle(t *testing.T) {
 					BlobURL: "README.md",
 				},
 				{
-					Name:     "v1.33/coolkube/PRODUCT.yaml",
+					Name:     "v1.34/coolkube/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.33"
+version: "v1.34"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "website_url"
@@ -793,20 +793,20 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					BlobURL: "PRODUCT.yaml",
 				},
 				{
-					Name:     "v1.33/coolkube/e2e.log",
+					Name:     "v1.34/coolkube/e2e.log",
 					BaseName: "e2e.log",
 					Contents: "12345",
 					BlobURL:  "e2e.log",
 				},
 				{
-					Name:     "v1.33/coolkube/junit_01.xml",
+					Name:     "v1.34/coolkube/junit_01.xml",
 					BaseName: "junit_01.xml",
-					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV134Junit_01xml,
 					BlobURL:  "junit_01.xml",
 				},
 			},
 			PullRequestQuery: &suite.PullRequestQuery{
-				Title:  githubql.String("Conformance results for v1.33/coolkube"),
+				Title:  githubql.String("Conformance results for v1.34/coolkube"),
 				Number: githubql.Int(0),
 				Commits: struct {
 					Nodes []struct {
@@ -905,7 +905,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 				{
 					Name:     "v1.57/coolkube/junit_01.xml",
 					BaseName: "junit_01.xml",
-					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV134Junit_01xml,
 					BlobURL:  "junit_01.xml",
 				},
 			},
@@ -1091,7 +1091,7 @@ func TestHandlePullRequestEvent(t *testing.T) {
 			name: "basic",
 			supportingFiles: []*suite.PullRequestFile{
 				{
-					Name:     "v1.33/coolkube/README.md",
+					Name:     "v1.34/coolkube/README.md",
 					BaseName: "README.md",
 					Contents: `# coolkube
 > the coolest Kubernetes distribution
@@ -1103,11 +1103,11 @@ func TestHandlePullRequestEvent(t *testing.T) {
 					BlobURL: "README.md",
 				},
 				{
-					Name:     "v1.33/coolkube/PRODUCT.yaml",
+					Name:     "v1.34/coolkube/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.33"
+version: "v1.34"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "website_url"
@@ -1116,15 +1116,15 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					BlobURL: "PRODUCT.yaml",
 				},
 				{
-					Name:     "v1.33/coolkube/e2e.log",
+					Name:     "v1.34/coolkube/e2e.log",
 					BaseName: "e2e.log",
 					Contents: "",
 					BlobURL:  "e2e.log",
 				},
 				{
-					Name:     "v1.33/coolkube/junit_01.xml",
+					Name:     "v1.34/coolkube/junit_01.xml",
 					BaseName: "junit_01.xml",
-					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV134Junit_01xml,
 					BlobURL:  "junit_01.xml",
 				},
 			},
@@ -1140,7 +1140,7 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					},
 					Number: 12345,
 					PullRequest: github.PullRequest{
-						Title: "Conformance results for v1.33/coolkube",
+						Title: "Conformance results for v1.34/coolkube",
 						User: github.User{
 							Login: "example",
 						},
@@ -1232,7 +1232,7 @@ func TestHandleIssueCommentEvent(t *testing.T) {
 			name: "basic",
 			pullRequestQuery: &suite.PullRequestQuery{
 				Number: githubql.Int(12345),
-				Title:  githubql.String("Conformance results for v1.33/coolkube"),
+				Title:  githubql.String("Conformance results for v1.34/coolkube"),
 				Commits: struct {
 					Nodes []struct {
 						Commit struct {
@@ -1291,7 +1291,7 @@ func TestHandleIssueCommentEvent(t *testing.T) {
 			},
 			supportingFiles: []*suite.PullRequestFile{
 				{
-					Name:     "v1.33/coolkube/README.md",
+					Name:     "v1.34/coolkube/README.md",
 					BaseName: "README.md",
 					Contents: `# coolkube
 > the coolest Kubernetes distribution
@@ -1303,11 +1303,11 @@ func TestHandleIssueCommentEvent(t *testing.T) {
 					BlobURL: "README.md",
 				},
 				{
-					Name:     "v1.33/coolkube/PRODUCT.yaml",
+					Name:     "v1.34/coolkube/PRODUCT.yaml",
 					BaseName: "PRODUCT.yaml",
 					Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.33"
+version: "v1.34"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "website_url"
@@ -1316,15 +1316,15 @@ contact_email_address: "sales@coolkubernetes.com"`,
 					BlobURL: "PRODUCT.yaml",
 				},
 				{
-					Name:     "v1.33/coolkube/e2e.log",
+					Name:     "v1.34/coolkube/e2e.log",
 					BaseName: "e2e.log",
 					Contents: "",
 					BlobURL:  "e2e.log",
 				},
 				{
-					Name:     "v1.33/coolkube/junit_01.xml",
+					Name:     "v1.34/coolkube/junit_01.xml",
 					BaseName: "junit_01.xml",
-					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
+					Contents: testGetJunitSubmittedConformanceTestsCoolkubeV134Junit_01xml,
 					BlobURL:  "junit_01.xml",
 				},
 			},
@@ -1433,7 +1433,7 @@ func TestHandleAll(t *testing.T) {
 				{
 					PullRequestQuery: &suite.PullRequestQuery{
 						Number: githubql.Int(12345),
-						Title:  githubql.String("Conformance results for v1.33/coolkube"),
+						Title:  githubql.String("Conformance results for v1.34/coolkube"),
 						Commits: struct {
 							Nodes []struct {
 								Commit struct {
@@ -1492,7 +1492,7 @@ func TestHandleAll(t *testing.T) {
 					},
 					SupportingFiles: []*suite.PullRequestFile{
 						{
-							Name:     "v1.33/coolkube/README.md",
+							Name:     "v1.34/coolkube/README.md",
 							BaseName: "README.md",
 							Contents: `# coolkube
 > the coolest Kubernetes distribution
@@ -1504,11 +1504,11 @@ func TestHandleAll(t *testing.T) {
 							BlobURL: "README.md",
 						},
 						{
-							Name:     "v1.33/coolkube/PRODUCT.yaml",
+							Name:     "v1.34/coolkube/PRODUCT.yaml",
 							BaseName: "PRODUCT.yaml",
 							Contents: `vendor: "cool"
 name: "coolkube"
-version: "v1.33"
+version: "v1.34"
 type: "distribution"
 description: "it's just all-round cool and probably the best k8s, idk"
 website_url: "website_url"
@@ -1517,15 +1517,15 @@ contact_email_address: "sales@coolkubernetes.com"`,
 							BlobURL: "PRODUCT.yaml",
 						},
 						{
-							Name:     "v1.33/coolkube/e2e.log",
+							Name:     "v1.34/coolkube/e2e.log",
 							BaseName: "e2e.log",
 							Contents: "",
 							BlobURL:  "e2e.log",
 						},
 						{
-							Name:     "v1.33/coolkube/junit_01.xml",
+							Name:     "v1.34/coolkube/junit_01.xml",
 							BaseName: "junit_01.xml",
-							Contents: testGetJunitSubmittedConformanceTestsCoolkubeV133Junit_01xml,
+							Contents: testGetJunitSubmittedConformanceTestsCoolkubeV134Junit_01xml,
 							BlobURL:  "junit_01.xml",
 						},
 					},
@@ -1706,7 +1706,7 @@ func Test_isConformancePR(t *testing.T) {
 			name: "basic",
 			args: args{
 				pr: &suite.PullRequestQuery{
-					Title: "Conformance results for v1.33/coolkube",
+					Title: "Conformance results for v1.34/coolkube",
 				},
 			},
 			want: true,
@@ -1760,7 +1760,7 @@ func Test_updateStatus(t *testing.T) {
 				log: log,
 				pr: &suite.PullRequestQuery{
 					Number:     githubql.Int(12345),
-					Title:      githubql.String("Conformance results for v1.33/coolkube"),
+					Title:      githubql.String("Conformance results for v1.34/coolkube"),
 					HeadRefOID: "12345678",
 					Commits: struct {
 						Nodes []struct {

@@ -21,4 +21,25 @@ set -o pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
 go install golang.org/x/vuln/cmd/govulncheck@latest
-govulncheck ./...
+
+# Ignore vulnerabilities that are known and accepted by the project.
+export IGNORE="GO-2023-1901" # TektonCD issue without a fix yet!
+
+govulncheck -format json ./... > vulns.json || true
+
+REMAINING=$(jq -rs '
+  [.[] | select(.finding != null)
+       | .finding
+       | select(.trace[0].function != null)
+       | .osv]
+  | unique
+  | map(select(. as $id | ($ENV.IGNORE | split(" ") | index($id)) == null))
+  | .[]
+' vulns.json)
+
+if [ -n "$REMAINING" ]; then
+  echo "Unignored vulnerabilities found:"
+  echo "$REMAINING"
+  exit 1
+fi
+echo "Only ignored/known vulnerabilities present."

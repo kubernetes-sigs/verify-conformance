@@ -23,7 +23,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 go install golang.org/x/vuln/cmd/govulncheck@latest
 
 # Ignore vulnerabilities that are known and accepted by the project.
-IGNORE="GO-2023-1901" # TektonCD issue without a fix yet!
+export IGNORE="GO-2023-1901" # TektonCD issue without a fix yet!
 
 govulncheck -format json ./... > vulns.json || true
 

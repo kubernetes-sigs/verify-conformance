@@ -18,7 +18,7 @@ package github
 
 import (
 	"crypto/hmac"
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -39,20 +39,20 @@ type HMACToken struct {
 type HMACsForRepo []HMACToken
 
 // ValidatePayload ensures that the request payload signature matches the key.
-func ValidatePayload(payload []byte, sig string, tokenGenerator func() []byte) bool {
+func ValidatePayload(payload []byte, sig string, tokenGenerator func() []byte) (bool, string) {
 	var event GenericEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
 		logrus.WithError(err).Info("validatePayload couldn't unmarshal the github event payload")
-		return false
+		return false, "invalid payload"
 	}
 
-	if !strings.HasPrefix(sig, "sha1=") {
-		return false
+	if !strings.HasPrefix(sig, "sha256=") {
+		return false, "invalid signature"
 	}
-	sig = sig[5:]
+	sig = sig[7:]
 	sb, err := hex.DecodeString(sig)
 	if err != nil {
-		return false
+		return false, "invalid signature"
 	}
 
 	orgRepo := event.Repo.FullName
@@ -63,27 +63,27 @@ func ValidatePayload(payload []byte, sig string, tokenGenerator func() []byte) b
 	hmacs, err := extractHMACs(orgRepo, tokenGenerator)
 	if err != nil {
 		logrus.WithError(err).Warning("failed to get an appropriate hmac secret")
-		return false
+		return false, "failed to get an appropriate hmac secret"
 	}
 
 	// If we have a match with any valid hmac, we can validate successfully.
 	for _, key := range hmacs {
-		mac := hmac.New(sha1.New, key)
+		mac := hmac.New(sha256.New, key)
 		mac.Write(payload)
 		expected := mac.Sum(nil)
 		if hmac.Equal(sb, expected) {
-			return true
+			return true, ""
 		}
 	}
-	return false
+	return false, "misconfigured webhook secret from organization/repo: " + orgRepo
 }
 
 // PayloadSignature returns the signature that matches the payload.
 func PayloadSignature(payload []byte, key []byte) string {
-	mac := hmac.New(sha1.New, key)
+	mac := hmac.New(sha256.New, key)
 	mac.Write(payload)
 	sum := mac.Sum(nil)
-	return "sha1=" + hex.EncodeToString(sum)
+	return "sha256=" + hex.EncodeToString(sum)
 }
 
 // extractHMACs returns all *valid* HMAC tokens for given repository/organization.

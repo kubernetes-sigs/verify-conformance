@@ -19,7 +19,8 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"net"
 	"os"
 	"strings"
 
@@ -56,7 +57,7 @@ func LoadConfig(pathsToTry ...string) (*Config, error) {
 	defer jsonFile.Close()
 	logrus.Tracef("Loading config from file: %v", fpath)
 
-	b, err := ioutil.ReadAll(jsonFile)
+	b, err := io.ReadAll(jsonFile)
 	if err != nil {
 		return nil, errors.Wrapf(err, "read config file %q", fpath)
 	}
@@ -90,7 +91,12 @@ func (cfg *Config) Resolve() {
 	// Figure out what address we will tell pods to dial for aggregation
 	if cfg.Aggregation.AdvertiseAddress == "" {
 		if ip := os.Getenv("SONOBUOY_ADVERTISE_IP"); ip != "" {
-			cfg.Aggregation.AdvertiseAddress = fmt.Sprintf("[%v]:%d", ip, cfg.Aggregation.BindPort)
+			netIp := net.ParseIP(ip)
+			if netIp != nil && netIp.To4() != nil {
+				cfg.Aggregation.AdvertiseAddress = fmt.Sprintf("%v:%d", ip, cfg.Aggregation.BindPort)
+			} else {
+				cfg.Aggregation.AdvertiseAddress = fmt.Sprintf("[%v]:%d", ip, cfg.Aggregation.BindPort)
+			}
 		} else {
 			hostname, _ := os.Hostname()
 			if hostname != "" {

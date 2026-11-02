@@ -91,7 +91,7 @@ func LeastRecentlyUpdated(ctx context.Context, log logrus.FieldLogger, client St
 	for i, path := range paths {
 		attrs, err := attrs[i].Attrs, attrs[i].Err
 		switch {
-		case err == storage.ErrObjectNotExist:
+		case errors.Is(err, storage.ErrObjectNotExist):
 			generations[path] = 0
 		case err != nil:
 			log.WithError(err).WithField("path", path).Warning("Stat failed")
@@ -136,19 +136,22 @@ func Touch(ctx context.Context, client ConditionalClient, path Path, generation 
 
 	// New group, upload the bytes for this situation.
 	cond.DoesNotExist = true
-	return client.If(&cond, &cond).Upload(ctx, path, genZero, DefaultACL, "no-cache")
+	return client.If(&cond, &cond).Upload(ctx, path, genZero, DefaultACL, NoCache)
 }
 
 // Sort the builds by monotonically decreasing original prefix base name.
 //
 // In other words,
-//   gs://b/1
-//   gs://a/5
-//   gs://c/10
+//
+//	gs://b/1
+//	gs://a/5
+//	gs://c/10
+//
 // becomes:
-//   gs://c/10
-//   gs://a/5
-//   gs://b/1
+//
+//	gs://c/10
+//	gs://a/5
+//	gs://b/1
 func Sort(builds []Build) {
 	sort.SliceStable(builds, func(i, j int) bool { // greater
 		return !sortorder.NaturalLess(builds[i].baseName, builds[j].baseName) && builds[i].baseName != builds[j].baseName

@@ -20,7 +20,6 @@ import (
 	"mime"
 	"strings"
 
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/prow/pkg/io"
 )
 
@@ -40,12 +39,15 @@ func WriterOptionsFromFileName(filename string) (string, io.WriterOptions) {
 	segment := segments[index]
 
 	// https://www.iana.org/assignments/http-parameters/http-parameters.xhtml#content-coding
-	switch segment {
-	case "gz", "gzip":
-		attrs.ContentEncoding = ptr.To("gzip")
-	}
+	isGzip := segment == "gz" || segment == "gzip"
+	// A .tar.gz is a gzipped archive, not a gzip-encoded .tar: declaring
+	// Content-Encoding: gzip would store it as a bare .tar and have GCS
+	// decompress it on read, so leave both the name and the bytes alone.
+	isTarball := isGzip && index > 0 && segments[index-1] == "tar"
 
-	if attrs.ContentEncoding != nil {
+	if isGzip && !isTarball {
+		attrs.ContentEncoding = new("gzip")
+
 		if index == 0 {
 			segment = ""
 		} else {
@@ -55,15 +57,14 @@ func WriterOptionsFromFileName(filename string) (string, io.WriterOptions) {
 		}
 	}
 
-	if segment != "" {
-		mediaType := mime.TypeByExtension("." + segment)
-		if mediaType != "" {
-			attrs.ContentType = ptr.To(mediaType)
+	if !isTarball && segment != "" {
+		if mediaType := mime.TypeByExtension("." + segment); mediaType != "" {
+			attrs.ContentType = new(mediaType)
 		}
 	}
 
-	if attrs.ContentType == nil && attrs.ContentEncoding != nil && *attrs.ContentEncoding == "gzip" {
-		attrs.ContentType = ptr.To("application/gzip")
+	if attrs.ContentType == nil && isGzip {
+		attrs.ContentType = new("application/gzip")
 		attrs.ContentEncoding = nil
 	}
 

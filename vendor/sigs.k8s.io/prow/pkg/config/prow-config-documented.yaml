@@ -65,6 +65,8 @@ branch-protection:
                             # RequireManuallyTriggeredJobs enforces a context presence when job runs conditionally, but not automatically,
                             # that results in params always_run: false, optional: false, and skip_if_only_change, run_if_changed not present.
                             require_manually_triggered_jobs: false
+                            # RequireSignedCommits requires all commits pushed to the branch to be signed with a verified signature.
+                            require_signed_commits: false
                             # RequiredLinearHistory enforces a linear commit Git history, which prevents anyone from pushing merge commits to a branch.
                             required_linear_history: false
                             # RequiredPullRequestReviews specifies github approval/review criteria.
@@ -119,6 +121,8 @@ branch-protection:
                     # RequireManuallyTriggeredJobs enforces a context presence when job runs conditionally, but not automatically,
                     # that results in params always_run: false, optional: false, and skip_if_only_change, run_if_changed not present.
                     require_manually_triggered_jobs: false
+                    # RequireSignedCommits requires all commits pushed to the branch to be signed with a verified signature.
+                    require_signed_commits: false
                     # RequiredLinearHistory enforces a linear commit Git history, which prevents anyone from pushing merge commits to a branch.
                     required_linear_history: false
                     # RequiredPullRequestReviews specifies github approval/review criteria.
@@ -161,6 +165,8 @@ branch-protection:
             # RequireManuallyTriggeredJobs enforces a context presence when job runs conditionally, but not automatically,
             # that results in params always_run: false, optional: false, and skip_if_only_change, run_if_changed not present.
             require_manually_triggered_jobs: false
+            # RequireSignedCommits requires all commits pushed to the branch to be signed with a verified signature.
+            require_signed_commits: false
             # RequiredLinearHistory enforces a linear commit Git history, which prevents anyone from pushing merge commits to a branch.
             required_linear_history: false
             # RequiredPullRequestReviews specifies github approval/review criteria.
@@ -212,6 +218,8 @@ branch-protection:
     # RequireManuallyTriggeredJobs enforces a context presence when job runs conditionally, but not automatically,
     # that results in params always_run: false, optional: false, and skip_if_only_change, run_if_changed not present.
     require_manually_triggered_jobs: false
+    # RequireSignedCommits requires all commits pushed to the branch to be signed with a verified signature.
+    require_signed_commits: false
     # RequiredLinearHistory enforces a linear commit Git history, which prevents anyone from pushing merge commits to a branch.
     required_linear_history: false
     # RequiredPullRequestReviews specifies github approval/review criteria.
@@ -921,6 +929,13 @@ plank:
             # SkipCloning determines if we should clone source code in the
             # initcontainers for jobs that specify refs
             skip_cloning: false
+            # SparseCheckoutFiles limits the working tree to only the listed paths.
+            # Accepts the same patterns as git sparse-checkout set (file names,
+            # directory names, gitignore-style globs). When set, clonerefs performs a
+            # sparse checkout instead of a full clone. Applied to the primary ref for
+            # presubmit/postsubmit jobs. Not applied to extra refs.
+            sparse_checkout_files:
+                - ""
             # SSHHostFingerprints are the fingerprints of known SSH hosts
             # that the cloning process can trust.
             # Create with ssh-keyscan [-t rsa] host
@@ -1282,6 +1297,13 @@ plank:
             # SkipCloning determines if we should clone source code in the
             # initcontainers for jobs that specify refs
             skip_cloning: false
+            # SparseCheckoutFiles limits the working tree to only the listed paths.
+            # Accepts the same patterns as git sparse-checkout set (file names,
+            # directory names, gitignore-style globs). When set, clonerefs performs a
+            # sparse checkout instead of a full clone. Applied to the primary ref for
+            # presubmit/postsubmit jobs. Not applied to extra refs.
+            sparse_checkout_files:
+                - ""
             # SSHHostFingerprints are the fingerprints of known SSH hosts
             # that the cloning process can trust.
             # Create with ssh-keyscan [-t rsa] host
@@ -1472,6 +1494,9 @@ tide:
     # the required and optional contexts from the prow jobs configured and use the github
     # combined status; otherwise it may apply the branch protection setting or let user
     # define their own options in case branch protection is not used.
+    # May be sharded across supplemental Prow config files. Lists at the same scope
+    # are unioned; conflicting explicit booleans at the same scope are rejected.
+    # More specific org, repo and branch policies can override inherited booleans.
     context_options:
         # Infer required and optional jobs from Branch Protection configuration
         from-branch-protection: false
@@ -1560,6 +1585,13 @@ tide:
               org: ' '
               repos:
                 - ""
+    # GitHubMergeBlocksPolicyMap configures on org or org/repo level how Tide should handle
+    # GitHub's mergeStateStatus (BLOCKED state from branch protection rules, rulesets,
+    # required reviews, etc.).
+    # Use '*' as key to set this globally. Defaults to "permit" which allows merging but logs warnings.
+    # Valid values: "ignore", "permit", "block"
+    github_merge_blocks_policy:
+        "": ""
     # A key/value pair of an org/repo as the key and Go template to override
     # the default merge commit title and/or message. Template is passed the
     # PullRequest struct (prow/github/types.go#PullRequest)

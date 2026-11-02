@@ -7,9 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cucumber/messages-go/v16"
-
 	"github.com/cucumber/godog/formatters"
+	messages "github.com/cucumber/messages/go/v34"
 )
 
 func init() {
@@ -43,7 +42,7 @@ func (f *Progress) Summary() {
 	left := math.Mod(float64(*f.Steps), float64(f.StepsPerRow))
 	if left != 0 {
 		if *f.Steps > f.StepsPerRow {
-			fmt.Fprintf(f.out, s(f.StepsPerRow-int(left))+fmt.Sprintf(" %d\n", *f.Steps))
+			fmt.Fprint(f.out, s(f.StepsPerRow-int(left))+fmt.Sprintf(" %d\n", *f.Steps))
 		} else {
 			fmt.Fprintf(f.out, " %d\n", *f.Steps)
 		}
@@ -99,6 +98,8 @@ func (f *Progress) step(pickleStepID string) {
 		fmt.Fprint(f.out, red("F"))
 	case undefined:
 		fmt.Fprint(f.out, yellow("U"))
+	case ambiguous:
+		fmt.Fprint(f.out, yellow("A"))
 	case pending:
 		fmt.Fprint(f.out, yellow("P"))
 	}
@@ -143,6 +144,16 @@ func (f *Progress) Undefined(pickle *messages.Pickle, step *messages.PickleStep,
 // Failed captures failed step.
 func (f *Progress) Failed(pickle *messages.Pickle, step *messages.PickleStep, match *formatters.StepDefinition, err error) {
 	f.Base.Failed(pickle, step, match, err)
+
+	f.Lock.Lock()
+	defer f.Lock.Unlock()
+
+	f.step(step.Id)
+}
+
+// Ambiguous steps.
+func (f *Progress) Ambiguous(pickle *messages.Pickle, step *messages.PickleStep, match *formatters.StepDefinition, err error) {
+	f.Base.Ambiguous(pickle, step, match, err)
 
 	f.Lock.Lock()
 	defer f.Lock.Unlock()

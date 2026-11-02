@@ -11,7 +11,7 @@ import (
 	"sync"
 	"unicode"
 
-	"github.com/cucumber/messages-go/v16"
+	messages "github.com/cucumber/messages/go/v34"
 
 	"github.com/cucumber/godog/colors"
 	"github.com/cucumber/godog/formatters"
@@ -85,10 +85,14 @@ func (f *Base) Failed(*messages.Pickle, *messages.PickleStep, *formatters.StepDe
 func (f *Base) Pending(*messages.Pickle, *messages.PickleStep, *formatters.StepDefinition) {
 }
 
+// Ambiguous captures ambiguous step.
+func (f *Base) Ambiguous(*messages.Pickle, *messages.PickleStep, *formatters.StepDefinition, error) {
+}
+
 // Summary renders summary information.
 func (f *Base) Summary() {
 	var totalSc, passedSc, undefinedSc int
-	var totalSt, passedSt, failedSt, skippedSt, pendingSt, undefinedSt int
+	var totalSt, passedSt, failedSt, skippedSt, pendingSt, undefinedSt, ambiguousSt int
 
 	pickleResults := f.Storage.MustGetPickleResults()
 	for _, pr := range pickleResults {
@@ -106,11 +110,13 @@ func (f *Base) Summary() {
 
 			switch sr.Status {
 			case passed:
-				prStatus = passed
 				passedSt++
 			case failed:
 				prStatus = failed
 				failedSt++
+			case ambiguous:
+				prStatus = ambiguous
+				ambiguousSt++
 			case skipped:
 				skippedSt++
 			case undefined:
@@ -141,6 +147,10 @@ func (f *Base) Summary() {
 		parts = append(parts, yellow(fmt.Sprintf("%d pending", pendingSt)))
 		steps = append(steps, yellow(fmt.Sprintf("%d pending", pendingSt)))
 	}
+	if ambiguousSt > 0 {
+		parts = append(parts, yellow(fmt.Sprintf("%d ambiguous", ambiguousSt)))
+		steps = append(steps, yellow(fmt.Sprintf("%d ambiguous", ambiguousSt)))
+	}
 	if undefinedSt > 0 {
 		parts = append(parts, yellow(fmt.Sprintf("%d undefined", undefinedSc)))
 		steps = append(steps, yellow(fmt.Sprintf("%d undefined", undefinedSt)))
@@ -164,13 +174,13 @@ func (f *Base) Summary() {
 	if totalSc == 0 {
 		fmt.Fprintln(f.out, "No scenarios")
 	} else {
-		fmt.Fprintln(f.out, fmt.Sprintf("%d scenarios (%s)", totalSc, strings.Join(scenarios, ", ")))
+		fmt.Fprintf(f.out, "%d scenarios (%s)\n", totalSc, strings.Join(scenarios, ", "))
 	}
 
 	if totalSt == 0 {
 		fmt.Fprintln(f.out, "No steps")
 	} else {
-		fmt.Fprintln(f.out, fmt.Sprintf("%d steps (%s)", totalSt, strings.Join(steps, ", ")))
+		fmt.Fprintf(f.out, "%d steps (%s)\n", totalSt, strings.Join(steps, ", "))
 	}
 
 	elapsedString := elapsed.String()
@@ -192,6 +202,22 @@ func (f *Base) Summary() {
 		fmt.Fprintln(f.out, yellow("You can implement step definitions for undefined steps with these snippets:"))
 		fmt.Fprintln(f.out, yellow(text))
 	}
+}
+
+func asciiTitle(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+
+	newWord := true
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if ('a' <= c && c <= 'z') && newWord {
+			c -= 'a' - 'A'
+		}
+		b.WriteByte(c)
+		newWord = !('0' <= c && c <= '9' || 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z')
+	}
+	return b.String()
 }
 
 // Snippets returns code suggestions for undefined steps.
@@ -226,7 +252,7 @@ func (f *Base) Snippets() string {
 			for i, w := range strings.Split(name, " ") {
 				switch {
 				case i != 0:
-					w = strings.Title(w)
+					w = asciiTitle(w)
 				case len(w) > 0:
 					w = string(unicode.ToLower(rune(w[0]))) + w[1:]
 				}

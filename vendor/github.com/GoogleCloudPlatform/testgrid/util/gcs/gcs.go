@@ -101,6 +101,11 @@ func (g *Path) Set(v string) error {
 	return g.SetURL(u)
 }
 
+// Get the current value of the path
+func (g *Path) Get() interface{} {
+	return g
+}
+
 // SetURL updates value to the passed in gs://bucket/obj url
 func (g *Path) SetURL(u *url.URL) error {
 	switch {
@@ -168,10 +173,13 @@ func calcCRC(buf []byte) uint32 {
 }
 
 const (
-	// DefaultACL for this upload
+	// DefaultACL will use the default acl for this upload.
 	DefaultACL = false
-	// PublicRead ACL for this upload.
+	// PublicRead will use a ACL for this upload.
 	PublicRead = true
+	// NoCache may cache, but only after verifying.
+	// See https://cloud.google.com/storage/docs/metadata#cache-control
+	NoCache = "no-cache"
 )
 
 // Upload writes bytes to the specified Path by converting the client and path into an ObjectHandle.

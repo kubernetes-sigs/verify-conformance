@@ -46,6 +46,7 @@ import (
 
 const (
 	defaultBlunderbussReviewerCount = 2
+	defaultRifleReviewerCount       = 2
 )
 
 // Configuration is the top-level serialization target for plugin Configuration.
@@ -70,6 +71,7 @@ type Configuration struct {
 	Approve              []Approve                    `json:"approve,omitempty"`
 	Blockades            []Blockade                   `json:"blockades,omitempty"`
 	Blunderbuss          Blunderbuss                  `json:"blunderbuss,omitempty"`
+	Rifle                Rifle                        `json:"rifle,omitempty"`
 	Bugzilla             Bugzilla                     `json:"bugzilla,omitempty"`
 	BranchCleaner        BranchCleaner                `json:"branch_cleaner,omitempty"`
 	Cat                  Cat                          `json:"cat,omitempty"`
@@ -84,6 +86,7 @@ type Configuration struct {
 	Lgtm                 []Lgtm                       `json:"lgtm,omitempty"`
 	Jira                 *Jira                        `json:"jira,omitempty"`
 	MilestoneApplier     map[string]BranchToMilestone `json:"milestone_applier,omitempty"`
+	ReleaseNote          ReleaseNote                  `json:"release_note,omitempty"`
 	RepoMilestone        map[string]Milestone         `json:"repo_milestone,omitempty"`
 	Project              ProjectConfig                `json:"project_config,omitempty"`
 	ProjectManager       ProjectManager               `json:"project_manager,omitempty"`
@@ -96,6 +99,7 @@ type Configuration struct {
 	Welcome              []Welcome                    `json:"welcome,omitempty"`
 	Override             Override                     `json:"override,omitempty"`
 	Help                 Help                         `json:"help,omitempty"`
+	InvalidCommitMsg     []InvalidCommitMsg           `json:"invalid_commit_msg,omitempty"`
 }
 
 type Help struct {
@@ -115,6 +119,37 @@ func (h *Help) setDefaults() {
 	if h.HelpGuidelinesURL == "" {
 		h.HelpGuidelinesURL = "https://git.k8s.io/community/contributors/guide/help-wanted.md"
 	}
+}
+
+// InvalidCommitMsg is config for the invalidcommitmsg plugin.
+type InvalidCommitMsg struct {
+	// Repos is either of the form org/repos or just org.
+	Repos []string `json:"repos,omitempty"`
+	// Checks is a list of check configurations.
+	// Each check can be individually enabled or disabled.
+	Checks []InvalidCommitMsgCheck `json:"checks,omitempty"`
+}
+
+// InvalidCommitMsgCheck represents a single check configuration.
+type InvalidCommitMsgCheck struct {
+	// Name is the name of the check (e.g., "fixupPrefix", "issueClosingKeywords").
+	Name string `json:"name"`
+	// Disabled indicates whether this check should be skipped.
+	Disabled bool `json:"disabled,omitempty"`
+}
+
+func (i InvalidCommitMsg) getRepos() []string {
+	return i.Repos
+}
+
+// IsCheckDisabled returns true if the named check is disabled in the configuration.
+func (i *InvalidCommitMsg) IsCheckDisabled(checkName string) bool {
+	for _, check := range i.Checks {
+		if check.Name == checkName {
+			return check.Disabled
+		}
+	}
+	return false
 }
 
 // Golint holds configuration for the golint plugin
@@ -173,6 +208,37 @@ type Blunderbuss struct {
 	// approvers will never be considered as reviewers.
 	ExcludeApprovers bool `json:"exclude_approvers,omitempty"`
 	// UseStatusAvailability controls whether blunderbuss will consider GitHub's
+	// status availability when requesting reviews for users. This will use at one
+	// additional token per successful reviewer (and potentially more depending on
+	// how many busy reviewers it had to pass over).
+	UseStatusAvailability bool `json:"use_status_availability,omitempty"`
+	// IgnoreDrafts instructs the plugin to ignore assigning reviewers
+	// to the PR that is in Draft state. Default it's false.
+	IgnoreDrafts bool `json:"ignore_drafts,omitempty"`
+	// IgnoreAuthors skips requesting reviewers for specified users.
+	// This is useful when a bot user or admin opens a PR that will be
+	// merged regardless of approvals.
+	IgnoreAuthors []string `json:"ignore_authors,omitempty"`
+	// WaitForStatus specifies whether to request reviews if the tide status indicates that
+	// the tests have passed but there are insufficient pull request reviews.
+	WaitForStatus *ContextMatch `json:"wait_for_status,omitempty"`
+}
+
+// Rifle holds configuration for the rifle plugin, which uses git blame data
+// to select reviewers most familiar with the changed code.
+type Rifle struct {
+	// ReviewerCount is the minimum number of reviewers to request
+	// reviews from. Defaults to requesting reviews from 2 reviewers
+	ReviewerCount *int `json:"request_count,omitempty"`
+	// MaxReviewerCount is the maximum number of reviewers to request
+	// reviews from. Defaults to 0 meaning no limit.
+	MaxReviewerCount int `json:"max_request_count,omitempty"`
+	// ExcludeApprovers controls whether approvers are considered to be
+	// reviewers. By default, approvers are considered as reviewers if
+	// insufficient reviewers are available. If ExcludeApprovers is true,
+	// approvers will never be considered as reviewers.
+	ExcludeApprovers bool `json:"exclude_approvers,omitempty"`
+	// UseStatusAvailability controls whether rifle will consider GitHub's
 	// status availability when requesting reviews for users. This will use at one
 	// additional token per successful reviewer (and potentially more depending on
 	// how many busy reviewers it had to pass over).
@@ -343,7 +409,7 @@ type Approve struct {
 	// CommandHelpLink is the link to the help page which shows the available commands for each repo.
 	// The default value is "https://go.k8s.io/bot-commands". The command help page is served by Deck
 	// and available under https://<deck-url>/command-help, e.g. "https://prow.k8s.io/command-help"
-	CommandHelpLink string `json:"commandHelpLink"`
+	CommandHelpLink string `json:"commandHelpLink,omitempty"`
 	// PrProcessLink is the link to the help page which explains the code review process.
 	// The default value is "https://git.k8s.io/community/contributors/guide/owners.md#the-code-review-process".
 	PrProcessLink string `json:"pr_process_link,omitempty"`
@@ -462,12 +528,7 @@ func (l Label) RestrictedLabelsFor(org, repo string) map[string]RestrictedLabel 
 }
 
 func (l Label) IsRestrictedLabelInAdditionalLabels(restricted string) bool {
-	for _, additional := range l.AdditionalLabels {
-		if restricted == additional {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(l.AdditionalLabels, restricted)
 }
 
 type RestrictedLabel struct {
@@ -481,6 +542,43 @@ type RestrictedLabel struct {
 // to be assigned on the PR.
 type AssignOnLabel struct {
 	Label string `json:"label"`
+}
+
+// ProminentOrgInviteConfig holds configuration for the prominent org invite
+// message shown to non-org members who have contributed multiple merged PRs.
+type ProminentOrgInviteConfig struct {
+	// Disabled disables the prominent org invite functionality entirely.
+	// When true, only the regular "join the org" message is shown without
+	// querying for merged PRs.
+	Disabled bool `json:"disabled,omitempty"`
+	// MergedPRThreshold is the number of merged PRs after which the user gets
+	// a prominent message about joining the org. Default: 3.
+	// Use a pointer so that we can distinguish between "not set" (use default)
+	// and "explicitly set to 0".
+	MergedPRThreshold *int `json:"merged_pr_threshold,omitempty"`
+	// Message is a custom message template for the prominent org invite.
+	// Supports {join_org_url} as a placeholder for the org join URL.
+	// Default: ">[!TIP]\n>**We noticed you've done this a few times! Consider [joining the org]({join_org_url}) ..."
+	Message string `json:"message,omitempty"`
+}
+
+// EffectiveMergedPRThreshold returns the configured merged PR threshold,
+// or the default of 3 when not configured.
+func (c ProminentOrgInviteConfig) EffectiveMergedPRThreshold() int {
+	if c.MergedPRThreshold != nil {
+		return *c.MergedPRThreshold
+	}
+	return 3
+}
+
+// OrgInviteConfig holds configuration for the org invite functionality
+// that is shown to non-org members when they open a PR.
+// Future top-level fields (e.g. disabled, message) may be added here to
+// control the regular (non-prominent) invitation as well.
+type OrgInviteConfig struct {
+	// Prominent configures the prominent org invite message shown to
+	// non-org members who have contributed multiple merged PRs.
+	Prominent ProminentOrgInviteConfig `json:"prominent,omitzero"`
 }
 
 // Trigger specifies a configuration for a single trigger.
@@ -511,6 +609,9 @@ type Trigger struct {
 	IgnoreOkToTest bool `json:"ignore_ok_to_test,omitempty"`
 	// TriggerGitHubWorkflows enables workflows run by github to be triggered by prow.
 	TriggerGitHubWorkflows bool `json:"trigger_github_workflows,omitempty"`
+	// OrgInvite holds configuration for the org invite message
+	// shown to non-org members when they open a PR.
+	OrgInvite OrgInviteConfig `json:"org_invite,omitzero"`
 }
 
 // Heart contains the configuration for the heart plugin.
@@ -525,6 +626,19 @@ type Heart struct {
 	// Compiles into CommentRe during config load.
 	CommentRegexp string         `json:"commentregexp,omitempty"`
 	CommentRe     *regexp.Regexp `json:"-"`
+}
+
+// ReleaseNote contains the configuration options for the release note plugin
+type ReleaseNote struct {
+	// GuidelinesURL is the URL to the release note guidelines that users should follow
+	// Defaults to the Kubernetes community guide: https://git.k8s.io/community/contributors/guide/release-notes.md
+	GuidelinesURL string `json:"guidelines_url,omitempty"`
+}
+
+func (r *ReleaseNote) setDefaults() {
+	if r.GuidelinesURL == "" {
+		r.GuidelinesURL = "https://git.k8s.io/community/contributors/guide/release-notes.md"
+	}
 }
 
 // Milestone contains the configuration options for the milestone and
@@ -579,6 +693,55 @@ type ConfigMapSpec struct {
 	// repository root should be used as the configmap key. Slashes will be replaced by
 	// dashes. Using this avoids the need for unique file names in the original repo.
 	UseFullPathAsKey bool `json:"use_full_path_as_key,omitempty"`
+	// AllowedRepos is a list of org or org/repo entries that are allowed to update this configmap.
+	// If specified, only PRs from these orgs/repos will trigger updates.
+	// Entries without a slash (e.g., "kubernetes") match the entire org.
+	// Entries with a slash (e.g., "kubernetes/test-infra") match a specific repo.
+	// When both AllowedRepos and DeniedRepos are specified, the org/repo must be in
+	// the allowed list and not in the denied list.
+	AllowedRepos []string `json:"allowed_repos,omitempty"`
+	// DeniedRepos is a list of org or org/repo entries that are denied from updating this configmap.
+	// PRs from these orgs/repos will not trigger updates.
+	// Entries without a slash (e.g., "kubernetes") match the entire org.
+	// Entries with a slash (e.g., "kubernetes/test-infra") match a specific repo.
+	DeniedRepos []string `json:"denied_repos,omitempty"`
+}
+
+// IsAllowed checks if the given repo is allowed to update this configmap based on the ACL settings.
+// The repo parameter should be in "org/repo" format.
+// The logic is:
+// 1. If the repo is in the denied list (exact match), it's not allowed.
+// 2. If the org is in the denied list, it's not allowed.
+// 3. If allow lists are specified, the repo must match an entry in the allowed list.
+// 4. If no allow lists are specified, it's allowed (unless denied).
+func (cm ConfigMapSpec) IsAllowed(repo string) bool {
+	or := config.NewOrgRepo(repo)
+
+	// Check denied list first
+	for _, denied := range cm.DeniedRepos {
+		if denied == repo {
+			return false
+		}
+		if denied == or.Org {
+			return false
+		}
+	}
+
+	// If no allow list is specified, allow by default (unless denied above)
+	if len(cm.AllowedRepos) == 0 {
+		return true
+	}
+
+	for _, allowed := range cm.AllowedRepos {
+		if allowed == repo {
+			return true
+		}
+		if allowed == or.Org {
+			return true
+		}
+	}
+
+	return false
 }
 
 // A ClusterGroup is a list of clusters with namespaces
@@ -996,6 +1159,28 @@ func (c *Configuration) DcoFor(org, repo string) *Dco {
 	return &Dco{}
 }
 
+// InvalidCommitMsgFor finds the InvalidCommitMsg configuration for a repo, if one exists.
+// A configuration can be listed for the repo itself or for the owning organization.
+func (c *Configuration) InvalidCommitMsgFor(org, repo string) *InvalidCommitMsg {
+	fullName := fmt.Sprintf("%s/%s", org, repo)
+	// Prioritize repo level triggers over org level triggers.
+	for _, cfg := range c.InvalidCommitMsg {
+		if !sets.New[string](cfg.Repos...).Has(fullName) {
+			continue
+		}
+		return &cfg
+	}
+	// If you don't find anything, loop again looking for an org config
+	for _, cfg := range c.InvalidCommitMsg {
+		if !sets.New[string](cfg.Repos...).Has(org) {
+			continue
+		}
+		return &cfg
+	}
+
+	return &InvalidCommitMsg{}
+}
+
 func OldToNewPlugins(oldPlugins map[string][]string) Plugins {
 	newPlugins := make(Plugins)
 	for repo, plugins := range oldPlugins {
@@ -1027,13 +1212,7 @@ func (p *Plugins) UnmarshalJSON(d []byte) error {
 func (c *Configuration) EnabledReposForPlugin(plugin string) (orgs, repos []string, orgExceptions map[string]sets.Set[string]) {
 	orgExceptions = make(map[string]sets.Set[string])
 	for repo, plugins := range c.Plugins {
-		found := false
-		for _, candidate := range plugins.Plugins {
-			if candidate == plugin {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(plugins.Plugins, plugin)
 		if found {
 			if strings.Contains(repo, "/") {
 				repos = append(repos, repo)
@@ -1114,6 +1293,21 @@ func (c *Configuration) setDefaults() {
 		c.Blunderbuss.ReviewerCount = new(int)
 		*c.Blunderbuss.ReviewerCount = defaultBlunderbussReviewerCount
 	}
+	if c.Rifle.ReviewerCount == nil {
+		c.Rifle.ReviewerCount = new(int)
+		*c.Rifle.ReviewerCount = defaultRifleReviewerCount
+	}
+	if c.Rifle.WaitForStatus != nil {
+		if c.Rifle.WaitForStatus.Context == "" {
+			c.Rifle.WaitForStatus.Context = "tide"
+		}
+		if c.Rifle.WaitForStatus.State == "" {
+			c.Rifle.WaitForStatus.State = "pending"
+		}
+		if c.Rifle.WaitForStatus.Description == "" {
+			c.Rifle.WaitForStatus.Description = "Not mergeable. (PullRequest is missing sufficient approving GitHub review\\(s\\)|Needs (lgtm|approved|approved, lgtm) labels?)\\.?"
+		}
+	}
 	if c.Blunderbuss.WaitForStatus != nil {
 		if c.Blunderbuss.WaitForStatus.Context == "" {
 			c.Blunderbuss.WaitForStatus.Context = "tide"
@@ -1157,6 +1351,8 @@ func (c *Configuration) setDefaults() {
 			c.RequireMatchingLabel[i].GracePeriod = "5s"
 		}
 	}
+
+	c.ReleaseNote.setDefaults()
 }
 
 // validatePluginsDupes will return an error if there are duplicated plugins.
@@ -1222,7 +1418,7 @@ func validateExternalPlugins(pluginMap map[string][]ExternalPlugin) error {
 		if !strings.Contains(repo, "/") {
 			continue
 		}
-		org := strings.Split(repo, "/")[0]
+		org, _, _ := strings.Cut(repo, "/")
 
 		var orgConfig []string
 		for _, p := range pluginMap[org] {
@@ -1250,6 +1446,40 @@ func validateBlunderbuss(b *Blunderbuss) error {
 		return fmt.Errorf("invalid request_count: %v (needs to be positive)", *b.ReviewerCount)
 	}
 	return nil
+}
+
+func validateRifle(r *Rifle) error {
+	if r.ReviewerCount != nil && *r.ReviewerCount < 1 {
+		return fmt.Errorf("invalid request_count: %v (needs to be positive)", *r.ReviewerCount)
+	}
+	return nil
+}
+
+func validateMutuallyExclusivePlugins(plugins Plugins) error {
+	var errs []error
+	for entry, cfg := range plugins {
+		hasBlunderbuss := slices.Contains(cfg.Plugins, "blunderbuss")
+		hasRifle := slices.Contains(cfg.Plugins, "rifle")
+		if hasBlunderbuss && hasRifle {
+			errs = append(errs, fmt.Errorf("%s: blunderbuss and rifle plugins are mutually exclusive", entry))
+			continue
+		}
+		if !strings.Contains(entry, "/") {
+			continue
+		}
+		split := strings.Split(entry, "/")
+		org, repo := split[0], split[1]
+		orgConfig := plugins[org]
+		if slices.Contains(orgConfig.ExcludedRepos, repo) {
+			continue
+		}
+		orgHasBlunderbuss := slices.Contains(orgConfig.Plugins, "blunderbuss")
+		orgHasRifle := slices.Contains(orgConfig.Plugins, "rifle")
+		if (hasBlunderbuss && orgHasRifle) || (hasRifle && orgHasBlunderbuss) {
+			errs = append(errs, fmt.Errorf("%s: blunderbuss and rifle plugins are mutually exclusive (conflict between %s and %s config)", entry, org, entry))
+		}
+	}
+	return utilerrors.NewAggregate(errs)
 }
 
 // ConfigMapID is a name/namespace/cluster combination that identifies a config map
@@ -1357,10 +1587,8 @@ func validateProjectManager(pm ProjectManager) error {
 					return fmt.Errorf("Org/repo: %s, project %s, column %s, has no org configured", orgRepoName, projectName, managedColumn.Name)
 				}
 				sSet := sets.New[string](managedColumn.Labels...)
-				for _, labels := range labelSets {
-					if sSet.Equal(labels) {
-						return fmt.Errorf("Org/repo: %s, project %s, column %s has same labels configured as another column", orgRepoName, projectName, managedColumn.Name)
-					}
+				if slices.ContainsFunc(labelSets, sSet.Equal) {
+					return fmt.Errorf("Org/repo: %s, project %s, column %s has same labels configured as another column", orgRepoName, projectName, managedColumn.Name)
 				}
 				labelSets = append(labelSets, sSet)
 			}
@@ -1378,6 +1606,31 @@ func validateTrigger(triggers []Trigger) error {
 		}
 	}
 	return nil
+}
+
+var validInvalidCommitMsgChecks = sets.New[string]("fixupPrefix", "issueClosingKeywords")
+
+func validateInvalidCommitMsg(cfgs []InvalidCommitMsg) error {
+	var errs []error
+	for i, cfg := range cfgs {
+		for _, repo := range cfg.Repos {
+			if strings.TrimSpace(repo) == "" {
+				errs = append(errs, fmt.Errorf(
+					"error validating invalid_commit_msg config #%d: repo %q must be of form org or org/repo", i, repo))
+			}
+		}
+		for j, check := range cfg.Checks {
+			if strings.TrimSpace(check.Name) == "" {
+				errs = append(errs, fmt.Errorf(
+					"error validating invalid_commit_msg config #%d check #%d: check name cannot be empty", i, j))
+			} else if !validInvalidCommitMsgChecks.Has(check.Name) {
+				errs = append(errs, fmt.Errorf(
+					"error validating invalid_commit_msg config #%d check #%d: unknown check name %q (valid: %v)",
+					i, j, check.Name, sets.List(validInvalidCommitMsgChecks)))
+			}
+		}
+	}
+	return utilerrors.NewAggregate(errs)
 }
 
 var warnRepoMilestone time.Time
@@ -1450,6 +1703,12 @@ func compileRegexpsAndDurations(pc *Configuration) error {
 			return fmt.Errorf("failed to compile blunderbuss wait for context description regular expression: %q, error: %w", pc.Blunderbuss.WaitForStatus.Description, err)
 		}
 	}
+	if pc.Rifle.WaitForStatus != nil {
+		pc.Rifle.WaitForStatus.DescriptionRe, err = regexp.Compile(pc.Rifle.WaitForStatus.Description)
+		if err != nil {
+			return fmt.Errorf("failed to compile rifle wait for context description regular expression: %q, error: %w", pc.Rifle.WaitForStatus.Description, err)
+		}
+	}
 	return nil
 }
 
@@ -1474,6 +1733,12 @@ func (c *Configuration) Validate() error {
 	if err := validateBlunderbuss(&c.Blunderbuss); err != nil {
 		return err
 	}
+	if err := validateRifle(&c.Rifle); err != nil {
+		return err
+	}
+	if err := validateMutuallyExclusivePlugins(c.Plugins); err != nil {
+		return err
+	}
 	if err := validateConfigUpdater(&c.ConfigUpdater); err != nil {
 		return err
 	}
@@ -1493,6 +1758,12 @@ func (c *Configuration) Validate() error {
 		return err
 	}
 	if err := validateRepoDupes(c.Welcome); err != nil {
+		return err
+	}
+	if err := validateInvalidCommitMsg(c.InvalidCommitMsg); err != nil {
+		return err
+	}
+	if err := validateRepoDupes(c.InvalidCommitMsg); err != nil {
 		return err
 	}
 	validateRepoMilestone(c.RepoMilestone)
@@ -1719,7 +1990,7 @@ type BugzillaBranchOptions struct {
 	AllowedGroups []string `json:"allowed_groups,omitempty"`
 }
 
-type BugzillaBugStateSet map[BugzillaBugState]interface{}
+type BugzillaBugStateSet map[BugzillaBugState]any
 
 func NewBugzillaBugStateSet(states []BugzillaBugState) BugzillaBugStateSet {
 	set := make(BugzillaBugStateSet, len(states))
@@ -2081,7 +2352,8 @@ func (c *Configuration) mergeFrom(other *Configuration) error {
 
 	diff := cmp.Diff(other, &Configuration{Approve: other.Approve, Bugzilla: other.Bugzilla,
 		ExternalPlugins: other.ExternalPlugins, Label: Label{RestrictedLabels: other.Label.RestrictedLabels},
-		Lgtm: other.Lgtm, Plugins: other.Plugins, Triggers: other.Triggers, Welcome: other.Welcome},
+		Lgtm: other.Lgtm, Plugins: other.Plugins, Triggers: other.Triggers, Welcome: other.Welcome,
+		MilestoneApplier: other.MilestoneApplier},
 		config.DefaultDiffOpts...)
 
 	if diff != "" {
@@ -2112,6 +2384,10 @@ func (c *Configuration) mergeFrom(other *Configuration) error {
 		errs = append(errs, fmt.Errorf("failed to merge .label from supplemental config: %w", err))
 	}
 
+	if err := c.mergeMilestoneApplierFrom(other.MilestoneApplier); err != nil {
+		errs = append(errs, fmt.Errorf("failed to merge .milestone_applier from supplemental config: %w", err))
+	}
+
 	return utilerrors.NewAggregate(errs)
 }
 
@@ -2127,6 +2403,23 @@ func (c *Configuration) mergeExternalPluginsFrom(other map[string][]ExternalPlug
 			continue
 		}
 		c.ExternalPlugins[orgOrRepo] = config
+	}
+
+	return utilerrors.NewAggregate(errs)
+}
+
+func (c *Configuration) mergeMilestoneApplierFrom(other map[string]BranchToMilestone) error {
+	if c.MilestoneApplier == nil && other != nil {
+		c.MilestoneApplier = make(map[string]BranchToMilestone)
+	}
+
+	var errs []error
+	for orgOrRepo, branchToMilestone := range other {
+		if _, ok := c.MilestoneApplier[orgOrRepo]; ok {
+			errs = append(errs, fmt.Errorf("found duplicate config for milestone_applier.%s", orgOrRepo))
+			continue
+		}
+		c.MilestoneApplier[orgOrRepo] = branchToMilestone
 	}
 
 	return utilerrors.NewAggregate(errs)
@@ -2233,7 +2526,8 @@ func getLabelConfigFromRestrictedLabelsSlice(s []RestrictedLabel, label string) 
 func (c *Configuration) HasConfigFor() (global bool, orgs sets.Set[string], repos sets.Set[string]) {
 	equals := reflect.DeepEqual(c,
 		&Configuration{Approve: c.Approve, Bugzilla: c.Bugzilla, ExternalPlugins: c.ExternalPlugins,
-			Label: Label{RestrictedLabels: c.Label.RestrictedLabels}, Lgtm: c.Lgtm, Plugins: c.Plugins,
+			Label: Label{RestrictedLabels: c.Label.RestrictedLabels}, Lgtm: c.Lgtm,
+			MilestoneApplier: c.MilestoneApplier, Plugins: c.Plugins,
 			Triggers: c.Triggers, Welcome: c.Welcome})
 
 	if !equals || c.Bugzilla.Default != nil {
@@ -2312,6 +2606,14 @@ func (c *Configuration) HasConfigFor() (global bool, orgs sets.Set[string], repo
 	}
 
 	for orgOrRepo := range c.ExternalPlugins {
+		if strings.Contains(orgOrRepo, "/") {
+			repos.Insert(orgOrRepo)
+		} else {
+			orgs.Insert(orgOrRepo)
+		}
+	}
+
+	for orgOrRepo := range c.MilestoneApplier {
 		if strings.Contains(orgOrRepo, "/") {
 			repos.Insert(orgOrRepo)
 		} else {

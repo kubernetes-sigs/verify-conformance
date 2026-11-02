@@ -24,12 +24,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,9 +42,9 @@ import (
 	gitignore "github.com/denormal/go-gitignore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
-	"gopkg.in/robfig/cron.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -59,6 +61,10 @@ import (
 	"sigs.k8s.io/prow/pkg/kube"
 	"sigs.k8s.io/prow/pkg/pod-utils/decorate"
 	"sigs.k8s.io/prow/pkg/pod-utils/downwardapi"
+)
+
+var cronParser = cron.NewParser(
+	cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor,
 )
 
 const (
@@ -272,10 +278,8 @@ func (c *Config) InRepoConfigEnabled(identifier string) bool {
 // Assumes that config will not include http:// or https://
 func (c *Config) InRepoConfigAllowsCluster(clusterName, identifier string) bool {
 	for _, key := range keysForIdentifier(identifier) {
-		for _, allowedCluster := range c.InRepoConfig.AllowedClusters[key] {
-			if allowedCluster == clusterName {
-				return true
-			}
+		if slices.Contains(c.InRepoConfig.AllowedClusters[key], clusterName) {
+			return true
 		}
 	}
 	return false
@@ -1652,25 +1656,26 @@ func (cfg *SlackReporter) DefaultAndValidate() error {
 	return nil
 }
 
-// Load loads and parses the config at path.
-func Load(prowConfig, jobConfig string, supplementalProwConfigDirs []string, supplementalProwConfigsFileNameSuffix string, additionals ...func(*Config) error) (c *Config, err error) {
-	return loadWithYamlOpts(nil, prowConfig, jobConfig, supplementalProwConfigDirs, supplementalProwConfigsFileNameSuffix, additionals...)
+// Load loads and parses the config at path. The job config is loaded from all
+// the jobConfigs paths, see ReadJobConfigs for the constraints on them.
+func Load(prowConfig string, jobConfigs []string, supplementalProwConfigDirs []string, supplementalProwConfigsFileNameSuffix string, additionals ...func(*Config) error) (c *Config, err error) {
+	return loadWithYamlOpts(nil, prowConfig, jobConfigs, supplementalProwConfigDirs, supplementalProwConfigsFileNameSuffix, additionals...)
 }
 
 // LoadStrict loads and parses the config at path.
 // Unlike Load it unmarshalls yaml with strict parsing.
-func LoadStrict(prowConfig, jobConfig string, supplementalProwConfigDirs []string, supplementalProwConfigsFileNameSuffix string, additionals ...func(*Config) error) (c *Config, err error) {
-	return loadWithYamlOpts([]yaml.JSONOpt{yaml.DisallowUnknownFields}, prowConfig, jobConfig, supplementalProwConfigDirs, supplementalProwConfigsFileNameSuffix, additionals...)
+func LoadStrict(prowConfig string, jobConfigs []string, supplementalProwConfigDirs []string, supplementalProwConfigsFileNameSuffix string, additionals ...func(*Config) error) (c *Config, err error) {
+	return loadWithYamlOpts([]yaml.JSONOpt{yaml.DisallowUnknownFields}, prowConfig, jobConfigs, supplementalProwConfigDirs, supplementalProwConfigsFileNameSuffix, additionals...)
 }
 
-func loadWithYamlOpts(yamlOpts []yaml.JSONOpt, prowConfig, jobConfig string, supplementalProwConfigDirs []string, supplementalProwConfigsFileNameSuffix string, additionals ...func(*Config) error) (c *Config, err error) {
+func loadWithYamlOpts(yamlOpts []yaml.JSONOpt, prowConfig string, jobConfigs []string, supplementalProwConfigDirs []string, supplementalProwConfigsFileNameSuffix string, additionals ...func(*Config) error) (c *Config, err error) {
 	// we never want config loading to take down the prow components.
 	defer func() {
 		if r := recover(); r != nil {
 			c, err = nil, fmt.Errorf("panic loading config: %v\n%s", r, string(debug.Stack()))
 		}
 	}()
-	c, err = loadConfig(prowConfig, jobConfig, supplementalProwConfigDirs, supplementalProwConfigsFileNameSuffix, yamlOpts...)
+	c, err = loadConfig(prowConfig, jobConfigs, supplementalProwConfigDirs, supplementalProwConfigsFileNameSuffix, yamlOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1692,95 +1697,140 @@ func loadWithYamlOpts(yamlOpts []yaml.JSONOpt, prowConfig, jobConfig string, sup
 	return c, nil
 }
 
-// ReadJobConfig reads the JobConfig yaml, but does not expand or validate it.
-func ReadJobConfig(jobConfig string, yamlOpts ...yaml.JSONOpt) (JobConfig, error) {
+// ReadJobConfigs reads the JobConfig yaml from all the given paths and merges
+// it, but does not expand or validate the result. Every path is either a single
+// file or a directory that is searched recursively. File basenames must be
+// unique across all the paths, and the paths must not overlap.
+//
+// The paths are an implementation detail of where the job config is stored: the
+// result is the job config of all of them, or an error if any of them cannot be
+// loaded. It is never the job config of only some of them.
+func ReadJobConfigs(jobConfigs []string, yamlOpts ...yaml.JSONOpt) (JobConfig, error) {
+	return readJobConfigs(jobConfigs, filepath.Walk, yamlOpts...)
+}
+
+// readJobConfigs is ReadJobConfigs with the walk injected, so that the tests can make it fail.
+func readJobConfigs(jobConfigs []string, walk func(string, filepath.WalkFunc) error, yamlOpts ...yaml.JSONOpt) (JobConfig, error) {
+	r := &jobConfigReader{
+		yamlOpts: yamlOpts,
+		// we need to ensure all config files have unique basenames, even across
+		// different paths, since updateconfig plugin will use basename as a key in
+		// the configmap.
+		uniqueBasenames: map[string]string{},
+	}
+	allStart := time.Now()
+	for _, jobConfig := range jobConfigs {
+		r.readPath(jobConfig, walk)
+	}
+	if err := utilerrors.NewAggregate(r.errs); err != nil {
+		return JobConfig{}, err
+	}
+	logrus.WithField("count", r.count).WithField("duration", time.Since(allStart)).Traceln("jobConfigs loaded successfully")
+
+	return r.jc, nil
+}
+
+// jobConfigReader accumulates the job config of all the paths it reads.
+type jobConfigReader struct {
+	yamlOpts []yaml.JSONOpt
+	// uniqueBasenames maps the basename of every loaded file to the path it was loaded from.
+	uniqueBasenames map[string]string
+	jc              JobConfig
+	count           int
+	errs            []error
+	// prowIgnore belongs to the path that is currently being walked.
+	prowIgnore gitignore.GitIgnore
+}
+
+// readPath reads a file, or a directory that is searched recursively. The errors are collected instead of returned,
+// so that the problems of all the paths are reported at once.
+func (r *jobConfigReader) readPath(jobConfig string, walk func(string, filepath.WalkFunc) error) {
 	stat, err := os.Stat(jobConfig)
 	if err != nil {
-		return JobConfig{}, err
+		r.errs = append(r.errs, err)
+		return
 	}
 
 	if !stat.IsDir() {
 		// still support a single file.
-		var jc JobConfig
-		if err := yamlToConfig(jobConfig, &jc, yamlOpts...); err != nil {
-			return JobConfig{}, err
-		}
-		return jc, nil
+		r.readFile(jobConfig)
+		return
 	}
 
-	prowIgnore, err := gitignore.NewRepositoryWithFile(jobConfig, ProwIgnoreFileName)
+	// .prowignore files are resolved relative to the directory they are loaded
+	// from, so every directory needs a parser of its own.
+	r.prowIgnore, err = gitignore.NewRepositoryWithFile(jobConfig, ProwIgnoreFileName)
 	if err != nil {
-		return JobConfig{}, fmt.Errorf("failed to create `%s` parser: %w", ProwIgnoreFileName, err)
+		r.errs = append(r.errs, fmt.Errorf("failed to create `%s` parser: %w", ProwIgnoreFileName, err))
+		return
 	}
-	// we need to ensure all config files have unique basenames,
-	// since updateconfig plugin will use basename as a key in the configmap.
-	uniqueBasenames := sets.Set[string]{}
+	if err := walk(jobConfig, r.visit); err != nil {
+		r.errs = append(r.errs, err)
+	}
+}
 
-	jobConfigCount := 0
-	allStart := time.Now()
-	jc := JobConfig{}
-	var errs []error
-	err = filepath.Walk(jobConfig, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			logrus.WithError(err).Errorf("walking path %q.", path)
-			// bad file should not stop us from parsing the directory.
-			return nil
-		}
+// visit loads a file of the directory that is being walked. It keeps walking after an error to report as many
+// problems as possible, the result is rejected as a whole in the end.
+func (r *jobConfigReader) visit(path string, info os.FileInfo, err error) error {
+	if err != nil {
+		// Continue to find any other errors, but reject the partial result after the walk
+		// to avoid losing arbitrary part of the config, e.g. if this is a dir
+		r.errs = append(r.errs, fmt.Errorf("walking path %q: %w", path, err))
+		return nil
+	}
 
-		if strings.HasPrefix(info.Name(), "..") {
-			// kubernetes volumes also include files we
-			// should not look be looking into for keys.
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
-			return nil
-		}
-		// Use 'Match' directly because 'Ignore' and 'Include' don't work properly for repositories.
-		match := prowIgnore.Match(path)
-		if match != nil && match.Ignore() {
-			return nil
-		}
-
+	if strings.HasPrefix(info.Name(), "..") {
+		// kubernetes volumes also include files we
+		// should not look be looking into for keys.
 		if info.IsDir() {
-			return nil
-		}
-
-		base := filepath.Base(path)
-		if uniqueBasenames.Has(base) {
-			errs = append(errs, fmt.Errorf("duplicated basename is not allowed: %s", base))
-			return nil
-		}
-		uniqueBasenames.Insert(base)
-
-		fileStart := time.Now()
-		var subConfig JobConfig
-		if err := yamlToConfig(path, &subConfig, yamlOpts...); err != nil {
-			errs = append(errs, err)
-			return nil
-		}
-		jc, err = mergeJobConfigs(jc, subConfig)
-		if err == nil {
-			logrus.WithField("jobConfig", path).WithField("duration", time.Since(fileStart)).Traceln("config loaded")
-			jobConfigCount++
-		} else {
-			errs = append(errs, err)
+			return filepath.SkipDir
 		}
 		return nil
-	})
-	err = utilerrors.NewAggregate(append(errs, err))
-	if err != nil {
-		return JobConfig{}, err
 	}
-	logrus.WithField("count", jobConfigCount).WithField("duration", time.Since(allStart)).Traceln("jobConfigs loaded successfully")
+	if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
+		return nil
+	}
+	// Use 'Match' directly because 'Ignore' and 'Include' don't work properly for repositories.
+	match := r.prowIgnore.Match(path)
+	if match != nil && match.Ignore() {
+		return nil
+	}
 
-	return jc, nil
+	if info.IsDir() {
+		return nil
+	}
+
+	r.readFile(path)
+	return nil
+}
+
+// readFile loads a single file. Its basename has to be unique among the files of all the paths.
+func (r *jobConfigReader) readFile(path string) {
+	base := filepath.Base(path)
+	if loadedFrom, ok := r.uniqueBasenames[base]; ok {
+		r.errs = append(r.errs, fmt.Errorf("duplicated basename is not allowed: %s (already loaded from %s)", path, loadedFrom))
+		return
+	}
+	r.uniqueBasenames[base] = path
+
+	fileStart := time.Now()
+	var subConfig JobConfig
+	if err := yamlToConfig(path, &subConfig, r.yamlOpts...); err != nil {
+		r.errs = append(r.errs, err)
+		return
+	}
+	jc, err := mergeJobConfigs(r.jc, subConfig)
+	if err != nil {
+		r.errs = append(r.errs, err)
+		return
+	}
+	r.jc = jc
+	logrus.WithField("jobConfig", path).WithField("duration", time.Since(fileStart)).Traceln("config loaded")
+	r.count++
 }
 
 // loadConfig loads one or multiple config files and returns a config object.
-func loadConfig(prowConfig, jobConfig string, additionalProwConfigDirs []string, supplementalProwConfigsFileNameSuffix string, yamlOpts ...yaml.JSONOpt) (*Config, error) {
+func loadConfig(prowConfig string, jobConfigs []string, additionalProwConfigDirs []string, supplementalProwConfigsFileNameSuffix string, yamlOpts ...yaml.JSONOpt) (*Config, error) {
 	stat, err := os.Stat(prowConfig)
 	if err != nil {
 		return nil, err
@@ -1904,11 +1954,11 @@ func loadConfig(prowConfig, jobConfig string, additionalProwConfigDirs []string,
 
 	// TODO(krzyzacy): temporary allow empty jobconfig
 	//                 also temporary allow job config in prow config.
-	if jobConfig == "" {
+	if len(jobConfigs) == 0 {
 		return &nc, nil
 	}
 
-	jc, err := ReadJobConfig(jobConfig, yamlOpts...)
+	jc, err := ReadJobConfigs(jobConfigs, yamlOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1920,7 +1970,7 @@ func loadConfig(prowConfig, jobConfig string, additionalProwConfigDirs []string,
 }
 
 // yamlToConfig converts a yaml file into a Config object.
-func yamlToConfig(path string, nc interface{}, opts ...yaml.JSONOpt) error {
+func yamlToConfig(path string, nc any, opts ...yaml.JSONOpt) error {
 	b, err := ReadFileMaybeGZIP(path)
 	if err != nil {
 		return fmt.Errorf("error reading %s: %w", path, err)
@@ -2031,18 +2081,14 @@ func mergeJobConfigs(a, b JobConfig) (JobConfig, error) {
 
 	// *** Presubmits ***
 	c.PresubmitsStatic = make(map[string][]Presubmit)
-	for repo, jobs := range a.PresubmitsStatic {
-		c.PresubmitsStatic[repo] = jobs
-	}
+	maps.Copy(c.PresubmitsStatic, a.PresubmitsStatic)
 	for repo, jobs := range b.PresubmitsStatic {
 		c.PresubmitsStatic[repo] = append(c.PresubmitsStatic[repo], jobs...)
 	}
 
 	// *** Postsubmits ***
 	c.PostsubmitsStatic = make(map[string][]Postsubmit)
-	for repo, jobs := range a.PostsubmitsStatic {
-		c.PostsubmitsStatic[repo] = jobs
-	}
+	maps.Copy(c.PostsubmitsStatic, a.PostsubmitsStatic)
 	for repo, jobs := range b.PostsubmitsStatic {
 		c.PostsubmitsStatic[repo] = append(c.PostsubmitsStatic[repo], jobs...)
 	}
@@ -2439,7 +2485,7 @@ func (c Config) validatePeriodics(periodics []Periodic) error {
 		}
 
 		if p.Cron != "" {
-			if _, err := cron.Parse(p.Cron); err != nil {
+			if _, err := cronParser.Parse(p.Cron); err != nil {
 				errs = append(errs, fmt.Errorf("invalid cron string %s in periodic %s: %w", p.Cron, p.Name, err))
 			}
 		}
@@ -2556,7 +2602,7 @@ func parseProwConfig(c *Config) error {
 	// We could use sprig.FuncMap() instead in feature.
 	jenkinsFuncMap := template.FuncMap{
 		"replace": func(old, new, src string) string {
-			return strings.Replace(src, old, new, -1)
+			return strings.ReplaceAll(src, old, new)
 		},
 	}
 
@@ -2714,6 +2760,9 @@ func parseProwConfig(c *Config) error {
 	if c.Tide.MaxGoroutines <= 0 {
 		return fmt.Errorf("tide has invalid max_goroutines (%d), it needs to be a positive number", c.Tide.MaxGoroutines)
 	}
+	if c.Tide.MaxQueryConcurrency < 0 {
+		return fmt.Errorf("tide has invalid max_query_concurrency (%d), it must be non-negative (0 = unlimited)", c.Tide.MaxQueryConcurrency)
+	}
 
 	if len(c.Tide.TargetURLs) > 0 && c.Tide.TargetURL != "" {
 		return fmt.Errorf("tide.target_url and tide.target_urls are mutually exclusive")
@@ -2774,6 +2823,14 @@ func parseProwConfig(c *Config) error {
 	for i, tq := range c.Tide.Queries {
 		if err := tq.Validate(); err != nil {
 			return fmt.Errorf("tide query (index %d) is invalid: %w", i, err)
+		}
+	}
+
+	for key, policy := range c.Tide.GitHubMergeBlocksPolicyMap {
+		switch policy {
+		case GitHubMergeBlocksIgnore, GitHubMergeBlocksPermit, GitHubMergeBlocksBlock:
+		default:
+			return fmt.Errorf("tide.github_merge_blocks_policy[%q] has invalid value %q, must be one of: ignore, permit, block", key, policy)
 		}
 	}
 
@@ -2869,10 +2926,8 @@ func parseTideMergeType(tideMergeTypes map[string]TideOrgMergeType) utilerrors.A
 
 func validateLabels(labels map[string]string) error {
 	for label, value := range labels {
-		for _, prowLabel := range decorate.Labels() {
-			if label == prowLabel {
-				return fmt.Errorf("label %s is reserved for decoration", label)
-			}
+		if slices.Contains(decorate.Labels(), label) {
+			return fmt.Errorf("label %s is reserved for decoration", label)
 		}
 		if errs := validation.IsQualifiedName(label); len(errs) != 0 {
 			return fmt.Errorf("invalid label %s: %v", label, errs)
@@ -3383,13 +3438,13 @@ func StringsToOrgRepos(vs []string) []OrgRepo {
 func (pc *ProwConfig) mergeFrom(additional *ProwConfig) error {
 	emptyReference := &ProwConfig{
 		BranchProtection:     additional.BranchProtection,
-		Tide:                 Tide{TideGitHubConfig: TideGitHubConfig{MergeType: additional.Tide.MergeType, Queries: additional.Tide.Queries}},
+		Tide:                 Tide{TideGitHubConfig: TideGitHubConfig{MergeType: additional.Tide.MergeType, Queries: additional.Tide.Queries, ContextOptions: additional.Tide.ContextOptions}},
 		SlackReporterConfigs: additional.SlackReporterConfigs,
 	}
 
 	var errs []error
 	if diff := cmp.Diff(additional, emptyReference, DefaultDiffOpts...); diff != "" {
-		errs = append(errs, fmt.Errorf("only 'branch-protection', 'slack_reporter_configs', 'tide.merge_method' and 'tide.queries' may be set via additional config, all other fields have no merging logic yet. Diff: %s", diff))
+		errs = append(errs, fmt.Errorf("only 'branch-protection', 'slack_reporter_configs', 'tide.merge_method', 'tide.queries' and 'tide.context_options' may be set via additional config, all other fields have no merging logic yet. Diff: %s", diff))
 	}
 	if err := pc.BranchProtection.merge(&additional.BranchProtection); err != nil {
 		errs = append(errs, fmt.Errorf("failed to merge branch protection config: %w", err))
@@ -3450,7 +3505,17 @@ const (
 	contextDescriptionBaseSHADelimiterDeprecated = " Basesha:"
 	contextDescriptionMaxLen                     = 140 // https://developer.github.com/v3/repos/deployments/#parameters-2
 	elide                                        = " ... "
+
+	// SkipRetestSentinel can be embedded in a GitHub status description to signal
+	// that Tide should treat the context as permanently passing for the current HEAD SHA
+	// and not retest it when the base branch moves.
+	SkipRetestSentinel = "[prow:skip-retest]"
 )
+
+// IsSkipRetest returns true if the description contains the SkipRetestSentinel.
+func IsSkipRetest(description string) bool {
+	return strings.Contains(description, SkipRetestSentinel)
+}
 
 // truncate converts "really long messages" into "really ... messages".
 func truncate(in string, maxLen int) string {
@@ -3471,6 +3536,15 @@ func (pc *ProwConfig) HasConfigFor() (global bool, orgs sets.Set[string], repos 
 			orgs.Insert(org)
 		}
 		for repo := range orgConfig.Repos {
+			repos.Insert(org + "/" + repo)
+		}
+	}
+
+	for org, policy := range pc.Tide.ContextOptions.Orgs {
+		if isTideContextPolicySet(policy.TideContextPolicy) {
+			orgs.Insert(org)
+		}
+		for repo := range policy.Repos {
 			repos.Insert(org + "/" + repo)
 		}
 	}
@@ -3505,7 +3579,7 @@ func (pc *ProwConfig) HasConfigFor() (global bool, orgs sets.Set[string], repos 
 }
 
 func (pc *ProwConfig) hasGlobalConfig() bool {
-	if pc.BranchProtection.ProtectTested != nil || pc.BranchProtection.AllowDisabledPolicies != nil || pc.BranchProtection.AllowDisabledJobPolicies != nil || pc.BranchProtection.ProtectReposWithOptionalJobs != nil || isPolicySet(pc.BranchProtection.Policy) || pc.SlackReporterConfigs.HasGlobalConfig() {
+	if isTideContextPolicySet(pc.Tide.ContextOptions.TideContextPolicy) || pc.BranchProtection.ProtectTested != nil || pc.BranchProtection.AllowDisabledPolicies != nil || pc.BranchProtection.AllowDisabledJobPolicies != nil || pc.BranchProtection.ProtectReposWithOptionalJobs != nil || isPolicySet(pc.BranchProtection.Policy) || pc.SlackReporterConfigs.HasGlobalConfig() {
 		return true
 	}
 	emptyReference := &ProwConfig{
@@ -3513,7 +3587,11 @@ func (pc *ProwConfig) hasGlobalConfig() bool {
 		Tide:                 Tide{TideGitHubConfig: TideGitHubConfig{MergeType: pc.Tide.MergeType, Queries: pc.Tide.Queries}},
 		SlackReporterConfigs: pc.SlackReporterConfigs,
 	}
-	return cmp.Diff(pc, emptyReference, DefaultDiffOpts...) != ""
+	// Context policies have already been classified above and by HasConfigFor.
+	// Exclude their runtime-only compiled regexes from the structural comparison.
+	withoutContextOptions := *pc
+	withoutContextOptions.Tide.ContextOptions = TideContextPolicyOptions{}
+	return cmp.Diff(&withoutContextOptions, emptyReference, DefaultDiffOpts...) != ""
 }
 
 // tideQueryMap is a map[tideQueryConfig]*tideQueryTarget. Because slices are not comparable, they

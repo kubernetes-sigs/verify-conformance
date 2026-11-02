@@ -1677,12 +1677,12 @@ func TestGetRequiredTests(t *testing.T) {
 		{
 			Name:               "valid",
 			Version:            "v1.36",
-			ExpectedTestsCount: 446, // NOTE magic number is count of tests form conformance.yaml
+			ExpectedTestsCount: 443, // NOTE magic number is count of tests form conformance.yaml
 		},
 		{
 			Name:               "valid alternate version",
 			Version:            "v1.35",
-			ExpectedTestsCount: 441, // NOTE magic number is count of tests form conformance.yaml
+			ExpectedTestsCount: 438, // NOTE magic number is count of tests form conformance.yaml
 		},
 		{
 			Name:               "valid with test with version above pr version",

@@ -20,7 +20,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -38,6 +40,25 @@ import (
 
 // TideQueries is a TideQuery slice.
 type TideQueries []TideQuery
+
+// GitHubMergeBlocksPolicy describes how Tide should handle GitHub's merge blocking conditions.
+type GitHubMergeBlocksPolicy string
+
+const (
+	// GitHubMergeBlocksIgnore ignores GitHub's BLOCKED status entirely in merge decisions.
+	// Tide will attempt to merge PRs even if GitHub reports them as blocked.
+	GitHubMergeBlocksIgnore GitHubMergeBlocksPolicy = "ignore"
+
+	// GitHubMergeBlocksPermit allows merging of BLOCKED PRs but logs warnings and may
+	// surface the blocked state in PR status messages. This is useful for monitoring
+	// repos that need branch protection or ruleset fixes.
+	GitHubMergeBlocksPermit GitHubMergeBlocksPolicy = "permit"
+
+	// GitHubMergeBlocksBlock respects GitHub's BLOCKED status and prevents Tide from
+	// attempting to merge PRs that are blocked by branch protection rules, rulesets,
+	// required reviews, or other GitHub-side blocking conditions.
+	GitHubMergeBlocksBlock GitHubMergeBlocksPolicy = "block"
+)
 
 type TideBranchMergeType struct {
 	MergeType types.PullRequestMergeType
@@ -215,6 +236,12 @@ type Tide struct {
 	// controller to handle org/repo:branch pools. Defaults to 20. Needs to be a
 	// positive number.
 	MaxGoroutines int `json:"max_goroutines,omitempty"`
+	// MaxQueryConcurrency limits how many GitHub PR search queries each Tide
+	// controller (sync and status) runs in parallel. The limit applies per
+	// controller, so up to 2x this many searches may be in flight at once.
+	// Queries are sharded per org only when GitHub Apps auth is in use.
+	// 0 means no limit. Unlike MaxGoroutines, 0 is not defaulted.
+	MaxQueryConcurrency int `json:"max_query_concurrency,omitempty"`
 	// BatchSizeLimitMap is a key/value pair of an org or org/repo as the key and
 	// integer batch size limit as the value. Use "*" as key to set a global default.
 	// Special values:
@@ -227,6 +254,12 @@ type Tide struct {
 	// starting a new one requires to start new instances of all tests.
 	// Use '*' as key to set this globally. Defaults to true.
 	PrioritizeExistingBatchesMap map[string]bool `json:"prioritize_existing_batches,omitempty"`
+	// GitHubMergeBlocksPolicyMap configures on org or org/repo level how Tide should handle
+	// GitHub's mergeStateStatus (BLOCKED state from branch protection rules, rulesets,
+	// required reviews, etc.).
+	// Use '*' as key to set this globally. Defaults to "permit" which allows merging but logs warnings.
+	// Valid values: "ignore", "permit", "block"
+	GitHubMergeBlocksPolicyMap map[string]GitHubMergeBlocksPolicy `json:"github_merge_blocks_policy,omitempty"`
 
 	TideGitHubConfig `json:",inline"`
 }
@@ -293,6 +326,9 @@ type TideGitHubConfig struct {
 	// the required and optional contexts from the prow jobs configured and use the github
 	// combined status; otherwise it may apply the branch protection setting or let user
 	// define their own options in case branch protection is not used.
+	// May be sharded across supplemental Prow config files. Lists at the same scope
+	// are unioned; conflicting explicit booleans at the same scope are rejected.
+	// More specific org, repo and branch policies can override inherited booleans.
 	ContextOptions TideContextPolicyOptions `json:"context_options,omitempty"`
 
 	// BatchSizeLimitMap is a key/value pair of an org or org/repo as the key and
@@ -328,12 +364,14 @@ func (t *Tide) mergeFrom(additional *Tide) error {
 	// increase token usage needlessly.
 	t.Queries = append(t.Queries, additional.Queries...)
 
-	if t.MergeType == nil {
-		t.MergeType = additional.MergeType
-		return nil
+	var errs []error
+	if err := t.ContextOptions.mergeFrom(additional.ContextOptions); err != nil {
+		errs = append(errs, err)
+	}
+	if t.MergeType == nil && additional.MergeType != nil {
+		t.MergeType = map[string]TideOrgMergeType{}
 	}
 
-	var errs []error
 	for orgOrRepo, mergeMethod := range additional.MergeType {
 		if _, alreadyConfigured := t.MergeType[orgOrRepo]; alreadyConfigured {
 			errs = append(errs, fmt.Errorf("config for org or repo %s passed more than once", orgOrRepo))
@@ -343,6 +381,108 @@ func (t *Tide) mergeFrom(additional *Tide) error {
 	}
 
 	return utilerrors.NewAggregate(errs)
+}
+
+// mergeFrom combines policies at the same scope across supplemental config files.
+// Hierarchical overrides are applied separately by ParseTideContextPolicyOptions.
+func (options *TideContextPolicyOptions) mergeFrom(additional TideContextPolicyOptions) error {
+	if !isTideContextPolicySet(additional.TideContextPolicy) && len(additional.Orgs) == 0 {
+		if options.Orgs == nil && additional.Orgs != nil {
+			options.Orgs = map[string]TideOrgContextPolicy{}
+		}
+		return nil
+	}
+	policy, err := mergeSupplementalTideContextPolicy(options.TideContextPolicy, additional.TideContextPolicy, "tide.context_options")
+	var errs []error
+	if err != nil {
+		errs = append(errs, err)
+	}
+	merged := TideContextPolicyOptions{TideContextPolicy: policy}
+	if options.Orgs != nil || additional.Orgs != nil {
+		merged.Orgs = map[string]TideOrgContextPolicy{}
+	}
+	orgs := sets.KeySet(options.Orgs).Union(sets.KeySet(additional.Orgs))
+	for _, org := range sets.List(orgs) {
+		scope := fmt.Sprintf("tide.context_options.orgs[%q]", org)
+		policy, err := options.Orgs[org].mergeFrom(additional.Orgs[org], scope)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		merged.Orgs[org] = policy
+	}
+	if err := utilerrors.NewAggregate(errs); err != nil {
+		return err
+	}
+	*options = merged
+	return nil
+}
+
+func (org TideOrgContextPolicy) mergeFrom(additional TideOrgContextPolicy, scope string) (TideOrgContextPolicy, error) {
+	policy, err := mergeSupplementalTideContextPolicy(org.TideContextPolicy, additional.TideContextPolicy, scope)
+	var errs []error
+	if err != nil {
+		errs = append(errs, err)
+	}
+	merged := TideOrgContextPolicy{TideContextPolicy: policy}
+	if org.Repos != nil || additional.Repos != nil {
+		merged.Repos = map[string]TideRepoContextPolicy{}
+	}
+	repos := sets.KeySet(org.Repos).Union(sets.KeySet(additional.Repos))
+	for _, repo := range sets.List(repos) {
+		policy, err := org.Repos[repo].mergeFrom(additional.Repos[repo], fmt.Sprintf("%s.repos[%q]", scope, repo))
+		if err != nil {
+			errs = append(errs, err)
+		}
+		merged.Repos[repo] = policy
+	}
+	return merged, utilerrors.NewAggregate(errs)
+}
+
+func (repo TideRepoContextPolicy) mergeFrom(additional TideRepoContextPolicy, scope string) (TideRepoContextPolicy, error) {
+	policy, err := mergeSupplementalTideContextPolicy(repo.TideContextPolicy, additional.TideContextPolicy, scope)
+	var errs []error
+	if err != nil {
+		errs = append(errs, err)
+	}
+	merged := TideRepoContextPolicy{TideContextPolicy: policy}
+	if repo.Branches != nil || additional.Branches != nil {
+		merged.Branches = map[string]TideContextPolicy{}
+	}
+	maps.Copy(merged.Branches, repo.Branches)
+	for _, branch := range sets.List(sets.KeySet(additional.Branches)) {
+		policy, err := mergeSupplementalTideContextPolicy(repo.Branches[branch], additional.Branches[branch], fmt.Sprintf("%s.branches[%q]", scope, branch))
+		if err != nil {
+			errs = append(errs, err)
+		}
+		merged.Branches[branch] = policy
+	}
+	return merged, utilerrors.NewAggregate(errs)
+}
+
+// mergeSupplementalTideContextPolicy rejects conflicting booleans at the same scope.
+func mergeSupplementalTideContextPolicy(a, b TideContextPolicy, scope string) (TideContextPolicy, error) {
+	if !isTideContextPolicySet(b) {
+		return a, nil
+	}
+	var errs []error
+	for _, field := range []struct {
+		name string
+		a, b *bool
+	}{
+		{"skip-unknown-contexts", a.SkipUnknownContexts, b.SkipUnknownContexts},
+		{"from-branch-protection", a.FromBranchProtection, b.FromBranchProtection},
+		{"overwrite-pending-contexts", a.OverwritePendingContexts, b.OverwritePendingContexts},
+	} {
+		if field.a != nil && field.b != nil && *field.a != *field.b {
+			errs = append(errs, fmt.Errorf("%s: conflicting values for %s", scope, field.name))
+		}
+	}
+	return mergeTideContextPolicy(a, b), utilerrors.NewAggregate(errs)
+}
+
+func isTideContextPolicySet(policy TideContextPolicy) bool {
+	return policy.SkipUnknownContexts != nil || policy.FromBranchProtection != nil || policy.OverwritePendingContexts != nil ||
+		len(policy.RequiredContexts) > 0 || len(policy.RequiredIfPresentContexts) > 0 || len(policy.OptionalContexts) > 0 || len(policy.OptionalRegexContexts) > 0
 }
 
 func (t *Tide) PrioritizeExistingBatches(repo OrgRepo) bool {
@@ -368,6 +508,22 @@ func (t *Tide) BatchSizeLimit(repo OrgRepo) int {
 		return limit
 	}
 	return t.BatchSizeLimitMap["*"]
+}
+
+// GitHubMergeBlocksPolicy returns the policy for handling GitHub's merge blocking conditions.
+// The default is "permit" which allows merging but logs warnings for monitoring.
+func (t *Tide) GitHubMergeBlocksPolicy(repo OrgRepo) GitHubMergeBlocksPolicy {
+	if val, set := t.GitHubMergeBlocksPolicyMap[repo.String()]; set {
+		return val
+	}
+	if val, set := t.GitHubMergeBlocksPolicyMap[repo.Org]; set {
+		return val
+	}
+	if val, set := t.GitHubMergeBlocksPolicyMap["*"]; set {
+		return val
+	}
+	// Default to "permit" to allow merging while surfacing the blocked state for monitoring
+	return GitHubMergeBlocksPermit
 }
 
 // MergeMethod returns the merge method to use for a repo. The default of merge is
@@ -583,7 +739,7 @@ func (tq *TideQuery) constructQuery() (map[string][]string, string) {
 	}
 	for _, l := range tq.Labels {
 		var orOperands []string
-		for _, alt := range strings.Split(l, ",") {
+		for alt := range strings.SplitSeq(l, ",") {
 			orOperands = append(orOperands, fmt.Sprintf("\"%s\"", alt))
 		}
 		queryString = append(queryString, fmt.Sprintf("label:%s", strings.Join(orOperands, ",")))
@@ -639,19 +795,9 @@ func (tq TideQuery) ForRepo(repo OrgRepo) bool {
 			continue
 		}
 		// Check for repos excluded from the org.
-		for _, excludedRepo := range tq.ExcludedRepos {
-			if excludedRepo == repo.String() {
-				return false
-			}
-		}
-		return true
+		return !slices.Contains(tq.ExcludedRepos, repo.String())
 	}
-	for _, queryRepo := range tq.Repos {
-		if queryRepo == repo.String() {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tq.Repos, repo.String())
 }
 
 func reposInOrg(org string, repos []string) []string {

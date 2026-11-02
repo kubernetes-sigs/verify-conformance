@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"mime"
 	"net/url"
 	"strings"
@@ -502,6 +503,12 @@ type DecorationConfig struct {
 	// BloblessFetch tells Prow to avoid fetching objects when cloning using
 	// the --filter=blob:none flag.
 	BloblessFetch *bool `json:"blobless_fetch,omitempty"`
+	// SparseCheckoutFiles limits the working tree to only the listed paths.
+	// Accepts the same patterns as git sparse-checkout set (file names,
+	// directory names, gitignore-style globs). When set, clonerefs performs a
+	// sparse checkout instead of a full clone. Applied to the primary ref for
+	// presubmit/postsubmit jobs. Not applied to extra refs.
+	SparseCheckoutFiles []string `json:"sparse_checkout_files,omitempty"`
 	// SkipCloning determines if we should clone source code in the
 	// initcontainers for jobs that specify refs
 	SkipCloning *bool `json:"skip_cloning,omitempty"`
@@ -853,6 +860,9 @@ func (d *DecorationConfig) ApplyDefault(def *DecorationConfig) *DecorationConfig
 	if merged.BloblessFetch == nil {
 		merged.BloblessFetch = def.BloblessFetch
 	}
+	if len(merged.SparseCheckoutFiles) == 0 {
+		merged.SparseCheckoutFiles = def.SparseCheckoutFiles
+	}
 	if merged.SchedulingOptions == nil {
 		merged.SchedulingOptions = def.SchedulingOptions
 	}
@@ -1025,9 +1035,7 @@ func (g *GCSConfiguration) ApplyDefault(def *GCSConfiguration) *GCSConfiguration
 		merged.MediaTypes = map[string]string{}
 	}
 
-	for extension, mediaType := range def.MediaTypes {
-		merged.MediaTypes[extension] = mediaType
-	}
+	maps.Copy(merged.MediaTypes, def.MediaTypes)
 
 	if merged.JobURLPrefix == "" {
 		merged.JobURLPrefix = def.JobURLPrefix
@@ -1214,6 +1222,19 @@ type Refs struct {
 	// directory.
 	WorkDir bool `json:"workdir,omitempty"`
 
+	// Auxiliary indicates that the repository really only provides
+	// auxiliary files for the job and is not the main repository that is
+	// being tested.
+	//
+	// This is relevant when determining which version to record in a
+	// periodic job's started.json file: the first repository where
+	// Auxiliary is false or unset is considered the main repository
+	// and determines the version.
+	//
+	// In presubmit jobs the version always comes from the repository
+	// for which the job is defined.
+	Auxiliary bool `json:"auxiliary,omitempty"`
+
 	// CloneURI is the URI that is used to clone the
 	// repository. If unset, will default to
 	// `https://github.com/org/repo.git`.
@@ -1232,6 +1253,18 @@ type Refs struct {
 	// using the --filter=blob:none flag. If unspecified, defaults to
 	// DecorationConfig.BloblessFetch.
 	BloblessFetch *bool `json:"blobless_fetch,omitempty"`
+	// SparseCheckoutFiles limits the working tree to only the listed paths.
+	// Accepts the same patterns as git sparse-checkout set: file names,
+	// directory names, and gitignore-style globs (e.g. "Makefile",
+	// "pkg/operator", "config/**/*.yaml").
+	//
+	// When set, clonerefs will:
+	//   1. run git sparse-checkout init to enable sparse mode
+	//   2. run git fetch with --depth 1 --filter=blob:none --no-tags
+	//   3. run git sparse-checkout set <paths> before checkout
+	//
+	// Only the blobs needed for the requested paths are downloaded.
+	SparseCheckoutFiles []string `json:"sparse_checkout_files,omitempty"`
 }
 
 func (r Refs) String() string {

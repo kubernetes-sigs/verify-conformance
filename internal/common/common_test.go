@@ -62,7 +62,7 @@ func TestPointer(t *testing.T) {
 		},
 	} {
 		result := Pointer(tc.Input)
-		if reflect.ValueOf(result).Kind() != reflect.Ptr {
+		if reflect.ValueOf(result).Kind() != reflect.Pointer {
 			t.Fatalf("error: unexpected result from test '%v', with input as '%v' and expected input as '%v'", tc.Name, tc.Input, &tc.ExpectedResult)
 		}
 	}

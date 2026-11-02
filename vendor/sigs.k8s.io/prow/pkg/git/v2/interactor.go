@@ -208,7 +208,11 @@ func (i *interactor) MirrorClone() error {
 // Checkout runs git checkout.
 func (i *interactor) Checkout(commitlike string) error {
 	i.logger.Infof("Checking out %q", commitlike)
-	if out, err := i.executor.Run("checkout", commitlike); err != nil {
+	// The trailing "--" disambiguates the revision from a pathspec. Without it,
+	// `git checkout <commitlike>` fails with "fatal: '<commitlike>' could be both
+	// a local file and a tracking branch" whenever commitlike (e.g. a branch name
+	// like "team/app/overlays/prod") also matches a path in the working tree.
+	if out, err := i.executor.Run("checkout", commitlike, "--"); err != nil {
 		return fmt.Errorf("error checking out %q: %w %v", commitlike, err, string(out))
 	}
 	return nil
@@ -382,6 +386,12 @@ func (i *interactor) mergeRebase(commitlike string) (bool, error) {
 		i.logger.WithField("out", string(b)).WithError(err).Infof("Rebase failed.")
 		if b, err := i.executor.Run("rebase", "--abort"); err != nil {
 			return false, fmt.Errorf("error aborting after failed rebase for commitlike %s: %v. output: %s", commitlike, err, string(b))
+		}
+		// git rebase <upstream> <branch> checks out <branch> before rebasing,
+		// and --abort restores HEAD to <branch>, not to the pre-rebase HEAD.
+		// Restore HEAD to where the caller left it.
+		if err := i.Checkout(headRev); err != nil {
+			return false, fmt.Errorf("error restoring HEAD after aborted rebase for commitlike %s: %w", commitlike, err)
 		}
 		return false, nil
 	}

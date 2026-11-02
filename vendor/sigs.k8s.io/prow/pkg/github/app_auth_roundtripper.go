@@ -29,8 +29,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 
+	"sigs.k8s.io/prow/pkg/config/secret"
 	"sigs.k8s.io/prow/pkg/ghcache"
 )
 
@@ -123,6 +124,7 @@ func (arr *appsRoundTripper) addAppAuth(r *http.Request) *appsAuthError {
 	if err != nil {
 		return &appsAuthError{fmt.Errorf("failed to generate jwt: %w", err)}
 	}
+	secret.AddExpiringToken(token, expiresAt)
 
 	r.Header.Set("Authorization", "Bearer "+token)
 	r.Header.Set(ghcache.TokenExpiryAtHeader, expiresAt.Format(time.RFC3339))
@@ -259,6 +261,7 @@ func (arr *appsRoundTripper) getTokenForInstallation(installation int64) (string
 		arr.tokens = map[int64]*AppInstallationToken{}
 	}
 	arr.tokens[installation] = token
+	secret.AddExpiringToken(token.Token, token.ExpiresAt)
 
 	return token.Token, token.ExpiresAt, nil
 }

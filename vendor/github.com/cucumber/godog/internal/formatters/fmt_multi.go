@@ -5,7 +5,7 @@ import (
 
 	"github.com/cucumber/godog/formatters"
 	"github.com/cucumber/godog/internal/storage"
-	"github.com/cucumber/messages-go/v16"
+	messages "github.com/cucumber/messages/go/v34"
 )
 
 // MultiFormatter passes test progress to multiple formatters.
@@ -15,9 +15,8 @@ type MultiFormatter struct {
 }
 
 type formatter struct {
-	fmt   formatters.FormatterFunc
-	out   io.Writer
-	close bool
+	fmt formatters.FormatterFunc
+	out io.Writer
 }
 
 type repeater []formatters.Formatter
@@ -95,6 +94,13 @@ func (r repeater) Undefined(pickle *messages.Pickle, step *messages.PickleStep, 
 func (r repeater) Pending(pickle *messages.Pickle, step *messages.PickleStep, definition *formatters.StepDefinition) {
 	for _, f := range r {
 		f.Pending(pickle, step, definition)
+	}
+}
+
+// Ambiguous triggers Ambiguous for all added formatters.
+func (r repeater) Ambiguous(pickle *messages.Pickle, step *messages.PickleStep, definition *formatters.StepDefinition, err error) {
+	for _, f := range r {
+		f.Ambiguous(pickle, step, definition, err)
 	}
 }
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/cucumber/messages-go/v16"
+	messages "github.com/cucumber/messages/go/v34"
 	"github.com/hashicorp/go-memdb"
 
 	"github.com/cucumber/godog/internal/models"
@@ -223,11 +223,26 @@ func (s *Storage) MustGetPickleStepResult(id string) models.PickleStepResult {
 	return v.(models.PickleStepResult)
 }
 
-// MustGetPickleStepResultsByPickleID will retrieve pickle strep results by pickle id and panic on error.
+// MustGetPickleStepResultsByPickleID will retrieve pickle step results by pickle id and panic on error.
 func (s *Storage) MustGetPickleStepResultsByPickleID(pickleID string) (psrs []models.PickleStepResult) {
 	it := s.mustGet(tablePickleStepResult, tablePickleStepResultIndexPickleID, pickleID)
 	for v := it.Next(); v != nil; v = it.Next() {
 		psrs = append(psrs, v.(models.PickleStepResult))
+	}
+
+	return psrs
+}
+
+// MustGetPickleStepResultsByPickleIDUntilStep will retrieve pickle step results by pickle id
+// from 0..stepID for that pickle.
+func (s *Storage) MustGetPickleStepResultsByPickleIDUntilStep(pickleID string, untilStepID string) (psrs []models.PickleStepResult) {
+	it := s.mustGet(tablePickleStepResult, tablePickleStepResultIndexPickleID, pickleID)
+	for v := it.Next(); v != nil; v = it.Next() {
+		psr := v.(models.PickleStepResult)
+		psrs = append(psrs, psr)
+		if psr.PickleStepID == untilStepID {
+			break
+		}
 	}
 
 	return psrs
@@ -303,7 +318,7 @@ func (s *Storage) mustFirst(table, index string, args ...interface{}) interface{
 	if err != nil {
 		panic(err)
 	} else if v == nil {
-		err = fmt.Errorf("Couldn't find index: %q in table: %q with args: %+v", index, table, args)
+		err = fmt.Errorf("couldn't find index: %q in table: %q with args: %+v", index, table, args)
 		panic(err)
 	}
 

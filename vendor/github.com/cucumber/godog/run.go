@@ -2,9 +2,11 @@ package godog
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"go/build"
 	"io"
+	"io/fs"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -14,7 +16,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/cucumber/messages-go/v16"
+	messages "github.com/cucumber/messages/go/v34"
 
 	"github.com/cucumber/godog/colors"
 	"github.com/cucumber/godog/formatters"
@@ -31,8 +33,10 @@ const (
 	exitOptionError
 )
 
-type testSuiteInitializer func(*TestSuiteContext)
-type scenarioInitializer func(*ScenarioContext)
+type (
+	testSuiteInitializer func(*TestSuiteContext)
+	scenarioInitializer  func(*ScenarioContext)
+)
 
 type runner struct {
 	randomSeed            int64
@@ -113,6 +117,13 @@ func (r *runner) concurrent(rate int) (failed bool) {
 
 				// Copy base suite.
 				suite := *testSuiteContext.suite
+				if rate > 1 {
+					// if running concurrently, only print at end of scenario to keep
+					// scenario logs segregated
+					ffmt := ifmt.WrapOnFlush(testSuiteContext.suite.fmt)
+					suite.fmt = ffmt
+					defer ffmt.Flush()
+				}
 
 				if r.scenarioInitializer != nil {
 					sc := ScenarioContext{suite: &suite}
@@ -213,8 +224,16 @@ func runWithOptions(suiteName string, runner runner, opt Options) int {
 		return exitOptionError
 	}
 
-	if len(opt.Paths) == 0 {
-		inf, err := os.Stat("features")
+	if len(opt.Paths) == 0 && len(opt.FeatureContents) == 0 {
+		inf, err := func() (fs.FileInfo, error) {
+			file, err := opt.FS.Open("features")
+			if err != nil {
+				return nil, err
+			}
+			defer file.Close()
+
+			return file.Stat()
+		}()
 		if err == nil && inf.IsDir() {
 			opt.Paths = []string{"features"}
 		}
@@ -225,11 +244,24 @@ func runWithOptions(suiteName string, runner runner, opt Options) int {
 	}
 
 	runner.fmt = multiFmt.FormatterFunc(suiteName, output)
+	opt.FS = storage.FS{FS: opt.FS}
 
-	var err error
-	if runner.features, err = parser.ParseFeatures(opt.Tags, opt.Paths); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return exitOptionError
+	if len(opt.FeatureContents) > 0 {
+		features, err := parser.ParseFromBytes(opt.Tags, opt.Dialect, opt.FeatureContents)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return exitOptionError
+		}
+		runner.features = append(runner.features, features...)
+	}
+
+	if len(opt.Paths) > 0 {
+		features, err := parser.ParseFeatures(opt.FS, opt.Tags, opt.Dialect, opt.Paths)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return exitOptionError
+		}
+		runner.features = append(runner.features, features...)
 	}
 
 	runner.storage = storage.NewStorage()
@@ -297,10 +329,11 @@ type TestSuite struct {
 // all configuration options from flags.
 //
 // The exit codes may vary from:
-//  0 - success
-//  1 - failed
-//  2 - command line usage error
-//  128 - or higher, os signal related error exit codes
+//
+//	0 - success
+//	1 - failed
+//	2 - command line usage error
+//	128 - or higher, os signal related error exit codes
 //
 // If there are flag related errors they will be directed to os.Stderr
 func (ts TestSuite) Run() int {
@@ -311,6 +344,15 @@ func (ts TestSuite) Run() int {
 			return exitOptionError
 		}
 	}
+	if ts.Options.FS == nil {
+		ts.Options.FS = storage.FS{}
+	}
+	if ts.Options.ShowHelp {
+		flag.CommandLine.Usage()
+
+		return 0
+	}
+
 	r := runner{testSuiteInitializer: ts.TestSuiteInitializer, scenarioInitializer: ts.ScenarioInitializer}
 	return runWithOptions(ts.Name, r, *ts.Options)
 }
@@ -328,14 +370,26 @@ func (ts TestSuite) RetrieveFeatures() ([]*models.Feature, error) {
 		}
 	}
 
+	if ts.Options.FS == nil {
+		ts.Options.FS = storage.FS{}
+	}
+
 	if len(opt.Paths) == 0 {
-		inf, err := os.Stat("features")
+		inf, err := func() (fs.FileInfo, error) {
+			file, err := opt.FS.Open("features")
+			if err != nil {
+				return nil, err
+			}
+			defer file.Close()
+
+			return file.Stat()
+		}()
 		if err == nil && inf.IsDir() {
 			opt.Paths = []string{"features"}
 		}
 	}
 
-	return parser.ParseFeatures(opt.Tags, opt.Paths)
+	return parser.ParseFeatures(opt.FS, opt.Tags, opt.Dialect, opt.Paths)
 }
 
 func getDefaultOptions() (*Options, error) {
@@ -349,6 +403,7 @@ func getDefaultOptions() (*Options, error) {
 	}
 
 	opt.Paths = flagSet.Args()
+	opt.FS = storage.FS{}
 
 	return opt, nil
 }

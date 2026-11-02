@@ -8,10 +8,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/cucumber/messages-go/v16"
+	messages "github.com/cucumber/messages/go/v34"
 
 	"github.com/cucumber/godog/colors"
 	"github.com/cucumber/godog/formatters"
+	"github.com/cucumber/godog/internal/models"
 )
 
 func init() {
@@ -106,6 +107,16 @@ func (f *Pretty) Undefined(pickle *messages.Pickle, step *messages.PickleStep, m
 // Failed captures failed step.
 func (f *Pretty) Failed(pickle *messages.Pickle, step *messages.PickleStep, match *formatters.StepDefinition, err error) {
 	f.Base.Failed(pickle, step, match, err)
+
+	f.Lock.Lock()
+	defer f.Lock.Unlock()
+
+	f.printStep(pickle, step)
+}
+
+// Failed captures failed step.
+func (f *Pretty) Ambiguous(pickle *messages.Pickle, step *messages.PickleStep, match *formatters.StepDefinition, err error) {
+	f.Base.Ambiguous(pickle, step, match, err)
 
 	f.Lock.Lock()
 	defer f.Lock.Unlock()
@@ -232,7 +243,7 @@ func (f *Pretty) Summary() {
 	f.Base.Summary()
 }
 
-func (f *Pretty) printOutlineExample(pickle *messages.Pickle, backgroundSteps int) {
+func (f *Pretty) printOutlineExample(pickle *messages.Pickle, step *messages.PickleStep, backgroundSteps int) {
 	var errorMsg string
 	var clr = green
 
@@ -244,7 +255,7 @@ func (f *Pretty) printOutlineExample(pickle *messages.Pickle, backgroundSteps in
 	printExampleHeader := exampleTable.TableBody[0].Id == exampleRow.Id
 	firstExamplesTable := astScenario.Examples[0].Location.Line == exampleTable.Location.Line
 
-	pickleStepResults := f.Storage.MustGetPickleStepResultsByPickleID(pickle.Id)
+	pickleStepResults := f.Storage.MustGetPickleStepResultsByPickleIDUntilStep(pickle.Id, step.Id)
 
 	firstExecutedScenarioStep := len(pickleStepResults) == backgroundSteps+1
 	if firstExamplesTable && printExampleHeader && firstExecutedScenarioStep {
@@ -266,6 +277,9 @@ func (f *Pretty) printOutlineExample(pickle *messages.Pickle, backgroundSteps in
 		// determine example row status
 		switch {
 		case result.Status == failed:
+			errorMsg = result.Err.Error()
+			clr = result.Status.Color()
+		case result.Status == ambiguous:
 			errorMsg = result.Err.Error()
 			clr = result.Status.Color()
 		case result.Status == undefined || result.Status == pending:
@@ -350,15 +364,38 @@ func (f *Pretty) printTableHeader(row *messages.TableRow, max []int) {
 	f.printTableRow(row, max, cyan)
 }
 
+func isFirstScenarioInRule(rule *messages.Rule, scenario *messages.Scenario) bool {
+	if rule == nil || scenario == nil {
+		return false
+	}
+	var firstScenario *messages.Scenario
+	for _, c := range rule.Children {
+		if c.Scenario != nil {
+			firstScenario = c.Scenario
+			break
+		}
+	}
+	return firstScenario != nil && firstScenario.Id == scenario.Id
+}
+
+func isFirstPickleAndNoRule(feature *models.Feature, pickle *messages.Pickle, rule *messages.Rule) bool {
+	if rule != nil {
+		return false
+	}
+	return feature.Pickles[0].Id == pickle.Id
+}
+
 func (f *Pretty) printStep(pickle *messages.Pickle, pickleStep *messages.PickleStep) {
 	feature := f.Storage.MustGetFeature(pickle.Uri)
 	astBackground := feature.FindBackground(pickle.AstNodeIds[0])
 	astScenario := feature.FindScenario(pickle.AstNodeIds[0])
+	astRule := feature.FindRule(pickle.AstNodeIds[0])
 	astStep := feature.FindStep(pickleStep.AstNodeIds[0])
 
 	var astBackgroundStep bool
 	var firstExecutedBackgroundStep bool
 	var backgroundSteps int
+
 	if astBackground != nil {
 		backgroundSteps = len(astBackground.Steps)
 
@@ -371,7 +408,7 @@ func (f *Pretty) printStep(pickle *messages.Pickle, pickleStep *messages.PickleS
 		}
 	}
 
-	firstPickle := feature.Pickles[0].Id == pickle.Id
+	firstPickle := isFirstPickleAndNoRule(feature, pickle, astRule) || isFirstScenarioInRule(astRule, astScenario)
 
 	if astBackgroundStep && !firstPickle {
 		return
@@ -382,7 +419,7 @@ func (f *Pretty) printStep(pickle *messages.Pickle, pickleStep *messages.PickleS
 	}
 
 	if !astBackgroundStep && len(astScenario.Examples) > 0 {
-		f.printOutlineExample(pickle, backgroundSteps)
+		f.printOutlineExample(pickle, pickleStep, backgroundSteps)
 		return
 	}
 

@@ -211,7 +211,7 @@ const (
 
 // GenericEvent is a lightweight struct containing just Sender, Organization and Repo as
 // they are allWebhook payload object common properties:
-// https://developer.github.com/webhooks/event-payloads/#webhook-payload-object-common-properties
+// https://docs.github.com/en/webhooks/webhook-events-and-payloads#webhook-payload-object-common-properties
 type GenericEvent struct {
 	Sender User         `json:"sender"`
 	Org    Organization `json:"organization"`
@@ -319,25 +319,61 @@ type PullRequestChange struct {
 	PreviousFilename string `json:"previous_filename"`
 }
 
+// RepoVisibility is public, private or internal.
+//
+// See https://docs.github.com/en/rest/repos/repos#create-an-organization-repository
+type RepoVisibility string
+
+const (
+	// RepoVisibilityPublic identifies a public repository.
+	RepoVisibilityPublic RepoVisibility = "public"
+	// RepoVisibilityPrivate identifies a private repository.
+	RepoVisibilityPrivate RepoVisibility = "private"
+	// RepoVisibilityInternal identifies an enterprise-internal repository.
+	RepoVisibilityInternal RepoVisibility = "internal"
+)
+
+var repoVisibilities = map[RepoVisibility]bool{
+	RepoVisibilityPublic:   true,
+	RepoVisibilityPrivate:  true,
+	RepoVisibilityInternal: true,
+}
+
+// MarshalText returns the byte representation of the visibility
+func (v RepoVisibility) MarshalText() ([]byte, error) {
+	return []byte(v), nil
+}
+
+// UnmarshalText validates that the text is one of the known repo visibilities.
+func (v *RepoVisibility) UnmarshalText(text []byte) error {
+	val := RepoVisibility(text)
+	if _, ok := repoVisibilities[val]; !ok {
+		return fmt.Errorf("bad repo visibility: %s not in %v", val, repoVisibilities)
+	}
+	*v = val
+	return nil
+}
+
 // Repo contains general repository information: it includes fields available
 // in repo records returned by GH "List" methods but not those returned by GH
 // "Get" method. Use FullRepo struct for "Get" method.
 // See also https://developer.github.com/v3/repos/#list-organization-repositories
 type Repo struct {
-	Owner         User   `json:"owner"`
-	Name          string `json:"name"`
-	FullName      string `json:"full_name"`
-	HTMLURL       string `json:"html_url"`
-	Fork          bool   `json:"fork"`
-	DefaultBranch string `json:"default_branch"`
-	Archived      bool   `json:"archived"`
-	Private       bool   `json:"private"`
-	Description   string `json:"description"`
-	Homepage      string `json:"homepage"`
-	HasIssues     bool   `json:"has_issues"`
-	HasProjects   bool   `json:"has_projects"`
-	HasWiki       bool   `json:"has_wiki"`
-	NodeID        string `json:"node_id"`
+	Owner         User           `json:"owner"`
+	Name          string         `json:"name"`
+	FullName      string         `json:"full_name"`
+	HTMLURL       string         `json:"html_url"`
+	Fork          bool           `json:"fork"`
+	DefaultBranch string         `json:"default_branch"`
+	Archived      bool           `json:"archived"`
+	Private       bool           `json:"private"`
+	Visibility    RepoVisibility `json:"visibility,omitempty"`
+	Description   string         `json:"description"`
+	Homepage      string         `json:"homepage"`
+	HasIssues     bool           `json:"has_issues"`
+	HasProjects   bool           `json:"has_projects"`
+	HasWiki       bool           `json:"has_wiki"`
+	NodeID        string         `json:"node_id"`
 	// Permissions reflect the permission level for the requester, so
 	// on a repository GET call this will be for the user whose token
 	// is being used, if listing a team's repos this will be for the
@@ -369,27 +405,37 @@ type FullRepo struct {
 	AllowRebaseMerge         bool   `json:"allow_rebase_merge,omitempty"`
 	SquashMergeCommitTitle   string `json:"squash_merge_commit_title,omitempty"`
 	SquashMergeCommitMessage string `json:"squash_merge_commit_message,omitempty"`
+	DeleteBranchOnMerge      bool   `json:"delete_branch_on_merge,omitempty"`
 }
 
 // RepoRequest contains metadata used in requests to create or update a Repo.
 // Compared to `Repo`, its members are pointers to allow the "not set/use default
 // semantics.
+//
+// Both Private and Visibility are supported: the user repo creation API
+// (POST /user/repos) only accepts the "private" bool, while the org repo
+// creation and update APIs accept "visibility" (public/private/internal) as well.
+// When both are set, ToRepo reconciles them with Visibility taking
+// precedence; note that a marshaled request sends both fields verbatim, so
+// a caller should set only one to avoid sending a conflicting pair to GitHub.
 // See also:
 // - https://developer.github.com/v3/repos/#create
 // - https://developer.github.com/v3/repos/#edit
 type RepoRequest struct {
-	Name                     *string `json:"name,omitempty"`
-	Description              *string `json:"description,omitempty"`
-	Homepage                 *string `json:"homepage,omitempty"`
-	Private                  *bool   `json:"private,omitempty"`
-	HasIssues                *bool   `json:"has_issues,omitempty"`
-	HasProjects              *bool   `json:"has_projects,omitempty"`
-	HasWiki                  *bool   `json:"has_wiki,omitempty"`
-	AllowSquashMerge         *bool   `json:"allow_squash_merge,omitempty"`
-	AllowMergeCommit         *bool   `json:"allow_merge_commit,omitempty"`
-	AllowRebaseMerge         *bool   `json:"allow_rebase_merge,omitempty"`
-	SquashMergeCommitTitle   *string `json:"squash_merge_commit_title,omitempty"`
-	SquashMergeCommitMessage *string `json:"squash_merge_commit_message,omitempty"`
+	Name                     *string         `json:"name,omitempty"`
+	Description              *string         `json:"description,omitempty"`
+	Homepage                 *string         `json:"homepage,omitempty"`
+	Private                  *bool           `json:"private,omitempty"`
+	Visibility               *RepoVisibility `json:"visibility,omitempty"`
+	HasIssues                *bool           `json:"has_issues,omitempty"`
+	HasProjects              *bool           `json:"has_projects,omitempty"`
+	HasWiki                  *bool           `json:"has_wiki,omitempty"`
+	AllowSquashMerge         *bool           `json:"allow_squash_merge,omitempty"`
+	AllowMergeCommit         *bool           `json:"allow_merge_commit,omitempty"`
+	AllowRebaseMerge         *bool           `json:"allow_rebase_merge,omitempty"`
+	SquashMergeCommitTitle   *string         `json:"squash_merge_commit_title,omitempty"`
+	SquashMergeCommitMessage *string         `json:"squash_merge_commit_message,omitempty"`
+	DeleteBranchOnMerge      *bool           `json:"delete_branch_on_merge,omitempty"`
 }
 
 type WorkflowRuns struct {
@@ -424,6 +470,10 @@ func (r RepoRequest) ToRepo() *FullRepo {
 	setString(&repo.Description, r.Description)
 	setString(&repo.Homepage, r.Homepage)
 	setBool(&repo.Private, r.Private)
+	if r.Visibility != nil {
+		repo.Visibility = *r.Visibility
+		repo.Private = repo.Visibility != RepoVisibilityPublic
+	}
 	setBool(&repo.HasIssues, r.HasIssues)
 	setBool(&repo.HasProjects, r.HasProjects)
 	setBool(&repo.HasWiki, r.HasWiki)
@@ -432,15 +482,16 @@ func (r RepoRequest) ToRepo() *FullRepo {
 	setBool(&repo.AllowRebaseMerge, r.AllowRebaseMerge)
 	setString(&repo.SquashMergeCommitTitle, r.SquashMergeCommitTitle)
 	setString(&repo.SquashMergeCommitMessage, r.SquashMergeCommitMessage)
+	setBool(&repo.DeleteBranchOnMerge, r.DeleteBranchOnMerge)
 
 	return &repo
 }
 
 // Defined returns true if at least one of the pointer fields are not nil
 func (r RepoRequest) Defined() bool {
-	return r.Name != nil || r.Description != nil || r.Homepage != nil || r.Private != nil ||
+	return r.Name != nil || r.Description != nil || r.Homepage != nil || r.Private != nil || r.Visibility != nil ||
 		r.HasIssues != nil || r.HasProjects != nil || r.HasWiki != nil || r.AllowSquashMerge != nil ||
-		r.AllowMergeCommit != nil || r.AllowRebaseMerge != nil
+		r.AllowMergeCommit != nil || r.AllowRebaseMerge != nil || r.DeleteBranchOnMerge != nil
 }
 
 // RepoUpdateRequest contains metadata used for updating a repository
@@ -557,10 +608,16 @@ type BranchProtection struct {
 	AllowForcePushes           AllowForcePushes            `json:"allow_force_pushes"`
 	RequiredLinearHistory      RequiredLinearHistory       `json:"required_linear_history"`
 	AllowDeletions             AllowDeletions              `json:"allow_deletions"`
+	RequiredSignatures         RequiredSignatures          `json:"required_signatures"`
 }
 
 // AllowDeletions specifies whether to permit users with push access to delete matching branches.
 type AllowDeletions struct {
+	Enabled bool `json:"enabled"`
+}
+
+// RequiredSignatures specifies whether commits pushed to the branch must be signed with a verified signature.
+type RequiredSignatures struct {
 	Enabled bool `json:"enabled"`
 }
 
@@ -1109,6 +1166,9 @@ const (
 	PrivacySecret = "secret"
 	// PrivacyClosed memberships are visible to org members.
 	PrivacyClosed = "closed"
+
+	// TeamTypeEnterprise identifies teams managed at the enterprise level.
+	TeamTypeEnterprise = "enterprise"
 )
 
 // Team is a github organizational team
@@ -1118,6 +1178,7 @@ type Team struct {
 	Slug         string         `json:"slug"`
 	Description  string         `json:"description,omitempty"`
 	Privacy      string         `json:"privacy,omitempty"`
+	Type         string         `json:"type,omitempty"`
 	Parent       *Team          `json:"parent,omitempty"`         // Only present in responses
 	ParentTeamID *int           `json:"parent_team_id,omitempty"` // Only valid in creates/edits
 	Permission   TeamPermission `json:"permission,omitempty"`
@@ -1181,6 +1242,13 @@ type OrgPlan struct {
 // OrgMembership contains Membership fields for user membership in an org.
 type OrgMembership struct {
 	Membership
+	// DirectMembership is true when the user is a direct member of the org, as opposed to
+	// having membership conferred only indirectly (e.g. via an enterprise team). Returned by
+	// GET /orgs/{org}/memberships/{username}. It is a pointer so a missing field decodes to nil
+	// (unknown) rather than false: callers must not treat "not reported" as "not a direct member".
+	// omitempty keeps it out of the request body of PUT (UpdateOrgMembership), where it is a
+	// read-only field.
+	DirectMembership *bool `json:"direct_membership,omitempty"`
 }
 
 // TeamMembership contains Membership fields for user membership on a team.
@@ -1191,8 +1259,11 @@ type TeamMembership struct {
 // OrgInvitation contains Login and other details about the invitation.
 type OrgInvitation struct {
 	TeamMember
-	Email   string     `json:"email"`
-	Inviter TeamMember `json:"inviter"`
+	ID           int        `json:"id"`
+	Email        string     `json:"email"`
+	Inviter      TeamMember `json:"inviter"`
+	FailedAt     time.Time  `json:"failed_at,omitempty"`
+	FailedReason string     `json:"failed_reason,omitempty"`
 }
 
 // UserRepoInvitation is returned by repo invitation obtained by user.
@@ -1750,4 +1821,47 @@ type Layers struct {
 	Digest    string `json:"digest"`
 	MediaType string `json:"media_type"`
 	Size      int    `json:"size"`
+}
+
+// BlameRange represents a range of lines in a file attributed to a single author via git blame.
+type BlameRange struct {
+	StartingLine int
+	EndingLine   int
+	AuthorLogin  string
+	Date         time.Time
+}
+
+// OrganizationRole represents an organization role
+type OrganizationRole struct {
+	ID          int      `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Permissions []string `json:"permissions"`
+}
+
+// OrganizationRoleAssignmentType is how a team or user holds an organization role.
+type OrganizationRoleAssignmentType string
+
+// Possible organization role assignment types.
+const (
+	RoleAssignmentDirect   OrganizationRoleAssignmentType = "direct"
+	RoleAssignmentIndirect OrganizationRoleAssignmentType = "indirect"
+	RoleAssignmentMixed    OrganizationRoleAssignmentType = "mixed"
+)
+
+// OrganizationRoleAssignment represents a role assignment to a team or user.
+// For teams: id, slug, assignment are populated. For users: id, login, assignment are populated.
+type OrganizationRoleAssignment struct {
+	ID         int                            `json:"id"`
+	Login      string                         `json:"login,omitempty"`
+	Slug       string                         `json:"slug,omitempty"`
+	Assignment OrganizationRoleAssignmentType `json:"assignment,omitempty"`
+}
+
+// IsDirect reports whether the role is held directly, including "mixed" (direct +
+// inherited) assignments. Only a purely "indirect" assignment (inherited from a
+// parent team, or held via team membership) is not direct. Reconciliation manages
+// direct assignments and must leave indirect ones untouched.
+func (a OrganizationRoleAssignment) IsDirect() bool {
+	return a.Assignment != RoleAssignmentIndirect
 }

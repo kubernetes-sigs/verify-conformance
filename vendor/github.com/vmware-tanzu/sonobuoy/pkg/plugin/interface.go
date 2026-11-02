@@ -288,7 +288,6 @@ func (s ProgressUpdate) Key() string {
 // Corresponding to S = ProgressUpdate.Completed, F = len(ProgressUpdate.Failures),
 // and ProgressUpdate.Total - S - F respectively
 // and the ", Remaining: R" part is printed only if R is not negative
-//
 func (s *ProgressUpdate) FormatPluginProgress() (output string) {
 	//Minumum size of each field, in characters
 	minSize := 3
@@ -296,7 +295,7 @@ func (s *ProgressUpdate) FormatPluginProgress() (output string) {
 		return ""
 	}
 	output = fmt.Sprintf("Passed:%[1]*[2]v, Failed:%[1]*[3]v", minSize, s.Completed, int64(len(s.Failures)))
-	var remaining int64 = s.Total - s.Completed - int64(len(s.Failures))
+	var remaining = s.Total - s.Completed - int64(len(s.Failures))
 	if remaining >= 0 {
 		output += fmt.Sprintf(", Remaining:%[1]*[2]v", minSize, remaining)
 	}

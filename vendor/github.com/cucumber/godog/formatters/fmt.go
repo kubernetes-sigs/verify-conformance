@@ -4,7 +4,7 @@ import (
 	"io"
 	"regexp"
 
-	"github.com/cucumber/messages-go/v16"
+	messages "github.com/cucumber/messages/go/v34"
 )
 
 type registeredFormatter struct {
@@ -70,7 +70,14 @@ type Formatter interface {
 	Skipped(*messages.Pickle, *messages.PickleStep, *StepDefinition)
 	Undefined(*messages.Pickle, *messages.PickleStep, *StepDefinition)
 	Pending(*messages.Pickle, *messages.PickleStep, *StepDefinition)
+	Ambiguous(*messages.Pickle, *messages.PickleStep, *StepDefinition, error)
 	Summary()
+}
+
+// FlushFormatter is a `Formatter` but can be flushed.
+type FlushFormatter interface {
+	Formatter
+	Flush()
 }
 
 // FormatterFunc builds a formatter with given
@@ -88,4 +95,14 @@ type FormatterFunc func(string, io.Writer) Formatter
 type StepDefinition struct {
 	Expr    *regexp.Regexp
 	Handler interface{}
+	Keyword Keyword
 }
+
+type Keyword int64
+
+const (
+	Given Keyword = iota
+	When
+	Then
+	None
+)
